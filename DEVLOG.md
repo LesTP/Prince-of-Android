@@ -1,5 +1,38 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Phase 2: Target Language Decision
+
+### 2026-03-14 — Phase 2 Complete
+
+**Objective:** Choose and validate the target language for porting SDLPoP's game logic.
+
+**What happened:**
+1. Evaluated need for formal spike (seg004 translation proof-of-concept)
+2. Determined uncertainty is low:
+   - Kotlin's integer overflow semantics are well-defined (signed types wrap)
+   - PoP's math is simple (8-bit era: mostly add/sub/compare)
+   - Replay oracle will catch semantic mismatches during first file translation anyway
+3. Decided against duplicating effort — validation will occur naturally during Phase 3 implementation
+
+**Decision: Q2 CLOSED**
+**Target language: Kotlin**
+
+**Rationale:**
+- Native Android platform integration
+- Predictable integer semantics (signed Byte/Short/Int wrap on overflow, similar to C)
+- Explicit type conversions (.toByte(), .toInt()) reduce silent bugs
+- Different enough from C to meaningfully test the autonomous porting methodology
+- Good tooling and Android SDK support
+
+**Validation approach:**
+Deferred to first file translation in Phase 3. If integer semantic issues cause replay oracle failures, we'll reassess. The oracle provides immediate feedback on behavioral correctness.
+
+**Next:** Phase 3 — Test Infrastructure
+
+**Time:** ~5 minutes (design decision, not spike)
+
+---
+
 ## Phase 1: Replay Oracle Spike
 
 ### 2026-03-14 — Phase 1 Complete
