@@ -1,5 +1,42 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Phase 1: Replay Oracle Spike
+
+### 2026-03-14 — Phase 1 Complete
+
+**Objective:** Verify that SDLPoP's replay system produces deterministic state traces, validating the test oracle for the porting pipeline.
+
+**What happened:**
+1. Implemented `dump_frame_state()` in seg000.c (~60 lines) to capture per-frame game state
+2. State captured per frame:
+   - Frame number (sync marker)
+   - Character structs: `Kid`, `Guard`, `Char` (17 bytes each)
+   - Key scalars: `current_level`, `drawn_room`, `rem_min`, `rem_tick`, `hitp_curr/max`, `guardhp_curr/max`
+   - Room tile state: `curr_room_tiles[30]`, `curr_room_modif[30]`
+   - Animated tiles: `trobs_count` + `trobs[30]`
+   - Falling objects: `mobs_count` + `mobs[14]`
+   - RNG state: `random_seed`
+3. Modified `end_replay()` in replay.c to auto-exit after replay completes (prevents manual timing issues)
+4. Built with `-DDUMP_FRAME_STATE` flag
+5. Ran `first run.p1r` replay twice with `seed=12345`
+6. Binary diff: **FC: no differences encountered**
+
+**Test results:**
+- Trace file size: 299,150 bytes (identical both runs)
+- Verdict: **DETERMINISTIC ✅**
+
+**Decision: Q1 CLOSED**
+The replay oracle works. SDLPoP's game logic is deterministic given the same seed. The autonomous porting pipeline can use replay-based state comparison as its test oracle.
+
+**Artifacts:**
+- `SDLPoP/src/seg000.c` — `dump_frame_state()` function (guarded by `DUMP_FRAME_STATE`)
+- `SDLPoP/src/replay.c` — auto-exit modification
+- `SDLPoP/test_determinism.bat` — automated test script
+
+**Time:** ~1 hour
+
+---
+
 ## Phase 0: Environment Setup
 
 ### 2026-03-14 — Phase 0 Complete
