@@ -15,7 +15,7 @@ See `pop_android_port_guide.md` for:
 | # | Module | Description | Status |
 |---|--------|-------------|--------|
 | 0 | Environment Setup | Build SDLPoP, obtain replays | **Phase 0 complete** |
-| 1 | Replay Oracle | Instrument state tracing, verify determinism | Pending |
+| 1 | Replay Oracle | Instrument state tracing, verify determinism | **Phase 1 complete** |
 | 2 | Target Language | Spike: translate seg004 to candidate language | Pending |
 | 3 | Test Infrastructure | State comparator, replay runner, regression suite | Pending |
 | 4 | Control Prototype | Android gesture recognizer + modifier button | Pending |
