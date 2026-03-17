@@ -2,6 +2,72 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-17 — Step 2 Complete: Reference Traces Generated
+
+**Objective:** Generate reference state traces from all 13 replays.
+
+**What happened:**
+1. Discovered correct SDLPoP replay invocation: `.\prince.exe validate "path.p1r" seed=12345`
+   - `validate` and replay path must be **separate arguments** (not `validate="path"`)
+   - `check_param` in seg009.c skips args with `.` in them (line 375), so `validate=file.p1r` gets matched by the .p1r extension check first
+   - PowerShell `<` stdin redirection doesn't work (reserved operator), and SDLPoP reads replays by path anyway (not stdin)
+   - Output file is `state_trace.bin` (not `frame_state.bin`)
+2. Ran all 13 replays in validate mode (headless, no GUI) via Devmate
+3. All replays completed with "Play duration matches replay length"
+
+**Traces generated (SDLPoP/traces/reference/):**
+
+| Trace File | Bytes | Ticks | Level(s) |
+|-----------|------:|------:|----------|
+| basic_movement.trace | 123,070 | 397 | 1 |
+| falling.trace | 30,070 | 97 | 1 |
+| traps.trace | 70,370 | 227 | 1 |
+| sword_and_level_transition.trace | 97,340 | 314 | 1→2 |
+| demo_suave_prince_level11.trace | 76,880 | 248 | 11 |
+| falling_through_floor_pr274.trace | 25,110 | 81 | 2 |
+| grab_bug_pr288.trace | 9,300 | 30 | 1 |
+| grab_bug_pr289.trace | 21,390 | 69 | 2 |
+| original_level12_xpos_glitch.trace | 20,460 | 66 | 12 |
+| original_level2_falling_into_wall.trace | 28,830 | 93 | 2 |
+| original_level5_shadow_into_wall.trace | 54,250 | 175 | 5 |
+| snes_pc_set_level11.trace | 32,860 | 106 | 11 |
+| trick_153.trace | 14,570 | 47 | 1 |
+
+**Lessons learned (promoted to DEVPLAN Gotchas):**
+- SDLPoP replay invocation syntax: separate arguments, not `key=value`
+- Output filename: `state_trace.bin`
+- PowerShell stdin redirection `<` is a reserved operator
+
+**Next:** Step 3 — Build State Trace Comparator (Python)
+
+**Time:** ~15 minutes (via Devmate, all 13 replays)
+
+---
+
+### 2026-03-17 — Step 2 Handoff: Shell Commands Required
+
+**Objective:** Generate reference state traces from all 13 replays using instrumented SDLPoP build.
+
+**What happened:**
+Step 2 requires shell execution (running prince.exe, moving files, batch processing 13 replays). Per CLAUDE.md automation rules, Bash tool is blocked by Sandboxie (ConsoleInit not implemented in 3pAgentBox).
+
+**Action taken:**
+Created `HUMAN_STEPS.md` with complete shell command sequence:
+1. Verify DUMP_FRAME_STATE build from Phase 1 still exists (or rebuild if needed)
+2. Create `traces/reference/` directory
+3. Run all 13 replays through instrumented build with `seed=12345`
+4. Move generated `frame_state.bin` to named trace files
+5. Verify all traces generated successfully
+6. Note file sizes for REPLAY_COVERAGE.md duration update
+
+**Escalation reason:** HUMAN_STEPS.md has pending commands (Step 2 execution).
+
+**Next:** Human runs commands in HUMAN_STEPS.md, deletes file, re-runs loop → autonomous execution resumes at Step 3 (Build State Trace Comparator).
+
+**Time:** ~3 minutes (command sequence authoring)
+
+---
+
 ### 2026-03-17 — Step 1 Complete: Replay Coverage Inventory
 
 **Objective:** Document what mechanics each existing replay exercises.

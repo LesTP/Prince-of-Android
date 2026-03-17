@@ -11,6 +11,7 @@
 
 **Gotchas:**
 - **Sandboxie blocks shell in CLI loop:** Corporate Sandboxie (`3pAgentBox`) doesn't implement `ConsoleInit`/`OpenDesktop`. Claude CLI's `Bash(*)` tool hangs when spawning `pwsh.exe`/`cmd.exe`. **Workaround:** CLI loop handles read/write only; shell tasks (builds, git, traces) run manually or via Devmate. Devmate's `execute_command` works because VS Code's extension host bypasses the limitation.
+- **SDLPoP replay invocation:** Use `.\prince.exe validate "path\to\replay.p1r" seed=12345` — `validate` and the replay path must be **separate arguments**. `validate="path"` syntax fails because the `.p1r` extension check in seg000.c fires first and treats the whole string as a filename. PowerShell's `<` stdin redirection also doesn't work (reserved operator). Output trace file is `state_trace.bin` (not `frame_state.bin`).
 - **SDL2_image DLL Hell (Windows):** SDL2_image pulls ~30 DLLs. Copy all from `/mingw64/bin/` or use `ldd` to find missing ones.
 - **MinGW pkg-config:** Install separately: `pacman -S mingw-w64-x86_64-pkgconf`
 - **MSYS2 PATH:** Use `PATH='/mingw64/bin:/usr/bin:$PATH'` — make is in /usr/bin, gcc in /mingw64/bin
@@ -21,8 +22,8 @@
 ## Current Status
 
 **Phase:** 3 — Test Infrastructure
-**Focus:** Step 2 — Generate Reference State Traces
-**Blocked/Broken:** None — Step 1 complete (REPLAY_COVERAGE.md created). Step 2 requires shell commands (prince.exe with DUMP_FRAME_STATE build).
+**Focus:** Step 3 — Build State Trace Comparator
+**Blocked/Broken:** None — Step 2 complete (13/13 reference traces generated in SDLPoP/traces/reference/)
 
 ## Phase Summary
 
