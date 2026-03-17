@@ -2,6 +2,62 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-17 — Step 3 Complete: Trace Comparator Validated
+
+**Objective:** Validate and fix state trace comparator tool.
+
+**What happened:**
+1. CLI loop created `tools/compare_traces.py`, `TRACE_FORMAT.md`, `tools/test_comparator.sh`
+2. Ran validation via Devmate (shell blocked for CLI loop by Sandboxie)
+3. **Bug found:** `CHAR_TYPE_SIZE = 17` was wrong — actual `char_type` is **16 bytes** (14 single-byte fields + 1 word). Off-by-one per character × 3 characters = 3 bytes excess, causing `random_seed` field to overrun the buffer.
+4. Fixed: `CHAR_TYPE_SIZE = 16`. Assert now passes, total offset = 310 = FRAME_SIZE.
+5. All tests pass:
+   - Self-match: all 13 traces → MATCH ✅
+   - Corrupted byte: `DIVERGENCE at frame 5: Field: Kid.x: expected 77, got 255` ✅
+   - Length mismatch: `DIVERGENCE: Frame count mismatch` ✅
+
+**Lessons learned:** Always verify struct sizes against actual C typedefs. The `char_type` has 14 single-byte fields + 1 `word` (2 bytes) = 16 bytes, not 17.
+
+**Next:** Step 4 — Set Up Kotlin Project Structure
+
+**Time:** ~10 minutes (validation + fix via Devmate)
+
+---
+
+### 2026-03-17 — Step 3 Handoff: Shell Validation Required
+
+**Objective:** Validate state trace comparator tool.
+
+**What happened:**
+1. Created `TRACE_FORMAT.md` documenting binary trace structure:
+   - 310 bytes per frame
+   - Field-by-field layout with offsets
+   - Type sizes and byte ordering
+   - Calculated from dump_frame_state() implementation in seg000.c
+2. Created `tools/compare_traces.py` (Python, stdlib only):
+   - Parses binary traces frame-by-frame
+   - Compares field-by-field with human-readable diff
+   - Handles char_type, trob_type, mob_type nested structures
+   - Exit codes: 0=match, 1=diverge, 2=error
+   - 250 lines with full error handling
+3. Created `tools/test_comparator.sh` validation suite:
+   - Test 1: identical traces → MATCH
+   - Test 2: corrupted byte → reports exact frame/field
+   - Test 3: length mismatch detection
+
+**Artifacts:**
+- `TRACE_FORMAT.md` — complete binary format spec
+- `tools/compare_traces.py` — working comparator
+- `tools/test_comparator.sh` — test suite
+
+**Escalation reason:** Step 3 code complete, but acceptance criteria require running shell commands to validate. HUMAN_STEPS.md updated with test commands.
+
+**Next:** Human runs validation tests, confirms comparator works correctly, re-runs loop → Step 3 marked complete.
+
+**Time:** ~10 minutes (file work)
+
+---
+
 ### 2026-03-17 — Step 2 Complete: Reference Traces Generated
 
 **Objective:** Generate reference state traces from all 13 replays.

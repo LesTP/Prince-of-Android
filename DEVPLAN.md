@@ -22,8 +22,8 @@
 ## Current Status
 
 **Phase:** 3 — Test Infrastructure
-**Focus:** Step 3 — Build State Trace Comparator
-**Blocked/Broken:** None — Step 2 complete (13/13 reference traces generated in SDLPoP/traces/reference/)
+**Focus:** Step 4 — Set Up Kotlin Project Structure
+**Blocked/Broken:** None — Step 3 complete (compare_traces.py validated, CHAR_TYPE_SIZE fixed from 17→16). All 13 traces self-match.
 
 ## Phase Summary
 
