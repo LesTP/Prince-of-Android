@@ -2,6 +2,42 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-17 — Step 1 Complete: Replay Coverage Inventory
+
+**Objective:** Document what mechanics each existing replay exercises.
+
+**What happened:**
+1. Used Glob tool to enumerate all replay files (no shell commands needed)
+2. Found 4 user-recorded replays in `SDLPoP/replays/`:
+   - basic movement.p1r
+   - falling.p1r
+   - traps.p1r
+   - sword and level transition.p1r
+3. Found 9 regression test replays in `SDLPoP/doc/replays-testcases/`
+4. Created `REPLAY_COVERAGE.md` with:
+   - Coverage matrix for all 13 replays
+   - Mechanics analysis (what's covered vs gaps)
+   - Duration placeholder (TBD in Step 2 when traces generated)
+   - Recommendations for additional replays if needed
+
+**Coverage findings:**
+- **Well covered:** Basic movement, vertical movement (fall/grab/climb), traps, combat, level transitions, edge cases
+- **Gaps identified:** Potion pickups, door opening, multiple guard types, death/respawn, save/load, timer mechanics, mirror room
+
+**Artifacts:**
+- `REPLAY_COVERAGE.md` — comprehensive coverage analysis
+
+**Step 1 acceptance criteria:** ✅ All met
+- [x] REPLAY_COVERAGE.md exists
+- [x] All replays in SDLPoP/replays/ documented
+- [x] Coverage gaps identified
+
+**Next:** Step 2 — Generate reference state traces from all replays
+
+**Time:** ~5 minutes (autonomous iteration)
+
+---
+
 ### 2026-03-17 — Sandboxie Root Cause + Loop Adaptation
 
 **Objective:** Validate native CLI autonomous loop; diagnose shell hanging.

@@ -21,8 +21,8 @@
 ## Current Status
 
 **Phase:** 3 — Test Infrastructure
-**Focus:** Step 1 — Inventory Replay Coverage
-**Blocked/Broken:** None — replay suite recorded (basic movement, falling, traps, sword + level transition) plus 9 regression replays in doc/replays-testcases/
+**Focus:** Step 2 — Generate Reference State Traces
+**Blocked/Broken:** None — Step 1 complete (REPLAY_COVERAGE.md created). Step 2 requires shell commands (prince.exe with DUMP_FRAME_STATE build).
 
 ## Phase Summary
 
