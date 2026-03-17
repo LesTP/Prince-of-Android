@@ -22,8 +22,8 @@
 ## Current Status
 
 **Phase:** 3 — Test Infrastructure
-**Focus:** Step 4 — Set Up Kotlin Project Structure
-**Blocked/Broken:** None — Step 3 complete (compare_traces.py validated, CHAR_TYPE_SIZE fixed from 17→16). All 13 traces self-match.
+**Focus:** Step 5 — Build .P1R Replay File Parser
+**Blocked/Broken:** Step 4 structure complete but `gradle build` validation deferred — JDK and Gradle not installed. Build validation will occur when Step 5 is reached (requires same toolchain).
 
 ## Phase Summary
 

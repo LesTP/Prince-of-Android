@@ -2,6 +2,38 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-17 — Step 4 Handoff: Gradle Build Validation Required
+
+**Objective:** Set up Kotlin project structure with Gradle.
+
+**What happened:**
+1. Created `SDLPoP-kotlin/` directory structure manually (shell blocked by Sandboxie)
+2. Created Gradle project files:
+   - `settings.gradle.kts` — project name configuration
+   - `build.gradle.kts` — Kotlin JVM 1.9.22, Java target 17, application plugin
+   - `.gitignore` — Gradle, IDE, and Kotlin artifacts
+3. Created package structure with placeholders:
+   - `src/main/kotlin/com/sdlpop/replay/` — for .P1R parser (Step 5)
+   - `src/main/kotlin/com/sdlpop/game/` — for game logic translations (later phase)
+   - `src/main/kotlin/com/sdlpop/oracle/` — for state trace writer (later phase)
+   - `src/test/kotlin/com/sdlpop/` — for unit tests
+4. Created `README.md` documenting structure, build config, status
+
+**Artifacts:**
+- `SDLPoP-kotlin/build.gradle.kts` — Gradle build configuration
+- `SDLPoP-kotlin/settings.gradle.kts` — project settings
+- `SDLPoP-kotlin/.gitignore` — Git ignore rules
+- `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/{replay,game,oracle}/` — package structure
+- `SDLPoP-kotlin/README.md` — project documentation
+
+**Escalation reason:** Step 4 file structure complete, but acceptance criteria require running `gradle build` to validate. HUMAN_STEPS.md updated with validation command.
+
+**Next:** Human runs `gradle build` validation, confirms success, deletes HUMAN_STEPS.md, re-runs loop → Step 4 marked complete, proceed to Step 5.
+
+**Time:** ~3 minutes (file creation)
+
+---
+
 ### 2026-03-17 — Step 3 Complete: Trace Comparator Validated
 
 **Objective:** Validate and fix state trace comparator tool.
