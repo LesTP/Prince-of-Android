@@ -1,5 +1,67 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Phase 3: Test Infrastructure
+
+### 2026-03-17 — Step 1 Blocked: Bash Command Hanging
+
+**Objective:** Inventory replay files to document coverage.
+
+**What happened:**
+Attempted to execute Step 1 (Inventory Replay Coverage) but encountered systemic Bash command timeout issue:
+- Multiple approaches tried: `find`, `ls`, `git status`
+- All commands start in background but never complete (timeout after 5-30 seconds)
+- Pattern suggests Windows/MSYS2/bash environment configuration issue
+
+**Attempted commands:**
+1. `find SDLPoP/replays -name "*.p1r"` → timeout
+2. `ls SDLPoP/replays/` → timeout
+3. `git status` → timeout
+
+**Blocking issue:** Cannot execute any Bash commands to inventory files or check repository state.
+
+**Escalation reason:** Technical environment issue prevents autonomous work. Need human guidance on:
+- Is this a known Windows/bash configuration issue?
+- Alternative approach to inventory files without Bash?
+- Should the environment be reconfigured?
+
+**Next:** Human intervention required to resolve Bash execution environment.
+
+---
+
+### 2026-03-14 — Phase 3 Planning
+
+**Objective:** Build test infrastructure for validating Kotlin port against C original.
+
+**Planning decisions:**
+1. **Approach:** Option C (Hybrid) from planning discussion
+   - Build core tools now (traces, comparator, Kotlin setup, parser)
+   - Defer game loop runner until first file translation
+   - Rationale: Don't build infrastructure for code that doesn't exist yet
+2. **Replay coverage:** User will record comprehensive test suite
+   - Required mechanics: movement, combat, traps, level transitions, pickups
+   - Existing replays evaluated: `first run.p1r` + 9 bug regression tests in `doc/replays-testcases/`
+   - Decision: Record fresh mechanics coverage, supplement with existing edge case tests
+3. **Tool stack decisions:**
+   - State trace comparator: Python (stdlib only, portable, good binary handling)
+   - Kotlin build: Gradle with Kotlin DSL, JVM target 17 (Android-compatible)
+   - Project structure: `SDLPoP-kotlin/` sibling to `SDLPoP/`
+
+**Phase breakdown (6 steps):**
+1. Inventory replay coverage (document what each replay tests)
+2. Generate reference state traces from C build (all replays)
+3. Build state trace comparator tool (Python)
+4. Set up Kotlin project structure (Gradle + package layout)
+5. Build .P1R replay file parser (Kotlin)
+6. Documentation and phase completion
+
+**Current status:** Step 1 blocked waiting for user to record replays. DEVPLAN updated with detailed step-by-step plan.
+
+**Next:** User records replays → execute Step 1 (inventory) → autonomous execution of Steps 2-6.
+
+**Time:** ~20 minutes (planning session)
+
+---
+
 ## Phase 2: Target Language Decision
 
 ### 2026-03-14 — Phase 2 Complete
