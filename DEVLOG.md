@@ -2,7 +2,30 @@
 
 ## Phase 3: Test Infrastructure
 
-### 2026-03-17 — Step 1 Blocked: Bash Command Hanging
+### 2026-03-17 — Sandboxie Root Cause + Loop Adaptation
+
+**Objective:** Validate native CLI autonomous loop; diagnose shell hanging.
+
+**What happened:**
+1. Ran 4-iteration CLI validation test via `claude -p` from VS Code terminal
+2. Iteration 1 (context load + file write): **PASS** — TEST_REPORT.md created correctly
+3. Iteration 2 (shell commands): **FAIL** — all 4 attempted commands timed out
+
+**Root cause identified:** Corporate Sandboxie sandbox (`3pAgentBox`) does not implement `ConsoleInit` or `OpenDesktop` Win32 services. Claude CLI's `Bash(*)` tool spawns `pwsh.exe`/`cmd.exe` child processes that require these services to initialize. Processes hang indefinitely, creating zombie processes (user found ~12 hanging bash/git processes in Task Manager from prior attempts).
+
+**Why Devmate works:** VS Code's extension host process management bypasses the ConsoleInit limitation. Devmate's `execute_command` tool works normally.
+
+**Resolution:** Updated CLAUDE.md automation section with:
+- Explicit "DO NOT execute shell commands" constraint
+- `HUMAN_STEPS.md` handoff pattern: loop writes commands for human to run
+- ESCALATE trigger when HUMAN_STEPS.md has pending commands
+- Removed "Commit per step" (git requires shell)
+
+**This supersedes the 2026-03-17 entry below** — the "Windows/MSYS2/bash configuration issue" hypothesis was incorrect. Root cause was always Sandboxie.
+
+---
+
+### 2026-03-17 — Step 1 Blocked: Bash Command Hanging (superseded)
 
 **Objective:** Inventory replay files to document coverage.
 
@@ -10,7 +33,7 @@
 Attempted to execute Step 1 (Inventory Replay Coverage) but encountered systemic Bash command timeout issue:
 - Multiple approaches tried: `find`, `ls`, `git status`
 - All commands start in background but never complete (timeout after 5-30 seconds)
-- Pattern suggests Windows/MSYS2/bash environment configuration issue
+- ~~Pattern suggests Windows/MSYS2/bash environment configuration issue~~ **Root cause: Sandboxie — see entry above**
 
 **Attempted commands:**
 1. `find SDLPoP/replays -name "*.p1r"` → timeout
