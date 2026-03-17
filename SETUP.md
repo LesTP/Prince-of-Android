@@ -251,20 +251,47 @@ correctly across 4 separate cold starts. Phase marked COMPLETE. ESCALATE
 reason: "human audit before next phase." Git noted as unavailable inside
 container (commit skipped, logged).
 
-### 2026-03-17: Native CLI shell test
+### 2026-03-17: Native CLI shell test (Devmate)
 
-**Runtime:** Claude Code CLI, Windows 11, PowerShell 7
+**Runtime:** Devmate (VS Code), Windows 11, PowerShell 7
 
-**Verified:** PowerShell commands execute without hanging:
+**Verified:** PowerShell commands execute without hanging via Devmate:
 - `Get-ChildItem` (file listing) — PASS
 - `git log` — PASS
 
-Prior Docker/MSYS2 bash hanging issue (2026-03-17 DEVLOG) does not
-reproduce with native CLI. The `Bash(*)` tool permission uses the
-system's default shell (PowerShell 7).
+### 2026-03-17: Native CLI loop test (4-iteration)
 
-**Pending:** Full loop iteration test via native CLI (planned as next
-validation step).
+**Runtime:** Claude Code CLI via VS Code integrated terminal, Windows 11
+
+**Result: PARTIAL PASS — read/write works, shell blocked by Sandboxie.**
+
+- Iteration 1 (context loading + file write): **PASS** — created
+  TEST_REPORT.md with correct content (files loaded, summaries, CWD)
+- Iteration 2 (shell commands): **FAIL** — 4 shell commands attempted,
+  all timed out. Claude escalated with "Shell commands timing out."
+- Iterations 3-4: not reached.
+
+**Root cause:** Corporate Sandboxie sandbox (`3pAgentBox`) does not
+implement `ConsoleInit` or `OpenDesktop` Win32 services. Claude CLI's
+`Bash(*)` tool spawns child processes (`pwsh.exe`, `cmd.exe`) that
+require these services to initialize their consoles. The processes
+hang indefinitely.
+
+**Why Devmate works but CLI doesn't:** Devmate runs as a VS Code
+extension using VS Code's own process management infrastructure,
+which bypasses the ConsoleInit limitation. Claude CLI spawns processes
+directly, hitting the Sandboxie block.
+
+**Workaround:** The autonomous loop can read/write files (most of the
+Phase 3 work). Shell-dependent tasks (builds, git commits, trace
+generation) must be run manually by the user between iterations, or
+driven through Devmate sessions.
+
+**Config reference:** `Sandboxie.ini` — `EditAdminOnly=y` prevents
+user modification. Key hidden messages confirming the limitation:
+- `SBIE2205: Service not implemented: ConsoleInit(C00000D4)`
+- `SBIE2205: Service not implemented: OpenDesktop`
+- `Initialization failed for process cmd.exe [88/0]`
 
 ---
 

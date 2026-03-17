@@ -10,6 +10,7 @@
 - Target language: Kotlin (native Android, validation via replay oracle)
 
 **Gotchas:**
+- **Sandboxie blocks shell in CLI loop:** Corporate Sandboxie (`3pAgentBox`) doesn't implement `ConsoleInit`/`OpenDesktop`. Claude CLI's `Bash(*)` tool hangs when spawning `pwsh.exe`/`cmd.exe`. **Workaround:** CLI loop handles read/write only; shell tasks (builds, git, traces) run manually or via Devmate. Devmate's `execute_command` works because VS Code's extension host bypasses the limitation.
 - **SDL2_image DLL Hell (Windows):** SDL2_image pulls ~30 DLLs. Copy all from `/mingw64/bin/` or use `ldd` to find missing ones.
 - **MinGW pkg-config:** Install separately: `pacman -S mingw-w64-x86_64-pkgconf`
 - **MSYS2 PATH:** Use `PATH='/mingw64/bin:/usr/bin:$PATH'` — make is in /usr/bin, gcc in /mingw64/bin
