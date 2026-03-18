@@ -23,7 +23,7 @@
 
 **Phase:** 3 — Test Infrastructure
 **Focus:** Step 5 — Build .P1R Replay File Parser
-**Blocked/Broken:** Step 4 structure complete but `gradle build` validation deferred — JDK and Gradle not installed. Build validation will occur when Step 5 is reached (requires same toolchain).
+**Blocked/Broken:** None — Steps 1-4 complete. JDK 17 + Gradle 9.4.0 installed, `gradle build` passes.
 
 ## Phase Summary
 
