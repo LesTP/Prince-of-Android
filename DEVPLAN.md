@@ -24,9 +24,14 @@
 
 ## Current Status
 
-**Phase:** 4 — Control Prototype
-**Focus:** Not started (next preparation phase)
-**Blocked/Broken:** None — Phase 3 complete.
+**Track:** A — Game Logic Translation (Build regime, autonomous)
+**Focus:** Not started — next step is State Model (types.h + data.h → Kotlin)
+**Blocked/Broken:** None — Phase 5 (formal docs) in progress, Track A can begin immediately after.
+
+**Tracks overview:**
+- **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. Runs within current environment (file read/write + manual shell). **Next.**
+- **Track B (Android Platform):** Rendering, platform, audio, game loop. Requires Android Studio. **After Track A.**
+- **Track C (Touch Controls):** Gesture prototype + playtesting. Requires Android Studio + phone. **Parallel, any time.**
 
 ## Phase Summary
 

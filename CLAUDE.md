@@ -4,27 +4,36 @@
 This project follows the From Idea to Code governance framework.
 
 ## Always Loaded
-- @pop_android_port_guide.md — pre-Discovery research and preparation sequence
+- @PROJECT.md — scope, constraints, success criteria
+- @ARCHITECTURE.md — component map, layer contracts, implementation sequence
 - @GOVERNANCE.md — development process reference
-- @DEVPLAN.md — current status, phase plan, cold start summary
+- @DEVPLAN.md — current status, cold start summary, gotchas
 
 ## Load for Current Module
-This project is in pre-Discovery phase. No modules defined yet.
-Determine the active module from ARCHITECTURE.md's Implementation Sequence
-table — first module without "Complete" status. If ARCHITECTURE.md does
-not exist, we are still in Discovery/Architecture phase.
+Determine the active track and module from DEVPLAN's Current Status section.
+For layer contracts and module dependencies, see ARCHITECTURE.md.
 
 ## Available Modules
-<!-- Update this list during Architecture phase -->
-- (none yet — pre-Discovery)
+**Track A — Game Logic Translation (current):**
+- Module 6: State Model (types.h + data.h → Kotlin)
+- Module 7: Sequence Table (seqtbl.c → Kotlin)
+- Modules 8-12: Layer 1 game logic (seg006 → seg004 → seg005 → seg002 → seg007)
+- Module 13: Layer 1 integration test
+- Module 14: Replay runner
+
+**Track B — Android Platform (after Track A):**
+- Modules 15-18: Game loop, rendering, platform, audio
+
+**Track C — Touch Controls (parallel, any time):**
+- Module 4: Control prototype
+- Module 19: In-game controls
 
 ## Project-Specific Notes
 - Source codebase: SDLPoP (open-source C reimplementation of Prince of Persia)
-- Target: Android (touch controls)
+- Target: Kotlin (decided Phase 2)
 - Primary goal: test autonomous AI porting methodology
-- Secondary goal: working, playable game
-- Pre-Discovery guide exists at pop_android_port_guide.md with codebase
-  analysis, blocking questions, preparation sequence, and risk register
+- Secondary goal: working, playable Android game
+- Test oracle: replay-based deterministic state comparison (13 reference traces, validated Phase 1+3)
 
 ## Automation
 Running at Continuous autonomy. One step per loop iteration.
@@ -49,23 +58,18 @@ Expected result: [what to check]
 ```
 
 ### Each Iteration
-1. Read this file and follow `@` references to load available project documents
-2. If ARCHITECTURE.md exists: determine the active module from its
-   Implementation Sequence table — first module without "Complete" status.
-   Load that module's ARCH_[module].md and DEVPLAN.md.
-3. If ARCHITECTURE.md does not exist: we are in pre-Discovery/Discovery phase.
-   Work from pop_android_port_guide.md's preparation sequence.
-4. Determine current state from DEVPLAN's Current Status section
-   (or from pop_android_port_guide.md's checklist if no DEVPLAN exists)
-5. Execute the next action — exactly one of:
-   - **No active phase:** Create or update DEVPLAN. Exit.
+1. Read this file and follow `@` references to load project documents
+2. Read DEVPLAN's Current Status to determine the active track and module
+3. Read ARCHITECTURE.md's layer contract for the active module
+4. Execute the next action — exactly one of:
+   - **No active phase:** Create or update DEVPLAN with step breakdown. Exit.
    - **Phase in progress:** Pick the next step from DEVPLAN. Do all
      file read/write work. If shell commands are needed, write them
      to HUMAN_STEPS.md. Update DEVLOG. Exit.
    - **All steps complete:** Log decisions to DECISIONS.md. Exit.
    - **Review fixes done:** Full doc update, contract propagation,
      DEVPLAN cleanup. Exit.
-6. Output exit signal as the final two lines:
+5. Output exit signal as the final two lines:
    ```
    LOOP_SIGNAL: CONTINUE
    REASON: [one line — what was done]
