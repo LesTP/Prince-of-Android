@@ -17,7 +17,7 @@ Exit codes:
 import struct
 import sys
 from pathlib import Path
-from typing import BinaryIO, Optional, Tuple
+from typing import Optional
 
 
 # Frame structure constants (from TRACE_FORMAT.md)
@@ -63,7 +63,7 @@ class FrameData:
         self.drawn_room = struct.unpack_from('<H', self.raw, offset)[0]
         offset += 2
 
-        self.rem_min = struct.unpack_from('<H', self.raw, offset)[0]
+        self.rem_min = struct.unpack_from('<h', self.raw, offset)[0]
         offset += 2
 
         self.rem_tick = struct.unpack_from('<H', self.raw, offset)[0]
@@ -89,14 +89,14 @@ class FrameData:
         offset += 30
 
         # Trobs
-        self.trobs_count = struct.unpack_from('<H', self.raw, offset)[0]
+        self.trobs_count = struct.unpack_from('<h', self.raw, offset)[0]
         offset += 2
 
         self.trobs = self.raw[offset:offset + TROB_TYPE_SIZE * TROBS_MAX]
         offset += TROB_TYPE_SIZE * TROBS_MAX
 
         # Mobs
-        self.mobs_count = struct.unpack_from('<H', self.raw, offset)[0]
+        self.mobs_count = struct.unpack_from('<h', self.raw, offset)[0]
         offset += 2
 
         self.mobs = self.raw[offset:offset + MOB_TYPE_SIZE * MOBS_MAX]

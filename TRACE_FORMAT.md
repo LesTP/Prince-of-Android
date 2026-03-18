@@ -13,29 +13,29 @@ Each frame is **310 bytes** with the following layout:
 | Offset | Size | Type | Field | Description |
 |--------|------|------|-------|-------------|
 | 0 | 4 | dword | frame_number | Sequential frame counter (0-indexed) |
-| 4 | 17 | char_type | Kid | Player character struct |
-| 21 | 17 | char_type | Guard | Active guard character struct |
-| 38 | 17 | char_type | Char | Current character being processed |
-| 55 | 2 | word | current_level | Level number (1-14) |
-| 57 | 2 | word | drawn_room | Currently drawn room |
-| 59 | 2 | word | rem_min | Timer: remaining minutes |
-| 61 | 2 | word | rem_tick | Timer: remaining ticks (720 ticks/minute) |
-| 63 | 2 | word | hitp_curr | Kid's current hit points |
-| 65 | 2 | word | hitp_max | Kid's maximum hit points |
-| 67 | 2 | word | guardhp_curr | Guard's current hit points |
-| 69 | 2 | word | guardhp_max | Guard's maximum hit points |
-| 71 | 30 | byte[30] | curr_room_tiles | Current room tile types (3 rows × 10 cols) |
-| 101 | 30 | byte[30] | curr_room_modif | Current room tile modifiers |
-| 131 | 2 | word | trobs_count | Number of active animated tiles (trobs) |
-| 133 | 90 | trob_type[30] | trobs | Animated tiles array (3 bytes × 30) |
-| 223 | 2 | word | mobs_count | Number of active movable objects (falling tiles) |
-| 225 | 84 | mob_type[14] | mobs | Movable objects array (6 bytes × 14) |
-| 309 | 4 | dword | random_seed | RNG state |
+| 4 | 16 | char_type | Kid | Player character struct |
+| 20 | 16 | char_type | Guard | Active guard character struct |
+| 36 | 16 | char_type | Char | Current character being processed |
+| 52 | 2 | word | current_level | Level number (1-14) |
+| 54 | 2 | word | drawn_room | Currently drawn room |
+| 56 | 2 | short | rem_min | Timer: remaining minutes |
+| 58 | 2 | word | rem_tick | Timer: remaining ticks (720 ticks/minute) |
+| 60 | 2 | word | hitp_curr | Kid's current hit points |
+| 62 | 2 | word | hitp_max | Kid's maximum hit points |
+| 64 | 2 | word | guardhp_curr | Guard's current hit points |
+| 66 | 2 | word | guardhp_max | Guard's maximum hit points |
+| 68 | 30 | byte[30] | curr_room_tiles | Current room tile types (3 rows × 10 cols) |
+| 98 | 30 | byte[30] | curr_room_modif | Current room tile modifiers |
+| 128 | 2 | short | trobs_count | Number of active animated tiles (trobs) |
+| 130 | 90 | trob_type[30] | trobs | Animated tiles array (3 bytes × 30) |
+| 220 | 2 | short | mobs_count | Number of active movable objects (falling tiles) |
+| 222 | 84 | mob_type[14] | mobs | Movable objects array (6 bytes × 14) |
+| 306 | 4 | dword | random_seed | RNG state |
 | **Total** | **310** | | | |
 
 ## Nested Type Structures
 
-### char_type (17 bytes)
+### char_type (16 bytes)
 
 Character state struct. Fields:
 
@@ -56,7 +56,7 @@ Character state struct. Fields:
 | 12 | 1 | byte | sword | Sword status (0=sheathed, 2=drawn) |
 | 13 | 1 | sbyte | alive | Alive status (1=alive, 0=dead, <0=dying) |
 | 14 | 2 | word | curr_seq | Current animation sequence ID |
-| **Total** | **17** | | | (includes 1 byte padding for word alignment) |
+| **Total** | **16** | | | |
 
 ### trob_type (3 bytes)
 

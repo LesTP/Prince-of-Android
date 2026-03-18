@@ -1,11 +1,10 @@
 package com.sdlpop.replay
 
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class P1RParserTest {
@@ -16,14 +15,10 @@ class P1RParserTest {
     @Test
     fun `parse basic movement replay successfully`() {
         val replayPath = replayBasePath.resolve("basic movement.p1r")
-        if (!replayPath.toFile().exists()) {
-            println("Skipping test: replay file not found at $replayPath")
-            return
-        }
+        assumeTrue(replayPath.toFile().exists(), "Replay file not found: $replayPath")
 
         val replay = P1RParser.parseP1R(replayPath)
 
-        assertNotNull(replay)
         assertEquals(0, replay.formatClass, "Format class should be 0 for SDLPoP")
         assertTrue(replay.versionNumber >= 101, "Version should be >= 101")
         assertTrue(replay.deprecationNumber <= 2, "Deprecation should be <= 2")
@@ -36,14 +31,10 @@ class P1RParserTest {
     @Test
     fun `parse falling replay successfully`() {
         val replayPath = replayBasePath.resolve("falling.p1r")
-        if (!replayPath.toFile().exists()) {
-            println("Skipping test: replay file not found at $replayPath")
-            return
-        }
+        assumeTrue(replayPath.toFile().exists(), "Replay file not found: $replayPath")
 
         val replay = P1RParser.parseP1R(replayPath)
 
-        assertNotNull(replay)
         assertEquals(0, replay.formatClass)
         assertTrue(replay.numReplayTicks > 0)
     }
@@ -51,14 +42,10 @@ class P1RParserTest {
     @Test
     fun `parse traps replay successfully`() {
         val replayPath = replayBasePath.resolve("traps.p1r")
-        if (!replayPath.toFile().exists()) {
-            println("Skipping test: replay file not found at $replayPath")
-            return
-        }
+        assumeTrue(replayPath.toFile().exists(), "Replay file not found: $replayPath")
 
         val replay = P1RParser.parseP1R(replayPath)
 
-        assertNotNull(replay)
         assertEquals(0, replay.formatClass)
         assertTrue(replay.numReplayTicks > 0)
     }
@@ -66,30 +53,20 @@ class P1RParserTest {
     @Test
     fun `parse sword and level transition replay successfully`() {
         val replayPath = replayBasePath.resolve("sword and level transition.p1r")
-        if (!replayPath.toFile().exists()) {
-            println("Skipping test: replay file not found at $replayPath")
-            return
-        }
+        assumeTrue(replayPath.toFile().exists(), "Replay file not found: $replayPath")
 
         val replay = P1RParser.parseP1R(replayPath)
 
-        assertNotNull(replay)
         assertEquals(0, replay.formatClass)
         assertTrue(replay.numReplayTicks > 0)
     }
 
     @Test
     fun `parse all test case replays without errors`() {
-        if (!testReplayPath.toFile().exists()) {
-            println("Skipping test: test replays directory not found at $testReplayPath")
-            return
-        }
+        assumeTrue(testReplayPath.toFile().exists(), "Test replays directory not found: $testReplayPath")
 
         val testReplays = testReplayPath.toFile().listFiles { _, name -> name.endsWith(".p1r") }
-        if (testReplays.isNullOrEmpty()) {
-            println("Skipping test: no .p1r files found in $testReplayPath")
-            return
-        }
+        assumeTrue(!testReplays.isNullOrEmpty(), "No .p1r files found in $testReplayPath")
 
         var successCount = 0
         testReplays.forEach { file ->

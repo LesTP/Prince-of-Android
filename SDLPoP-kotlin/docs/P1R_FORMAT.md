@@ -18,7 +18,7 @@ Binary file format used by SDLPoP for replay files. All multi-byte integers are 
 | 17+N+M | 4 | dword (uint32) | savestate_size | Size of embedded savestate |
 | 21+N+M | S | byte[S] | savestate_buffer | Game state snapshot |
 | 21+N+M+S | variable | | options_sections | Options data (see below) |
-| ... | 4 | int32 | start_level | Starting level number |
+| ... | 2 | word (uint16) | start_level | Starting level number |
 | ... | 4 | dword (uint32) | random_seed | RNG seed for deterministic playback |
 | ... | 4 | dword (uint32) | num_replay_ticks | Number of input frames |
 | ... | T | byte[T] | moves | Input sequence (T = num_replay_ticks) |

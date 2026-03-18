@@ -1,6 +1,5 @@
 package com.sdlpop.replay
 
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
@@ -139,9 +138,6 @@ object P1RParser {
 
             // Read savestate
             val savestateSize = buffer.int.toLong() and 0xFFFFFFFF
-            if (savestateSize < 0 || savestateSize > Int.MAX_VALUE) {
-                throw P1RParseException("Invalid savestate size: $savestateSize")
-            }
             val savestateBuffer = ByteArray(savestateSize.toInt())
             buffer.get(savestateBuffer)
 
@@ -149,9 +145,6 @@ object P1RParser {
             val optionsSections = mutableListOf<ByteArray>()
             repeat(NUM_OPTIONS_SECTIONS) {
                 val sectionSize = buffer.int.toLong() and 0xFFFFFFFF
-                if (sectionSize < 0 || sectionSize > Int.MAX_VALUE) {
-                    throw P1RParseException("Invalid options section size: $sectionSize")
-                }
                 val sectionData = ByteArray(sectionSize.toInt())
                 buffer.get(sectionData)
                 optionsSections.add(sectionData)
@@ -165,9 +158,6 @@ object P1RParser {
 
             // Read num replay ticks (dword = uint32)
             val numReplayTicks = buffer.int.toLong() and 0xFFFFFFFF
-            if (numReplayTicks < 0 || numReplayTicks > Int.MAX_VALUE) {
-                throw P1RParseException("Invalid num_replay_ticks: $numReplayTicks")
-            }
 
             // Read moves array
             val moves = ByteArray(numReplayTicks.toInt())
