@@ -2,6 +2,45 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-18 — Phase 3 Complete
+
+**Objective:** Build test infrastructure for validating Kotlin port against C original.
+
+**Deliverables — all met:**
+1. ✅ `REPLAY_COVERAGE.md` — coverage matrix for 13 replays (4 user-recorded, 9 regression)
+2. ✅ `SDLPoP/traces/reference/` — 13 reference state traces (~604 KB total)
+3. ✅ `TRACE_FORMAT.md` — binary trace format spec (310 bytes/frame)
+4. ✅ `tools/compare_traces.py` — frame-by-frame comparator with field-level divergence reporting
+5. ✅ `SDLPoP-kotlin/` — Gradle project (Kotlin 1.9.22, JVM 17), `gradle build` + `gradle test` pass
+6. ✅ `SDLPoP-kotlin/docs/P1R_FORMAT.md` — .P1R binary format spec
+7. ✅ `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/replay/P1RParser.kt` — parser (9/9 tests pass)
+
+**Bugs found and fixed during validation:**
+- `CHAR_TYPE_SIZE`: 17→16 (actual C struct is 14 bytes + 1 word = 16)
+- `start_level` in P1R parser: `buffer.int` (4 bytes) → `buffer.short` (2 bytes)
+- JUnit Platform launcher missing from Gradle 9.x classpath
+- `rem_min`, `trobs_count`, `mobs_count` decoded as unsigned, corrected to signed
+
+**Phase review cleanup:**
+- Removed unused imports (`BinaryIO`, `Tuple`, `IOException`)
+- Removed dead code (3 unreachable `< 0` checks on unsigned values)
+- Replaced silent test skips with `assumeTrue()` (5 locations)
+- Removed redundant `assertNotNull` calls (3 locations)
+- Removed redundant `kotlin("stdlib")` dependency
+- Fixed TRACE_FORMAT.md offsets (char_type 17→16 cascaded through all fields)
+- Fixed P1R_FORMAT.md start_level (int32→word)
+
+**Environment findings:**
+- Sandboxie `3pAgentBox` blocks shell in Claude CLI (ConsoleInit not implemented). Workaround: HUMAN_STEPS.md handoff pattern for shell tasks.
+- Chocolatey corporate proxy doesn't have `temurin17` or `gradle`. Use `openjdk17` + manual Gradle install.
+
+**Deferred:**
+- Game loop replay runner (Kotlin version of SDLPoP's play_frame loop) — deferred to first file translation phase.
+
+**Time:** ~4 hours across multiple sessions (planning, 6 steps, review)
+
+---
+
 ### 2026-03-17 — Step 5 Handoff: Test Validation Required
 
 **Objective:** Build .P1R replay file parser in Kotlin.
