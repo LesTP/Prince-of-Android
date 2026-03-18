@@ -1,3 +1,3 @@
 # Human Steps Required
 
-No pending steps. Last completed: Step 4 — Kotlin project structure validated (`gradle build` passes).
+No pending steps. Last completed: Step 5 — .P1R Replay File Parser validated (`gradle test` passes, 9/9 tests).

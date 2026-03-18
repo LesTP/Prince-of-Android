@@ -2,6 +2,48 @@
 
 ## Phase 3: Test Infrastructure
 
+### 2026-03-17 — Step 5 Handoff: Test Validation Required
+
+**Objective:** Build .P1R replay file parser in Kotlin.
+
+**What happened:**
+1. Analyzed SDLPoP source code (replay.c, types.h) to understand .P1R binary format:
+   - Header: magic "P1R", format class, version, deprecation, creation time
+   - Variable-length strings: levelset name, implementation name
+   - Embedded savestate buffer
+   - 5 options sections (features, enhancements, fixes, custom general, custom per-level)
+   - Trailer: start level, random seed, num_replay_ticks, moves array
+   - All multi-byte values are little-endian
+2. Created `P1R_FORMAT.md` documenting complete binary structure:
+   - Field-by-field layout with byte offsets
+   - Move encoding (bitfield: x, y, shift, special)
+   - Validation rules
+   - Source code references
+3. Implemented `P1RParser.kt`:
+   - `ReplayData` data class with all parsed fields
+   - `P1RParser.parseP1R()` function using ByteBuffer (little-endian)
+   - `P1RParseException` for invalid files
+   - Validation: magic number, format class (0), version (≥101), deprecation (≤2)
+   - Handles variable-length strings correctly
+   - Verifies entire file consumed (no trailing data)
+4. Created `P1RParserTest.kt` with comprehensive test suite:
+   - Parse all 4 user replays (basic movement, falling, traps, sword and level transition)
+   - Parse all 9 test case replays in `SDLPoP/doc/replays-testcases/`
+   - Validation tests: reject invalid magic, wrong format class, old version, future deprecation
+
+**Artifacts:**
+- `SDLPoP-kotlin/docs/P1R_FORMAT.md` — binary format specification
+- `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/replay/P1RParser.kt` — parser implementation
+- `SDLPoP-kotlin/src/test/kotlin/com/sdlpop/replay/P1RParserTest.kt` — test suite
+
+**Escalation reason:** Step 5 code complete, but acceptance criteria require running `gradle test` to validate. HUMAN_STEPS.md updated with test commands.
+
+**Next:** Human runs `gradle test`, confirms all tests pass, deletes HUMAN_STEPS.md, re-runs loop → Step 5 marked complete, proceed to Step 6 (phase documentation).
+
+**Time:** ~15 minutes (analysis + implementation)
+
+---
+
 ### 2026-03-17 — Step 4 Handoff: Gradle Build Validation Required
 
 **Objective:** Set up Kotlin project structure with Gradle.
