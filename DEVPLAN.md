@@ -18,6 +18,9 @@
 - **Kotlin integer semantics:** Signed types (Byte/Short/Int) wrap on overflow like C. Conversions are explicit (.toByte(), .toInt()). PoP's 8-bit-era math is mostly add/sub/compare, so semantic mismatches are unlikely, but the replay oracle will catch them immediately if they occur.
 - **Replay auto-exit:** Instrumented builds (`DUMP_FRAME_STATE`) auto-exit after replay ends. Essential for consistent trace lengths.
 - **Windows fc.exe:** In PowerShell, use `C:\Windows\System32\fc.exe /b` for binary compare — bare `fc` is aliased to `Format-Custom`.
+- **C struct sizes:** Always verify struct byte sizes against `typedef` definitions in `types.h`/`data.h`. Don't trust field counts — check each type (`byte`=1, `word`=2, `dword`=4, `short`=2). `char_type` is 16 bytes (not 17), `start_level` is `word` (2 bytes, not 4).
+- **Gradle 9.x JUnit:** Add `testRuntimeOnly("org.junit.platform:junit-platform-launcher")` to `build.gradle.kts` or test executor fails to start with "Failed to load JUnit Platform."
+- **Chocolatey corporate proxy:** Use `choco search jdk --limit-output` to find approved packages. `temurin17` unavailable — use `openjdk17`. Gradle not in approved list — manual install from zip to `C:\tools\gradle-9.4.0\`.
 
 ## Current Status
 
