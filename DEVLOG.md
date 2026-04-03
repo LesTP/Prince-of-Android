@@ -1,5 +1,48 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Autonomous Loop Setup
+
+### 2026-04-03 — Loop Runner and Governance Commands Installed
+
+**Objective:** Set up autonomous loop infrastructure on Pi for Track A execution.
+
+**What happened:**
+1. Reviewed all governance/automation docs (AUTOMATION.md, GOVERNANCE.md, autonomous_loop_analysis.md)
+2. Evaluated loop runner options: custom bash script vs Ralph Loop plugin
+   - Ralph: runs inside one session via stop-hook, persistent context, uses `<promise>` completion
+   - Custom: fresh `claude -p` per iteration, matches AUTOMATION.md's cold-start-per-iteration design
+   - Decision: custom bash runner — aligns with governance framework's cold-start resilience and auditability model
+3. Adapted PowerShell loop runner (run-loop_native.ps1) to bash for Pi: `run-iteration.sh`
+4. Installed governance slash commands to `.claude/commands/`:
+   - Copied from `~/workspace/e2e/COMMANDS/`: cold-start, integration-check
+   - Adapted for autonomous execution: step-done, phase-plan, phase-review, phase-complete
+   - Key adaptation: replaced "wait for human" gates with "proceed and log, exit for next iteration"
+   - phase-complete retains ESCALATE to preserve human audit at phase boundaries
+5. Confirmed git repository already initialized (5 commits, branch master)
+6. Updated DEVPLAN: marked git init done, set focus to Module 6 (State Model)
+7. Gitignored: autonomous_loop_analysis.md (Windows-era analysis), logs/ directory
+
+**Script features (run-iteration.sh):**
+- Single or multi-iteration: `./run-iteration.sh` or `./run-iteration.sh -n 5`
+- Auto-numbering from summary.log
+- Per-iteration logs: `logs/loop/iteration_NNN.log`
+- Summary log: one line per iteration (timestamp, signal, reason)
+- Budget cap: $1.00/iteration via `--max-budget-usd`
+- Exit codes: 0=CONTINUE, 1=ESCALATE, 2=NO_SIGNAL/ERROR
+
+**Orchestration model:** TG bot session acts as orchestrator — runs iterations via Bash tool, analyzes output, reports to user via Telegram, decides whether to continue.
+
+**Cost estimate per iteration:** ~$0.05–0.14 (cache creation on first, cache reads on subsequent)
+
+**Decisions:**
+| # | Decision | Alternatives | Rationale | Confidence |
+|---|----------|-------------|-----------|------------|
+| 1 | Custom bash runner over Ralph plugin | Ralph (persistent context, stop-hook), standalone bash loop (no orchestrator) | Framework assumes fresh context per iteration for cold-start resilience and auditability. Ralph's persistent context bypasses this. | High |
+| 2 | TG bot session as orchestrator | Dumb bash script + TG notifications, separate orchestrator process | User prefers more info and analysis between iterations over speed. Single TG session avoids channel conflicts. | High |
+| 3 | Adapt slash commands for autonomous mode | Run without commands (agent follows AUTOMATION.md directly), install commands unmodified | Commands provide structured checklists; autonomous adaptations remove human-wait gates while preserving the process steps. | High |
+
+---
+
 ## Pi Migration
 
 ### 2026-04-03 — Migration from Windows to Raspberry Pi Complete
