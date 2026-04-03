@@ -7,8 +7,12 @@
 #   ./run-iteration.sh -n 5             # run up to 5 iterations (stops on ESCALATE)
 #   ./run-iteration.sh -n 5 --start 3   # start from iteration 3, run up to 5
 #
-# Output: iteration logs in logs/loop/iteration_NNN.log
-# Exit:   0=all CONTINUE, 1=ESCALATE, 2=NO_SIGNAL/ERROR
+# Output:
+#   logs/loop/iteration_NNN.jsonl  — full stream-json transcript (tool calls, results, costs)
+#   logs/loop/iteration_NNN.txt    — human-readable summary extracted from jsonl
+#   logs/loop/summary.log          — one line per iteration
+#
+# Exit: 0=all CONTINUE, 1=ESCALATE, 2=NO_SIGNAL/ERROR
 
 set -uo pipefail
 
@@ -45,34 +49,100 @@ REASON: [one line — what was done or why stopping]'
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIR"
 
+# extract_readable: parse stream-json into human-readable summary
+extract_readable() {
+  local jsonl_file="$1"
+  local txt_file="$2"
+
+  {
+    echo "=== ITERATION TRANSCRIPT ==="
+    echo ""
+
+    # Extract assistant text messages and tool calls
+    while IFS= read -r line; do
+      local type=$(echo "$line" | jq -r '.type // empty' 2>/dev/null)
+
+      case "$type" in
+        assistant)
+          # Extract text blocks
+          echo "$line" | jq -r '
+            .message.content[]? |
+            if .type == "text" then "ASSISTANT: " + .text
+            elif .type == "tool_use" then "TOOL CALL: " + .name + "(" + (.input | keys | join(", ")) + ")"
+            else empty end
+          ' 2>/dev/null
+          ;;
+        user)
+          # Extract tool results (abbreviated)
+          local tool_result=$(echo "$line" | jq -r '.tool_use_result.type // empty' 2>/dev/null)
+          if [[ "$tool_result" == "text" ]]; then
+            local file_path=$(echo "$line" | jq -r '.tool_use_result.file.filePath // empty' 2>/dev/null)
+            if [[ -n "$file_path" ]]; then
+              local num_lines=$(echo "$line" | jq -r '.tool_use_result.file.numLines // empty' 2>/dev/null)
+              echo "  → Read $file_path ($num_lines lines)"
+            else
+              # Bash output or other tool result — first 200 chars
+              local content=$(echo "$line" | jq -r '.message.content[0].content // empty' 2>/dev/null | head -c 200)
+              if [[ -n "$content" ]]; then
+                echo "  → Result: $content"
+              fi
+            fi
+          fi
+          ;;
+        result)
+          echo ""
+          echo "=== RESULT ==="
+          echo "$line" | jq -r '"Cost: $" + (.total_cost_usd | tostring) + " | Turns: " + (.num_turns | tostring) + " | Duration: " + ((.duration_ms / 1000) | tostring) + "s"' 2>/dev/null
+          echo "$line" | jq -r '.result // empty' 2>/dev/null | tail -5
+          ;;
+      esac
+    done < "$jsonl_file"
+  } > "$txt_file"
+}
+
 FINAL_EXIT=0
 ITER=$START_ITER
 END_ITER=$(( START_ITER + MAX_ITERATIONS - 1 ))
 
 while [[ $ITER -le $END_ITER ]]; do
   ITER_PAD=$(printf "%03d" "$ITER")
-  LOG_FILE="$LOG_DIR/iteration_${ITER_PAD}.log"
+  JSONL_FILE="$LOG_DIR/iteration_${ITER_PAD}.jsonl"
+  TXT_FILE="$LOG_DIR/iteration_${ITER_PAD}.txt"
 
-  echo "=== Iteration $ITER — $(date -Iseconds) ===" | tee "$LOG_FILE"
+  echo "=== Iteration $ITER — $(date -Iseconds) ==="
 
-  # Run one iteration. -p exits after response. --dangerously-skip-permissions
-  # allows autonomous file/shell operations.
+  # Run one iteration with full stream-json logging.
+  # --output-format stream-json captures all tool calls and results.
+  # --verbose is required for stream-json.
   claude -p "$PROMPT" \
     --dangerously-skip-permissions \
     --model opus \
-    --max-budget-usd 1.00 \
-    2>&1 | tee -a "$LOG_FILE"
+    --max-budget-usd 10.00 \
+    --output-format stream-json \
+    --verbose \
+    2>&1 > "$JSONL_FILE"
 
-  EXIT_CODE=${PIPESTATUS[0]}
+  EXIT_CODE=$?
 
-  # Extract signal from last 10 lines of output
-  TAIL=$(tail -10 "$LOG_FILE")
-  SIGNAL=$(echo "$TAIL" | grep -oP 'LOOP_SIGNAL: \K\w+' || echo "")
-  REASON=$(echo "$TAIL" | grep -oP 'REASON: \K.+' || echo "")
+  # Generate human-readable summary
+  extract_readable "$JSONL_FILE" "$TXT_FILE"
+
+  # Extract signal from the result line in jsonl
+  RESULT_LINE=$(grep '"type":"result"' "$JSONL_FILE" | tail -1)
+  RESULT_TEXT=$(echo "$RESULT_LINE" | jq -r '.result // ""' 2>/dev/null)
+  SIGNAL=$(echo "$RESULT_TEXT" | grep -oP 'LOOP_SIGNAL: \K\w+' || echo "")
+  REASON=$(echo "$RESULT_TEXT" | grep -oP 'REASON: \K.+' || echo "")
+  COST=$(echo "$RESULT_LINE" | jq -r '.total_cost_usd // ""' 2>/dev/null)
+  TURNS=$(echo "$RESULT_LINE" | jq -r '.num_turns // ""' 2>/dev/null)
+  DURATION=$(echo "$RESULT_LINE" | jq -r '(.duration_ms / 1000 | floor | tostring) + "s"' 2>/dev/null)
 
   # Write summary line
   TIMESTAMP=$(date -Iseconds)
-  echo "$TIMESTAMP | iter=$ITER | signal=$SIGNAL | exit=$EXIT_CODE | reason=$REASON" >> "$SUMMARY_FILE"
+  echo "$TIMESTAMP | iter=$ITER | signal=$SIGNAL | exit=$EXIT_CODE | cost=\$$COST | turns=$TURNS | duration=$DURATION | reason=$REASON" >> "$SUMMARY_FILE"
+
+  # Print summary to stdout for orchestrator
+  echo "Signal=$SIGNAL | Cost=\$$COST | Turns=$TURNS | Duration=$DURATION"
+  echo "Reason: $REASON"
 
   # Decide whether to continue
   if [[ "$SIGNAL" == "ESCALATE" ]]; then
@@ -85,9 +155,9 @@ while [[ $ITER -le $END_ITER ]]; do
     break
   fi
 
-  echo "=== Iteration $ITER complete: $REASON ==="
+  echo "=== Iteration $ITER complete ==="
   ITER=$(( ITER + 1 ))
 done
 
-echo "=== Stopped after iteration $(( ITER )) ==="
+echo "=== Stopped after iteration $ITER ==="
 exit $FINAL_EXIT
