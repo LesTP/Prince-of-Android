@@ -1,5 +1,54 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Pi Migration
+
+### 2026-04-03 — Migration from Windows to Raspberry Pi Complete
+
+**Objective:** Move project from Windows/Sandboxie environment to Raspberry Pi 5 (Incus container) for full shell access and true autonomous operation.
+
+**What happened:**
+1. Installed build dependencies: JDK 17.0.18, Gradle 8.12, SDL2 2.26.5 dev libs, GCC 12.2, Python 3.11, xvfb, dos2unix
+2. Converted source files from CRLF to LF (dos2unix) — NTFS preserved Windows line endings, causing ripgrep/Grep tool to silently fail on all searches
+3. Compiled SDLPoP on ARM64 Linux (clean build, only 1 minor warning in seg000.c)
+4. Discovered NTFS mount doesn't support execute permissions (chmod +x silently ignored). Workaround: copy binary to /tmp/sdlpop/ with symlinks to data/replays/doc
+5. Tested headless modes: `SDL_VIDEODRIVER=dummy` hangs indefinitely, `xvfb-run` also hangs. **`SDL_VIDEODRIVER=offscreen`** works perfectly
+6. Built instrumented binary with `-DDUMP_FRAME_STATE -DUSE_REPLAY` — instrumentation code was already in seg000.c and replay.c from Phase 1
+7. Generated all 13 reference traces on ARM64. All replay durations match expected tick counts
+8. Verified determinism: two runs of basic_movement.p1r produce byte-identical traces
+9. Verified trace comparator: `compare_traces.py` reports MATCH on identical traces
+10. Verified Kotlin toolchain: `gradle build` and `gradle test` pass (9/9 P1R parser tests)
+11. Updated CLAUDE.md: removed Sandboxie shell constraint, added Pi environment section with NTFS workaround and build commands
+12. Updated DEVPLAN.md: marked migration complete, updated gotchas for Pi environment
+
+**Key discoveries (promoted to DEVPLAN Gotchas):**
+- `SDL_VIDEODRIVER=offscreen` is the correct headless driver (not `dummy`)
+- NTFS silently ignores chmod — must copy binaries to native filesystem for execution
+- `dos2unix` required after Windows→Linux file transfer — CRLF breaks ripgrep
+
+**Trace sizes (ARM64, matching DEVLOG Phase 3 Step 2 expectations):**
+
+| Trace | Bytes | Frames |
+|-------|------:|-------:|
+| basic_movement | 123,070 | 397 |
+| falling | 30,070 | 97 |
+| traps | 70,370 | 227 |
+| sword_and_level_transition | 97,340 | 314 |
+| demo_suave_prince_level11 | 76,880 | 248 |
+| falling_through_floor_pr274 | 25,110 | 81 |
+| grab_bug_pr288 | 9,300 | 30 |
+| grab_bug_pr289 | 21,390 | 69 |
+| original_level12_xpos_glitch | 20,460 | 66 |
+| original_level2_falling_into_wall | 28,830 | 93 |
+| original_level5_shadow_into_wall | 54,250 | 175 |
+| snes_pc_set_level11 | 32,860 | 106 |
+| trick_153 | 14,570 | 47 |
+
+**Remaining:** `git init` + initial commit.
+
+**Time:** ~30 minutes
+
+---
+
 ## Phase 3: Test Infrastructure
 
 ### 2026-03-18 — Phase 3 Complete

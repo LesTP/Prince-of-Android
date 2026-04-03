@@ -35,27 +35,34 @@ For layer contracts and module dependencies, see ARCHITECTURE.md.
 - Secondary goal: working, playable Android game
 - Test oracle: replay-based deterministic state comparison (13 reference traces, validated Phase 1+3)
 
+## Environment (Raspberry Pi 5)
+- **Host:** Raspberry Pi 5 (16GB), Incus container `claude-code` (Debian 12 arm64, 12GB RAM, 3 CPUs)
+- **Project path:** `/home/claude/workspace/PoP port/`
+- **Storage:** Project on USB drive (NTFS, 466GB, mounted at /home/claude/workspace). OS on SD card (29GB).
+- **Shell:** Full bash access — no Sandboxie restrictions. Can run `gradle`, `make`, `python3`, `git` directly.
+
+### NTFS Workaround
+The USB drive (NTFS) does not support execute permissions. To run compiled binaries:
+1. Copy binary to `/tmp/sdlpop/`: `cp SDLPoP/prince /tmp/sdlpop/prince && chmod +x /tmp/sdlpop/prince`
+2. Symlinks for data: `data/`, `replays/`, `doc/`, `SDLPoP.ini` → original locations
+3. Run from `/tmp/sdlpop/`: `cd /tmp/sdlpop && SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345`
+
+### Trace Generation
+```bash
+cd /tmp/sdlpop
+SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345
+# Output: state_trace.bin (310 bytes/frame)
+```
+Requires instrumented build: `make CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` in SDLPoP/src/
+
+### Build Commands
+- **C (SDLPoP):** `cd SDLPoP/src && make -j3` (or with CPPFLAGS above for instrumented build)
+- **Kotlin:** `cd SDLPoP-kotlin && gradle build` / `gradle test`
+- **Trace comparison:** `python3 tools/compare_traces.py ref.trace test.trace`
+
 ## Automation
 Running at Continuous autonomy. One step per loop iteration.
 Decide and log — do not wait for human approval.
-
-### Shell Constraint
-**DO NOT execute shell commands.** The Bash tool will hang indefinitely
-(Sandboxie blocks ConsoleInit). Use only Read, Write, and Edit tools.
-
-When a step requires shell commands (builds, git, running executables),
-write the commands to `HUMAN_STEPS.md` instead of executing them.
-Format:
-
-```
-## After Iteration N: [description]
-Run these commands, then re-run the loop:
-\`\`\`powershell
-command 1
-command 2
-\`\`\`
-Expected result: [what to check]
-```
 
 ### Each Iteration
 1. Read this file and follow `@` references to load project documents
@@ -64,8 +71,7 @@ Expected result: [what to check]
 4. Execute the next action — exactly one of:
    - **No active phase:** Create or update DEVPLAN with step breakdown. Exit.
    - **Phase in progress:** Pick the next step from DEVPLAN. Do all
-     file read/write work. If shell commands are needed, write them
-     to HUMAN_STEPS.md. Update DEVLOG. Exit.
+     file read/write work. Run shell commands directly (builds, git, tests). Update DEVLOG. Exit.
    - **All steps complete:** Log decisions to DECISIONS.md. Exit.
    - **Review fixes done:** Full doc update, contract propagation,
      DEVPLAN cleanup. Exit.
@@ -82,4 +88,3 @@ Expected result: [what to check]
 - Contract change would affect other modules
 - Phase completion (human audits before next phase)
 - All modules complete
-- HUMAN_STEPS.md has pending commands (human must run them first)

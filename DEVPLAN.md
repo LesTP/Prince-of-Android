@@ -9,27 +9,42 @@
 - Replay system (.P1R files) provides deterministic test oracle
 - Target language: Kotlin (native Android, validation via replay oracle)
 
+**Environment:** Raspberry Pi 5 (16GB), Incus container `claude-code` (Debian 12 arm64, 12GB RAM, 3 CPUs)
+**Project path:** `/home/claude/workspace/PoP port/` (NTFS USB drive, 466GB, 126GB free)
+**Shell access:** Full — no Sandboxie restrictions. Claude Code can run `gradle`, `make`, `python3`, `git` directly.
+
 **Gotchas:**
-- **Sandboxie blocks shell in CLI loop:** Corporate Sandboxie (`3pAgentBox`) doesn't implement `ConsoleInit`/`OpenDesktop`. Claude CLI's `Bash(*)` tool hangs when spawning `pwsh.exe`/`cmd.exe`. **Workaround:** CLI loop handles read/write only; shell tasks (builds, git, traces) run manually or via Devmate. Devmate's `execute_command` works because VS Code's extension host bypasses the limitation.
-- **SDLPoP replay invocation:** Use `.\prince.exe validate "path\to\replay.p1r" seed=12345` — `validate` and the replay path must be **separate arguments**. `validate="path"` syntax fails because the `.p1r` extension check in seg000.c fires first and treats the whole string as a filename. PowerShell's `<` stdin redirection also doesn't work (reserved operator). Output trace file is `state_trace.bin` (not `frame_state.bin`).
-- **SDL2_image DLL Hell (Windows):** SDL2_image pulls ~30 DLLs. Copy all from `/mingw64/bin/` or use `ldd` to find missing ones.
-- **MinGW pkg-config:** Install separately: `pacman -S mingw-w64-x86_64-pkgconf`
-- **MSYS2 PATH:** Use `PATH='/mingw64/bin:/usr/bin:$PATH'` — make is in /usr/bin, gcc in /mingw64/bin
-- **Kotlin integer semantics:** Signed types (Byte/Short/Int) wrap on overflow like C. Conversions are explicit (.toByte(), .toInt()). PoP's 8-bit-era math is mostly add/sub/compare, so semantic mismatches are unlikely, but the replay oracle will catch them immediately if they occur.
+- **Kotlin integer semantics:** Signed types (Byte/Short/Int) wrap on overflow like C. Conversions are explicit (.toByte(), .toInt()). Replay oracle catches mismatches immediately.
 - **Replay auto-exit:** Instrumented builds (`DUMP_FRAME_STATE`) auto-exit after replay ends. Essential for consistent trace lengths.
-- **Windows fc.exe:** In PowerShell, use `C:\Windows\System32\fc.exe /b` for binary compare — bare `fc` is aliased to `Format-Custom`.
 - **C struct sizes:** Always verify struct byte sizes against `typedef` definitions in `types.h`/`data.h`. Don't trust field counts — check each type (`byte`=1, `word`=2, `dword`=4, `short`=2). `char_type` is 16 bytes (not 17), `start_level` is `word` (2 bytes, not 4).
 - **Gradle 9.x JUnit:** Add `testRuntimeOnly("org.junit.platform:junit-platform-launcher")` to `build.gradle.kts` or test executor fails to start with "Failed to load JUnit Platform."
-- **Chocolatey corporate proxy:** Use `choco search jdk --limit-output` to find approved packages. `temurin17` unavailable — use `openjdk17`. Gradle not in approved list — manual install from zip to `C:\tools\gradle-9.4.0\`.
+- **SDLPoP replay invocation (Linux):** Run from `/tmp/sdlpop/` (binary copied there for execute permission). Use `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345`. Output: `state_trace.bin`.
+- **SDL headless mode:** Pi has no display. Use `SDL_VIDEODRIVER=offscreen` (not `dummy` — dummy hangs). Requires `xvfb` package installed but `offscreen` driver doesn't need it.
+- **NTFS execute permissions:** USB drive is NTFS — `chmod +x` is silently ignored. Workaround: copy binaries to `/tmp/sdlpop/` with symlinks to data/replays/doc/SDLPoP.ini.
+- **Line endings:** Source files from Windows have CRLF. Run `dos2unix *.c *.h` in SDLPoP/src/ after any file transfer. Grep/ripgrep fail silently on CRLF files.
+- **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Focus:** Not started — next step is State Model (types.h + data.h → Kotlin)
-**Blocked/Broken:** None — Phase 5 (formal docs) in progress, Track A can begin immediately after.
+**Focus:** Pi migration complete. Next: git init + initial commit, then Module 6 (State Model).
+**Blocked/Broken:** None — all toolchain verified.
+
+**Migration from Windows (2026-04-03) — COMPLETE:**
+- ✅ Project files copied to Pi via Samba share
+- ✅ Windows artifacts cleaned (DLLs, .exe, .o files, Windows traces, Kotlin build/)
+- ✅ Container write permissions fixed (raw.idmap + /etc/subuid)
+- ✅ Build dependencies installed (JDK 17.0.18, Gradle 8.12, Python 3.11, SDL2 2.26.5, GCC 12.2, xvfb, dos2unix)
+- ✅ SDLPoP compiled on ARM64 Linux (make -j3, clean build)
+- ✅ Headless trace generation works (SDL_VIDEODRIVER=offscreen, binary in /tmp/sdlpop/)
+- ✅ All 13 reference traces regenerated on ARM64 Pi (determinism verified)
+- ✅ Kotlin toolchain verified (gradle build + gradle test pass, 9/9 P1R parser tests)
+- ✅ End-to-end trace comparison pipeline verified (compare_traces.py works)
+- ✅ CLAUDE.md updated for Pi environment
+- ⬜ `git init` + initial commit
 
 **Tracks overview:**
-- **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. Runs within current environment (file read/write + manual shell). **Next.**
+- **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. **Full shell access on Pi — true autonomous mode.** Next.
 - **Track B (Android Platform):** Rendering, platform, audio, game loop. Requires Android Studio. **After Track A.**
 - **Track C (Touch Controls):** Gesture prototype + playtesting. Requires Android Studio + phone. **Parallel, any time.**
 

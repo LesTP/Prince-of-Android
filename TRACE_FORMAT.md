@@ -83,7 +83,7 @@ Movable object state (falling floors, etc.):
 
 ## Data Types
 
-C type sizes (MinGW/x86):
+C type sizes (consistent across x86 and ARM64 via SDL typedefs):
 
 - `byte` = Uint8 (1 byte, unsigned)
 - `sbyte` = Sint8 (1 byte, signed)
