@@ -27,21 +27,10 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Focus:** Pi migration complete. Next: git init + initial commit, then Module 6 (State Model).
+**Focus:** Module 6 — State Model (types.h + data.h → Kotlin)
 **Blocked/Broken:** None — all toolchain verified.
 
-**Migration from Windows (2026-04-03) — COMPLETE:**
-- ✅ Project files copied to Pi via Samba share
-- ✅ Windows artifacts cleaned (DLLs, .exe, .o files, Windows traces, Kotlin build/)
-- ✅ Container write permissions fixed (raw.idmap + /etc/subuid)
-- ✅ Build dependencies installed (JDK 17.0.18, Gradle 8.12, Python 3.11, SDL2 2.26.5, GCC 12.2, xvfb, dos2unix)
-- ✅ SDLPoP compiled on ARM64 Linux (make -j3, clean build)
-- ✅ Headless trace generation works (SDL_VIDEODRIVER=offscreen, binary in /tmp/sdlpop/)
-- ✅ All 13 reference traces regenerated on ARM64 Pi (determinism verified)
-- ✅ Kotlin toolchain verified (gradle build + gradle test pass, 9/9 P1R parser tests)
-- ✅ End-to-end trace comparison pipeline verified (compare_traces.py works)
-- ✅ CLAUDE.md updated for Pi environment
-- ⬜ `git init` + initial commit
+**Migration from Windows (2026-04-03) — COMPLETE.** See DEVLOG §Pi Migration.
 
 **Tracks overview:**
 - **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. **Full shell access on Pi — true autonomous mode.** Next.
