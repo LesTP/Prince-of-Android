@@ -29,9 +29,46 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 10 — Layer 1: seg005 (Player control, sword fighting) — **NOT STARTED**
-**Phase:** Pending phase-plan.
+**Module:** 10 — Layer 1: seg005 (Player control, sword fighting) — **IN PROGRESS**
+**Phase:** 10a — Not started. Next: implement Phase 10a.
 **Blocked/Broken:** None.
+
+### Module 10: seg005.c → Kotlin
+
+**Scope:** 1,172 lines, 38 functions (excluding `teleport` — `USE_TELEPORTS` only, not in reference build). Player control dispatch, movement, falling/landing, item pickup, sword fighting, parry.
+
+**Dependencies:** seg006 (complete — provides tile queries, physics, `playSeq`, `charDxForward`, `distanceToEdgeWeight`, `getEdgeDistance`, `charOppDist`, `canGrab`, `releaseArrows`, `incCurrRow`, `loadFramDetCol`, `getTileDivModM7`, `backDeltaX`, `dxWeight`, `distanceToEdge`, etc.), seg004 (complete — provides `clearCollRooms`, `canBumpIntoGate`, `inWall`). External stubs needed: `playSound` (already stubbed), `checkSoundPlaying` (stubbed), `startChompers` (seg007, stubbed), `isSpikeHarmful` (seg007, stubbed), `doPickup` (seg003, needs stub), `leaveGuard` (seg002, needs stub).
+
+**New globals (seg005-local):** `sourceModifier`, `sourceRoom`, `sourceTilepos` (3 variables — teleport only, may skip).
+
+**`#ifdef` flags (18 unique):** `FIX_GLIDE_THROUGH_WALL`, `FIX_JUMP_THROUGH_WALL_ABOVE_GATE`, `FIX_DROP_THROUGH_TAPESTRY`, `USE_SUPER_HIGH_JUMP`, `FIX_OFFSCREEN_GUARDS_DISAPPEARING`, `FIX_LAND_AGAINST_GATE_OR_TAPESTRY`, `FIX_SAFE_LANDING_ON_SPIKES`, `ALLOW_CROUCH_AFTER_CLIMBING`, `FIX_MOVE_AFTER_DRINK`, `FIX_MOVE_AFTER_SHEATHE`, `FIX_TURN_RUN_NEAR_WALL`, `FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING`, `FIX_JUMP_DISTANCE_AT_EDGE`, `FIX_UNINTENDED_SWORD_STRIKE`, `FIX_EXIT_DOOR` (in `up_pressed`), `USE_REPLAY` (stub-only), `USE_COPYPROT` (skip — level 15 copy protection), `USE_TELEPORTS` (skip).
+
+**Wire-up:** `seqtblOffsetChar` and `seqtblOffsetOpp` stubs in ExternalStubs already point to `SequenceTable.seqtblOffsets[]`. When Seg005 is created, wire `ExternalStubs.control`, `ExternalStubs.drawSword`, `ExternalStubs.spiked` to Seg005's implementations.
+
+**Steps:**
+
+**Phase 10a — Falling, landing, movement basics (14 functions)**
+- Falling/landing: `seqtblOffsetChar`, `seqtblOffsetOpp`, `doFall`, `land`, `spiked`
+- Control dispatch: `control`, `controlCrouched`, `controlTurning`, `crouch`
+- Movement: `forwardPressed`, `backPressed`, `controlRunning`, `controlStartrun`, `safeStep`
+- Unit tests: fall/land sequences, spike handling, control dispatch by frame, movement edge cases
+- **Test:** `gradle build` clean, `gradle test` all pass
+
+**Phase 10b — Standing control, climbing, items (14 functions)**
+- Standing: `controlStanding`, `upPressed`, `downPressed`, `goUpLeveldoor`
+- Jumping: `standingJump`, `checkJumpUp`, `jumpUpOrGrab`, `grabUpNoFloorBehind`, `jumpUp`, `grabUpWithFloorBehind`, `runJump`
+- Hanging: `controlHanging`, `canClimbUp`, `hangFall`
+- Items: `checkGetItem`, `getItem`
+- Unit tests: standing control branches, jump/grab logic, hanging control, item pickup
+- **Test:** `gradle build` clean, `gradle test` all pass
+
+**Phase 10c — Sword fighting (8 functions) + review**
+- Sword: `drawSword`, `controlWithSword`, `swordfight`, `swordStrike`, `parry`, `backWithSword`, `forwardWithSword`
+- Wire-up: connect Seg005 functions to ExternalStubs (`control`, `drawSword`, `spiked`, `doFall`)
+- Code review: naming consistency, integer semantics, `#ifdef` paths
+- Unit tests: sword draw/sheathe, strike/parry sequences, distance-based sword control
+- **Test:** `gradle build` clean, `gradle test` all pass
+- DEVLOG update, DEVPLAN cleanup
 
 **Tracks overview:**
 - **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. **Full shell access on Pi — true autonomous mode.** Current.
