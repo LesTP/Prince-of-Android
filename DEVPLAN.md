@@ -28,7 +28,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 8 — Layer 1: seg006 (Character physics, tile queries) — **IN PROGRESS**
-**Phase:** 8d — COMPLETE (24 new tests, 190 total). All 81 seg006 functions translated. Next: Phase 8e — Review and cleanup
+**Phase:** 8e — COMPLETE (review: no issues found). All 81 seg006 functions translated, 190 tests pass. Next: Phase completion (phase-complete)
 **Blocked/Broken:** None.
 
 ### Module 8: seg006.c → Kotlin

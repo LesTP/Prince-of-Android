@@ -2,6 +2,23 @@
 
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
+### 2026-04-04 — Phase 8e: Review and cleanup
+
+**Mode:** Review (autonomous)
+**Outcome:** Complete — no must-fix or should-fix issues found
+
+**Review findings:**
+- All 81 C functions present in Kotlin (84 total including 3 seqtbl helpers). Function count verified against C source.
+- Integer semantics audit: unsigned 16-bit comparison in `checkGrab` correctly masked with `and 0xFFFF`. No `.toShort()` truncation issues in Seg006.kt.
+- All `#ifdef` fix paths correctly translated as runtime checks (12 fix flags verified).
+- External stubs (ExternalStubs.kt) clean — 30 stubs covering 7 segments. `getRoomAddress` correctly inlined.
+- No dead code, unused imports, TODOs, or NotImplementedError in Seg006.kt.
+- No architecture drift: zero platform calls, pure game logic, deterministic.
+- Build: `gradle build` clean, `gradle test` 190/190 pass.
+- No fixes required. Ready for phase completion.
+
+---
+
 ### 2026-04-04 — Phase 8d: Player/guard control, integration
 
 **Mode:** Code (autonomous)
