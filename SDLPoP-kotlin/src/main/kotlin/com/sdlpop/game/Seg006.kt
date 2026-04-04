@@ -1814,4 +1814,180 @@ object Seg006 {
             }
         }
     }
+
+    // ========== Phase 8d — Player/guard control, integration ==========
+
+    // seg006:0DC0
+    fun userControl() {
+        if (gs.Char.direction >= Dir.RIGHT) {
+            flipControlX()
+            ext.control()
+            flipControlX()
+        } else {
+            ext.control()
+        }
+    }
+
+    // seg006:0D49
+    fun doDemo() {
+        if (gs.checkpoint != 0) {
+            gs.controlShift2 = releaseArrows()
+            gs.controlForward = Ctrl.HELD
+            gs.controlX = Ctrl.HELD_FORWARD
+        } else if (gs.Char.sword != 0) {
+            gs.guardSkill = 10
+            ext.autocontrolOpponent()
+            gs.guardSkill = 11
+        } else {
+            ext.doAutoMoves(gs.custom.demoMoves)
+        }
+    }
+
+    // seg006:0CD1
+    fun controlKid() {
+        if (gs.Char.alive < 0 && gs.hitpCurr == 0) {
+            gs.Char.alive = 0
+            // stop feather fall when kid dies
+            if (gs.fixes.fixQuicksaveDuringFeather != 0 && gs.isFeatherFall > 0) {
+                gs.isFeatherFall = 0
+                if (ext.checkSoundPlaying() != 0) {
+                    ext.stopSounds()
+                }
+            }
+        }
+        if (gs.grabTimer != 0) {
+            --gs.grabTimer
+        }
+        // USE_REPLAY: replaying check included
+        if (gs.currentLevel == 0 && gs.playDemoLevel == 0 && gs.replaying == 0) {
+            doDemo()
+            ext.control()
+            // The player can start a new game or load a saved game during the demo.
+            val key = ext.keyTestQuit()
+            if (key == (SDL_SCANCODE_L or WITH_CTRL)) { // Ctrl+L
+                if (ext.loadGame() != 0) {
+                    ext.startGame()
+                }
+            } else {
+                if (key != 0) {
+                    gs.startLevel = gs.custom.firstLevel.toShort() // 1
+                    ext.startGame()
+                }
+            }
+        } else {
+            restCtrl1()
+            ext.doPaused()
+            // USE_REPLAY
+            if (gs.recording != 0) ext.addReplayMove()
+            if (gs.replaying != 0) ext.doReplayMove()
+            readUserControl()
+            userControl()
+            saveCtrl1()
+        }
+    }
+
+    // seg006:0BEE
+    fun playKid() {
+        fellOut()
+        controlKid()
+        if (gs.Char.alive >= 0 && isDead() != 0) {
+            if (gs.resurrectTime != 0) {
+                ext.stopSounds()
+                loadkid()
+                gs.hitpDelta = gs.hitpMax.toShort()
+                ext.seqtblOffsetChar(Seq.seq_2_stand) // stand
+                gs.Char.x += 8
+                playSeq()
+                loadFramDetCol()
+                ext.setStartPos()
+            }
+            if (ext.checkSoundPlaying() != 0 && gs.currentSound != Snd.GATE_OPENING) {
+                return
+            }
+            gs.isShowTime = 0
+            if (gs.Char.alive < 0 || gs.Char.alive >= 6) {
+                if (gs.Char.alive == 6) {
+                    if (gs.isSoundOn != 0 &&
+                        gs.currentLevel != 0 && // no death music on demo level
+                        gs.currentLevel != 15   // no death music on potions level
+                    ) {
+                        playDeathMusic()
+                    }
+                } else {
+                    if (gs.Char.alive != 7 || ext.checkSoundPlaying() != 0) return
+                    if (gs.remMin.toInt() == 0) {
+                        ext.expired()
+                    }
+                    if (gs.currentLevel != 0 && // no message if died on demo level
+                        gs.currentLevel != 15   // no message if died on potions level
+                    ) {
+                        gs.textTimeRemaining = 288
+                        gs.textTimeTotal = 288
+                        ext.displayTextBottom("Press Button to Continue")
+                    } else {
+                        gs.textTimeRemaining = 36
+                        gs.textTimeTotal = 36
+                    }
+                }
+            }
+            ++gs.Char.alive
+        }
+    }
+
+    // seg006:0D85
+    fun playGuard() {
+        if (gs.Char.charid == CID.MOUSE) {
+            ext.autocontrolOpponent()
+        } else {
+            if (gs.Char.alive < 0) {
+                if (gs.guardhpCurr == 0) {
+                    gs.Char.alive = 0
+                    onGuardKilled()
+                } else {
+                    // goto loc_7A65
+                    ext.autocontrolOpponent()
+                    ext.control()
+                    return
+                }
+            }
+            if (gs.Char.charid == CID.SHADOW) {
+                clearChar()
+            }
+            ext.autocontrolOpponent()
+            ext.control()
+        }
+    }
+
+    // seg006:1827
+    fun controlGuardInactive() {
+        if (gs.Char.frame == FID.frame_166_stand_inactive && gs.controlDown == Ctrl.HELD) {
+            if (gs.controlForward == Ctrl.HELD) {
+                ext.drawSword()
+            } else {
+                gs.controlDown = Ctrl.IGNORE
+                ext.seqtblOffsetChar(Seq.seq_80_stand_flipped) // stand flipped
+            }
+        }
+    }
+
+    // seg006:1852
+    fun charOppDist(): Int {
+        // >0 if Opp is in front of char
+        // <0 if Opp is behind char
+        if (gs.Char.room != gs.Opp.room) {
+            return 999
+        }
+        var distance: Int = gs.Opp.x - gs.Char.x
+        if (gs.Char.direction < Dir.RIGHT) {
+            distance = -distance
+        }
+        if (distance >= 0 && gs.Char.direction != gs.Opp.direction) {
+            distance += 13
+        }
+        return distance
+    }
+
+    // SDL scancode constants used by control_kid for demo-level key handling
+    const val SDL_SCANCODE_L = 0x0F
+    const val WITH_CTRL = 0x8000
 }

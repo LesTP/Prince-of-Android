@@ -2,6 +2,22 @@
 
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
+### 2026-04-04 — Phase 8d: Player/guard control, integration
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 24 new tests pass (190 total), gradle build clean, all 81 C functions translated
+
+**What was done:**
+Added final 7 functions to `Seg006.kt` (Phase 8d — player/guard control):
+- Player control: `playKid` (top-level kid frame handler — fellOut, controlKid, death sequence), `controlKid` (demo vs normal level dispatch, grab timer, replay hooks), `userControl` (direction-aware control dispatch with flipControlX), `doDemo` (demo level AI — checkpoint run, sword fight, auto-moves)
+- Guard control: `playGuard` (top-level guard frame handler — mouse/shadow/guard dispatch), `controlGuardInactive` (inactive guard sword draw or flip), `charOppDist` (signed distance between char and opponent)
+
+Added `SDL_SCANCODE_L` and `WITH_CTRL` constants for demo-level key handling in `controlKid`.
+
+All 81 seg006 C functions now present in Kotlin (84 total including 3 seqtbl helpers). Phase 8d complete.
+
+24 new tests: userControl (facing right flips, facing left direct), doDemo (checkpoint/sword/auto-moves), controlKid (kill on no HP, grab timer decrement, demo level dispatch, normal level dispatch, feather fall stop on death), playKid (smoke test, death sequence alive increment), playGuard (mouse autocontrol, dead guard kill, alive guard control, shadow clear), controlGuardInactive (draw sword, flip, wrong frame ignore), charOppDist (different room 999, front facing left/right, opposite facing +13, behind negative).
+
 ### 2026-04-04 — Phase 8c, Step 1: Falling, grabbing, damage, objects
 
 **Mode:** Code (autonomous)

@@ -61,6 +61,33 @@ class Seg006Test {
         gs.haveSword = 0
         gs.pickupObjType = 0
         gs.loadedRoom = 0
+        gs.checkpoint = 0
+        gs.grabTimer = 0
+        gs.playDemoLevel = 0
+        gs.resurrectTime = 0
+        gs.isShowTime = 0
+        gs.textTimeRemaining = 0
+        gs.textTimeTotal = 0
+        gs.guardSkill = 0
+        gs.holdingSword = 0
+        gs.custom = CustomOptionsType()
+        gs.fixes = FixesOptionsType()
+        // Reset stubs to defaults
+        ExternalStubs.control = { throw NotImplementedError("control (seg005)") }
+        ExternalStubs.autocontrolOpponent = { throw NotImplementedError("autocontrol_opponent (seg002)") }
+        ExternalStubs.drawSword = { throw NotImplementedError("draw_sword (seg005)") }
+        ExternalStubs.playSound = { _ -> }
+        ExternalStubs.stopSounds = { }
+        ExternalStubs.checkSoundPlaying = { 0 }
+        ExternalStubs.keyTestQuit = { 0 }
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.addReplayMove = { }
+        ExternalStubs.doReplayMove = { }
+        ExternalStubs.doAutoMoves = { _ -> throw NotImplementedError("do_auto_moves") }
+        ExternalStubs.drawGuardHp = { _, _ -> }
+        ExternalStubs.seqtblOffsetChar = { seqIndex ->
+            GameState.Char.currSeq = SequenceTable.seqtblOffsets[seqIndex]
+        }
         for (i in gs.currRoomTiles.indices) {
             gs.currRoomTiles[i] = 0
             gs.currRoomModif[i] = 0
@@ -1224,6 +1251,399 @@ class Seg006Test {
         val origX = gs.Char.x
         Seg006.checkGrab()
         assertEquals(origX, gs.Char.x)  // no grab — too fast
+    }
+
+    // ========== Phase 8d — Player/guard control tests ==========
+
+    // --- userControl tests ---
+
+    @Test
+    fun userControlFacingRightFlipsControlsForControl() {
+        val gs = GameState
+        gs.Char.direction = Directions.RIGHT
+        gs.controlX = Control.HELD_FORWARD
+        gs.controlForward = Control.HELD
+        gs.controlBackward = Control.RELEASED
+        var controlCalled = false
+        ExternalStubs.control = {
+            controlCalled = true
+            // During control() call, X should be flipped (since dir >= RIGHT)
+            assertEquals(-Control.HELD_FORWARD, gs.controlX)
+        }
+        Seg006.userControl()
+        assertTrue(controlCalled)
+        // After userControl, X is restored
+        assertEquals(Control.HELD_FORWARD, gs.controlX)
+    }
+
+    @Test
+    fun userControlFacingLeftCallsControlDirectly() {
+        val gs = GameState
+        gs.Char.direction = Directions.LEFT
+        gs.controlX = Control.HELD_FORWARD
+        var controlCalled = false
+        ExternalStubs.control = {
+            controlCalled = true
+            // No flip — X is unchanged
+            assertEquals(Control.HELD_FORWARD, gs.controlX)
+        }
+        Seg006.userControl()
+        assertTrue(controlCalled)
+    }
+
+    // --- doDemo tests ---
+
+    @Test
+    fun doDemoWithCheckpointSetsForwardControl() {
+        val gs = GameState
+        gs.checkpoint = 1
+        gs.controlForward = Control.RELEASED
+        gs.controlX = 0
+        gs.controlUp = Control.HELD
+        gs.controlDown = Control.HELD
+        gs.controlBackward = Control.HELD
+        Seg006.doDemo()
+        assertEquals(Control.HELD, gs.controlForward)
+        assertEquals(Control.HELD_FORWARD, gs.controlX)
+        assertEquals(1, gs.controlShift2) // releaseArrows returns 1
+        // releaseArrows clears all directional controls
+        assertEquals(Control.RELEASED, gs.controlUp)
+        assertEquals(Control.RELEASED, gs.controlDown)
+        assertEquals(Control.RELEASED, gs.controlBackward)
+    }
+
+    @Test
+    fun doDemoWithSwordUsesAutocontrol() {
+        val gs = GameState
+        gs.checkpoint = 0
+        gs.Char.sword = 1
+        gs.guardSkill = 5
+        var autocontrolCalled = false
+        ExternalStubs.autocontrolOpponent = {
+            autocontrolCalled = true
+            assertEquals(10, gs.guardSkill)
+        }
+        Seg006.doDemo()
+        assertTrue(autocontrolCalled)
+        assertEquals(11, gs.guardSkill)
+    }
+
+    @Test
+    fun doDemoNoCheckpointNoSwordCallsAutoMoves() {
+        val gs = GameState
+        gs.checkpoint = 0
+        gs.Char.sword = 0
+        var autoMovesCalled = false
+        ExternalStubs.doAutoMoves = { moves ->
+            autoMovesCalled = true
+            assertNotNull(moves)
+        }
+        Seg006.doDemo()
+        assertTrue(autoMovesCalled)
+    }
+
+    // --- controlKid tests ---
+
+    @Test
+    fun controlKidKillsKidWhenAliveNegativeAndNoHP() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 0
+        gs.currentLevel = 1 // not demo
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        // Need stubs for normal gameplay path
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.control = { }
+        Seg006.controlKid()
+        assertEquals(0, gs.Char.alive)
+    }
+
+    @Test
+    fun controlKidDecrementsGrabTimer() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 3 // alive, HP > 0
+        gs.grabTimer = 5
+        gs.currentLevel = 1
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.control = { }
+        Seg006.controlKid()
+        assertEquals(4, gs.grabTimer)
+    }
+
+    @Test
+    fun controlKidDemoLevelCallsDoDemo() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 3
+        gs.currentLevel = 0 // demo level
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        gs.checkpoint = 1 // will trigger the checkpoint path in doDemo
+        var controlCalled = false
+        ExternalStubs.control = { controlCalled = true }
+        ExternalStubs.keyTestQuit = { 0 } // no key pressed
+        Seg006.controlKid()
+        assertTrue(controlCalled)
+        // doDemo sets forward control when checkpoint
+        assertEquals(Control.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun controlKidNormalLevelReadsControlAndCallsUserControl() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 3
+        gs.currentLevel = 1
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        gs.controlX = Control.HELD_FORWARD
+        gs.controlY = 0
+        gs.controlShift = 0
+        // Save some ctrl1 values to verify restCtrl1 is called
+        gs.ctrl1Forward = Control.HELD
+        gs.ctrl1Backward = Control.RELEASED
+        gs.ctrl1Up = Control.RELEASED
+        gs.ctrl1Down = Control.RELEASED
+        gs.ctrl1Shift2 = Control.RELEASED
+        var controlCalled = false
+        ExternalStubs.control = { controlCalled = true }
+        ExternalStubs.doPaused = { 0 }
+        Seg006.controlKid()
+        assertTrue(controlCalled)
+    }
+
+    @Test
+    fun controlKidStopsFeatherFallOnDeath() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 0
+        gs.isFeatherFall = 5
+        gs.fixes = FixesOptionsType(fixQuicksaveDuringFeather = 1)
+        gs.currentLevel = 1
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        var soundsStopped = false
+        ExternalStubs.checkSoundPlaying = { 1 }
+        ExternalStubs.stopSounds = { soundsStopped = true }
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.control = { }
+        Seg006.controlKid()
+        assertEquals(0, gs.isFeatherFall)
+        assertTrue(soundsStopped)
+    }
+
+    // --- playKid tests ---
+
+    @Test
+    fun playKidCallsFellOutAndControlKid() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.hitpCurr = 3
+        gs.currentLevel = 1
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        // Set up a room so fellOut doesn't crash
+        gs.Char.room = 1
+        gs.Char.currRow = 1
+        gs.Char.x = 50
+        gs.Char.action = Actions.STAND
+        gs.drawnRoom = 1
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.control = { }
+        // isDead returns 0 so the death path is skipped
+        gs.Char.frame = FrameIds.frame_15_stand
+        Seg006.playKid()
+        // Should not crash — basic smoke test
+    }
+
+    @Test
+    fun playKidDeathSequenceIncrementsAlive() {
+        val gs = GameState
+        gs.Char.alive = 0
+        gs.hitpCurr = 3
+        gs.currentLevel = 1
+        gs.playDemoLevel = 0
+        gs.replaying = 0
+        gs.Char.room = 1
+        gs.Char.currRow = 1
+        gs.Char.x = 50
+        gs.Char.action = Actions.STAND
+        gs.Char.frame = FrameIds.frame_185_dead // isDead returns 1
+        gs.drawnRoom = 1
+        gs.resurrectTime = 0
+        ExternalStubs.doPaused = { 0 }
+        ExternalStubs.control = { }
+        ExternalStubs.checkSoundPlaying = { 0 }
+        Seg006.playKid()
+        assertEquals(1, gs.Char.alive)
+    }
+
+    // --- playGuard tests ---
+
+    @Test
+    fun playGuardMouseCallsAutocontrol() {
+        val gs = GameState
+        gs.Char.charid = CharIds.MOUSE
+        var autocontrolCalled = false
+        ExternalStubs.autocontrolOpponent = { autocontrolCalled = true }
+        Seg006.playGuard()
+        assertTrue(autocontrolCalled)
+    }
+
+    @Test
+    fun playGuardDeadGuardWithNoHPKills() {
+        val gs = GameState
+        gs.Char.charid = CharIds.GUARD
+        gs.Char.alive = -1
+        gs.guardhpCurr = 0
+        gs.currentLevel = 5
+        var controlCalled = false
+        ExternalStubs.autocontrolOpponent = { }
+        ExternalStubs.control = { controlCalled = true }
+        ExternalStubs.playSound = { }
+        Seg006.playGuard()
+        assertEquals(0, gs.Char.alive)
+        // onGuardKilled was called — for non-jaffar, non-shadow, non-demo: plays victory sound
+    }
+
+    @Test
+    fun playGuardAliveGuardCallsAutocontrolAndControl() {
+        val gs = GameState
+        gs.Char.charid = CharIds.GUARD
+        gs.Char.alive = -1
+        gs.guardhpCurr = 3
+        var autocontrolCalled = false
+        var controlCalled = false
+        ExternalStubs.autocontrolOpponent = { autocontrolCalled = true }
+        ExternalStubs.control = { controlCalled = true }
+        Seg006.playGuard()
+        assertTrue(autocontrolCalled)
+        assertTrue(controlCalled)
+    }
+
+    @Test
+    fun playGuardShadowClearsChar() {
+        val gs = GameState
+        gs.Char.charid = CharIds.SHADOW
+        gs.Char.alive = 0 // not negative — skips dead check
+        gs.Char.direction = Directions.RIGHT
+        ExternalStubs.autocontrolOpponent = { }
+        ExternalStubs.control = { }
+        ExternalStubs.drawGuardHp = { _, _ -> }
+        Seg006.playGuard()
+        assertEquals(Directions.NONE, gs.Char.direction) // clearChar sets direction to NONE
+    }
+
+    // --- controlGuardInactive tests ---
+
+    @Test
+    fun controlGuardInactiveDrawsSwordWhenForward() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_166_stand_inactive
+        gs.controlDown = Control.HELD
+        gs.controlForward = Control.HELD
+        var drawSwordCalled = false
+        ExternalStubs.drawSword = { drawSwordCalled = true }
+        Seg006.controlGuardInactive()
+        assertTrue(drawSwordCalled)
+    }
+
+    @Test
+    fun controlGuardInactiveFlipsWhenNoForward() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_166_stand_inactive
+        gs.controlDown = Control.HELD
+        gs.controlForward = Control.RELEASED
+        var seqOffsetCalled = false
+        ExternalStubs.seqtblOffsetChar = { seqIndex ->
+            seqOffsetCalled = true
+            assertEquals(SeqIds.seq_80_stand_flipped, seqIndex)
+            gs.Char.currSeq = SequenceTable.seqtblOffsets[seqIndex]
+        }
+        Seg006.controlGuardInactive()
+        assertTrue(seqOffsetCalled)
+        assertEquals(Control.IGNORE, gs.controlDown)
+    }
+
+    @Test
+    fun controlGuardInactiveIgnoresWrongFrame() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_15_stand // not inactive frame
+        gs.controlDown = Control.HELD
+        gs.controlForward = Control.HELD
+        var drawSwordCalled = false
+        ExternalStubs.drawSword = { drawSwordCalled = true }
+        Seg006.controlGuardInactive()
+        assertFalse(drawSwordCalled)
+    }
+
+    // --- charOppDist tests ---
+
+    @Test
+    fun charOppDistDifferentRoomReturns999() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Opp.room = 2
+        assertEquals(999, Seg006.charOppDist())
+    }
+
+    @Test
+    fun charOppDistOppInFrontFacingLeft() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Opp.room = 1
+        gs.Char.x = 100
+        gs.Opp.x = 80  // Opp is at lower X
+        gs.Char.direction = Directions.LEFT // facing left means lower X is forward
+        gs.Opp.direction = Directions.LEFT
+        // distance = Opp.x - Char.x = -20, direction < RIGHT → negate → 20
+        // same direction, so no +13
+        assertEquals(20, Seg006.charOppDist())
+    }
+
+    @Test
+    fun charOppDistOppInFrontFacingRight() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Opp.room = 1
+        gs.Char.x = 80
+        gs.Opp.x = 100 // Opp is at higher X
+        gs.Char.direction = Directions.RIGHT
+        gs.Opp.direction = Directions.RIGHT
+        // distance = 100 - 80 = 20, direction >= RIGHT → no negate
+        // same direction → no +13
+        assertEquals(20, Seg006.charOppDist())
+    }
+
+    @Test
+    fun charOppDistOppositeFacingAdds13() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Opp.room = 1
+        gs.Char.x = 80
+        gs.Opp.x = 100
+        gs.Char.direction = Directions.RIGHT
+        gs.Opp.direction = Directions.LEFT
+        // distance = 20, Opp facing different direction, distance >= 0 → +13 = 33
+        assertEquals(33, Seg006.charOppDist())
+    }
+
+    @Test
+    fun charOppDistOppBehindReturnsNegative() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Opp.room = 1
+        gs.Char.x = 100
+        gs.Opp.x = 80
+        gs.Char.direction = Directions.RIGHT
+        gs.Opp.direction = Directions.RIGHT
+        // distance = 80 - 100 = -20, direction >= RIGHT → no negate
+        // distance < 0, so no +13
+        assertEquals(-20, Seg006.charOppDist())
     }
 
     // Helper to set up a basic room with all floor tiles
