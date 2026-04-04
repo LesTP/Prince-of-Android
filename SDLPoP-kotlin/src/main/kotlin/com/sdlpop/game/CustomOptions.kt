@@ -191,5 +191,6 @@ data class FixesOptionsType(
     var fixTurnRunningNearWall: Int = 0,
     var fixFeatherFallAffectsGuards: Int = 0,
     var fixOneHpStopsBlinking: Int = 0,
-    var fixDeadFloatingInAir: Int = 0
+    var fixDeadFloatingInAir: Int = 0,
+    var fixCollFlags: Int = 0  // FIX_COLL_FLAGS — disabled in reference build
 )

@@ -1,5 +1,43 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 9: Layer 1 — seg004 (Collision detection)
+
+### 2026-04-04 — Phase 9a: Full translation (all 26 functions)
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 42 new tests pass (232 total), gradle build clean
+
+**What was done:**
+Created `Seg004.kt` with all 26 seg004.c functions:
+- Collision core: `checkCollisions`, `moveCollToPrev`, `getRowCollisionData`, `clearCollRooms`
+- Wall position: `getLeftWallXpos`, `getRightWallXpos`
+- Bump detection: `checkBumped`, `checkBumpedLookLeft`, `checkBumpedLookRight`, `isObstacleAtCol`
+- Obstacle/position: `isObstacle`, `xposInDrawnRoom`
+- Bump response: `bumped`, `bumpedFall`, `bumpedFloor`, `bumpedSound`
+- Chomper: `checkChompedKid`, `chomped`, `checkChompedGuard`, `checkChompedHere`
+- Gate/guard: `checkGatePush`, `checkGuardBumped`
+- Edge/wall distance: `getEdgeDistance`, `distFromWallForward`, `distFromWallBehind`
+- Gate helper: `canBumpIntoGate`
+- Private helper: `loadFrameToObj` (inlined from seg008 — needed for collision calculations)
+- Private helper: `getEdgeDistanceFront` (extracted from C goto-based control flow in `get_edge_distance`)
+
+Added `fixCollFlags` field to `FixesOptionsType` (disabled in reference build, defaults to 0).
+
+5 seg004-local variables as object properties: `bumpColLeftOfWall`, `bumpColRightOfWall`, `rightCheckedCol`, `leftCheckedCol`, `collTileLeftXpos`.
+2 constant lookup tables: `wallDistFromLeft`, `wallDistFromRight`.
+
+Created `Seg004Test.kt` with 42 unit tests covering: clearCollRooms (with/without fixCollFlags), moveCollToPrev, wall distance tables, getLeftWallXpos/getRightWallXpos, canBumpIntoGate, isObstacle (potion/gate/chomper/mirror/wall), xposInDrawnRoom, bumpedSound, bumpedFall, bumped (dead/spiked/alive), checkBumped (hang/climb skip), distFromWallForward/Behind, chomped (blood/skeleton/already-chomped), checkGatePush, checkChompedHere, isObstacleAtCol (row wrapping), checkCollisions (turn early return).
+
+**Design decisions:**
+- `get_edge_distance` C goto refactored to extracted helper `getEdgeDistanceFront` — cleaner control flow, identical behavior
+- `load_frame_to_obj` inlined as private method (seg008 function, but needed for collision; same pattern as seg006's `getRoomAddress`)
+- All 7 `#ifdef` fix paths translated as runtime checks: `fixCollFlags` (disabled), `fixTwoCollBug`, `enableJumpGrab`, `fixSkeletonChomperBlood`, `fixOffscreenGuardsDisappearing`, `fixCapedPrinceSlidingThroughGate`, `fixPushGuardIntoWall`
+- `FIX_COLL_FLAGS` is disabled in reference build (commented out in config.h) — added to FixesOptionsType with default 0
+
+**Contract changes:** None.
+
+---
+
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
 ### 2026-04-04 — Module 8 Complete (phase-complete)

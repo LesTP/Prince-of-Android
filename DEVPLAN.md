@@ -28,7 +28,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 9 — Layer 1: seg004 (Collision detection) — **IN PROGRESS**
-**Phase:** 9a — planned. Next action: implement Phase 9a.
+**Phase:** 9a — COMPLETE. All 26 seg004 functions translated, 232 tests pass. Next: Phase 9b (review).
 **Blocked/Broken:** None.
 
 ### Module 9: seg004.c → Kotlin
