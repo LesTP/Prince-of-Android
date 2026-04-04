@@ -243,6 +243,10 @@ object GameState {
     var graphicsMode: Int = 0      // byte (graphics_mode), init 0
     var soundFlags: Int = 0        // byte (sound_flags), init 0
     var superJumpFall: Int = 0     // byte (super_jump_fall), init 0
+    var superJumpTimer: Int = 0    // word (super_jump_timer), init 0
+    var superJumpRoom: Int = 0     // byte (super_jump_room), init 0
+    var superJumpCol: Int = 0      // byte (super_jump_col), init 0
+    var superJumpRow: Int = 0      // byte (super_jump_row), init 0
     var isKeyboardMode: Int = 0    // word (is_keyboard_mode), init 0
     var isJoystMode: Int = 0       // word (is_joyst_mode)
     var soundMode: Int = 0         // byte (sound_mode), init 0

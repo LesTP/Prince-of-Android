@@ -34,8 +34,12 @@ object ExternalStubs {
     // --- seg002 (guard AI) ---
     var autocontrolOpponent: () -> Unit = { throw NotImplementedError("autocontrol_opponent (seg002)") }
 
+    // --- seg002 (guard AI) ---
+    var leaveGuard: () -> Unit = { throw NotImplementedError("leave_guard (seg002)") }
+
     // --- seg003 (game loop helpers) ---
     var doFall: () -> Unit = { throw NotImplementedError("do_fall (seg003)") }
+    var doPickup: (Int) -> Unit = { _ -> throw NotImplementedError("do_pickup (seg003)") }
 
     // --- seg005 (sword/combat) ---
     var drawSword: () -> Unit = { throw NotImplementedError("draw_sword (seg005)") }

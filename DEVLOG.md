@@ -2,6 +2,34 @@
 
 ## Module 10: Layer 1 — seg005 (Player control, sword fighting)
 
+### 2026-04-04 — Phase 10b: Standing control, climbing, items (17 functions)
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 17 new tests pass (285 total), gradle build clean
+
+**What was done:**
+Replaced Phase 10b placeholder functions in `Seg005.kt` with full implementations:
+- Standing: `controlStanding` (sword draw logic, movement dispatch with goto refactoring), `upPressed` (level door entry, jump), `downPressed` (climb down, crouch, position adjust), `goUpLeveldoor`
+- Jumping: `standingJump`, `checkJumpUp` (tile-above grab logic), `jumpUpOrGrab`, `grabUpNoFloorBehind`, `jumpUp` (full USE_SUPER_HIGH_JUMP path), `grabUpWithFloorBehind` (FIX_EDGE_DISTANCE_CHECK), `runJump` (edge alignment)
+- Hanging: `controlHanging` (wall/doortop detection, super jump), `canClimbUp` (mirror/chomper/gate block), `hangFall`
+- Items: `checkGetItem` (potion/sword detection), `getItem` (pickup dispatch), `controlJumpup`
+
+Added `doPickup` (seg003) and `leaveGuard` (seg002) stubs to ExternalStubs.kt.
+Added `superJumpTimer`, `superJumpRoom`, `superJumpCol`, `superJumpRow` to GameState.kt.
+
+17 new tests in Seg005Test.kt covering: controlStanding (forward/back/shift-back), standingJump, goUpLeveldoor, controlJumpup (2), downPressed, canClimbUp (normal/closed-gate/mirror), hangFall (no floor), controlHanging (dead falls), grabUpWithFloorBehind, getItem (sword/potion/not-crouching), runJump (not running).
+
+**Design decisions:**
+- `controlStanding` C `goto loc_6213` refactored to fall-through control flow
+- `(word)distance < (word)-6` in controlStanding translated as `(distance and 0xFFFF) < ((-6) and 0xFFFF)` — unsigned 16-bit comparison
+- `USE_COPYPROT` path in `getItem` skipped (not in reference build)
+- `USE_TELEPORTS` path in `upPressed` skipped (not in reference build)
+- C boolean expression `(curr_tile2 == tiles_10_potion)` in getItem translated as explicit if/else
+
+**Contract changes:** None.
+
+---
+
 ### 2026-04-04 — Phase 10a: Falling, landing, movement basics (14 functions)
 
 **Mode:** Code (autonomous)

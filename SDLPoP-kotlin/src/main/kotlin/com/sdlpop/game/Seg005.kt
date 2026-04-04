@@ -487,27 +487,452 @@ object Seg005 {
         }
     }
 
-    // ── Stub references for Phase 10b/10c functions ──
-    // These will be filled in during subsequent phases.
+    // ══════════════════════════════════════════════════════════
+    // Phase 10b: Standing control, climbing, items
+    // ══════════════════════════════════════════════════════════
 
-    /** Placeholder — Phase 10b */
-    fun controlStanding() { /* Phase 10b */ }
-    fun upPressed() { /* Phase 10b */ }
-    fun downPressed() { /* Phase 10b */ }
-    fun standingJump() { /* Phase 10b */ }
-    fun checkJumpUp() { /* Phase 10b */ }
-    fun jumpUpOrGrab() { /* Phase 10b */ }
-    fun grabUpNoFloorBehind() { /* Phase 10b */ }
-    fun jumpUp() { /* Phase 10b */ }
-    fun grabUpWithFloorBehind() { /* Phase 10b */ }
-    fun runJump() { /* Phase 10b */ }
-    fun controlHanging() { /* Phase 10b */ }
-    fun canClimbUp() { /* Phase 10b */ }
-    fun hangFall() { /* Phase 10b */ }
-    fun goUpLeveldoor() { /* Phase 10b */ }
-    fun checkGetItem(): Boolean = false // Phase 10b
-    fun getItem() { /* Phase 10b */ }
-    fun controlJumpup() { /* Phase 10b */ }
+    // ── control_standing ──
+
+    /** seg005:0358 — Control while standing: sword draw, movement, jump, crouch. */
+    fun controlStanding() {
+        if (gs.controlShift2 == Ctrl.HELD && gs.controlShift == Ctrl.HELD && checkGetItem()) {
+            return
+        }
+        if (gs.Char.charid != CID.KID && gs.controlDown == Ctrl.HELD && gs.controlForward == Ctrl.HELD) {
+            drawSword()
+            return
+        }
+        if (gs.haveSword != 0) {
+            if (gs.offguard != 0 && gs.controlShift >= Ctrl.RELEASED) {
+                // goto loc_6213 — fall through to forward check below
+            } else {
+                if (gs.canGuardSeeKid.toInt() >= 2) {
+                    val distance = seg006.charOppDist()
+                    if (distance >= -10 && distance < 90) {
+                        gs.holdingSword = 1
+                        if ((distance and 0xFFFF) < ((-6) and 0xFFFF)) {
+                            // (word)distance < (word)-6 — unsigned comparison
+                            if (gs.Opp.charid == CID.SHADOW &&
+                                (gs.Opp.action == Act.IN_MIDAIR ||
+                                    (gs.Opp.frame >= FID.frame_107_fall_land_1 && gs.Opp.frame < 118))
+                            ) {
+                                gs.offguard = 0
+                            } else {
+                                drawSword()
+                                return
+                            }
+                        } else {
+                            backPressed()
+                            return
+                        }
+                    }
+                } else {
+                    gs.offguard = 0
+                }
+            }
+        }
+        // loc_6213 path and normal standing controls
+        if (gs.controlShift == Ctrl.HELD) {
+            if (gs.controlBackward == Ctrl.HELD) {
+                backPressed()
+            } else if (gs.controlUp == Ctrl.HELD) {
+                upPressed()
+            } else if (gs.controlDown == Ctrl.HELD) {
+                downPressed()
+            } else if (gs.controlX == Ctrl.HELD_FORWARD && gs.controlForward == Ctrl.HELD) {
+                safeStep()
+            }
+        } else if (gs.controlForward == Ctrl.HELD) {
+            if (gs.isKeyboardMode != 0 && gs.controlUp == Ctrl.HELD) {
+                standingJump()
+            } else {
+                forwardPressed()
+            }
+        } else if (gs.controlBackward == Ctrl.HELD) {
+            backPressed()
+        } else if (gs.controlUp == Ctrl.HELD) {
+            if (gs.isKeyboardMode != 0 && gs.controlForward == Ctrl.HELD) {
+                standingJump()
+            } else {
+                upPressed()
+            }
+        } else if (gs.controlDown == Ctrl.HELD) {
+            downPressed()
+        } else if (gs.controlX == Ctrl.HELD_FORWARD) {
+            forwardPressed()
+        }
+    }
+
+    // ── up_pressed ──
+
+    /** seg005:0482 — Up pressed: enter level door or jump up. */
+    fun upPressed() {
+        var leveldoorTilepos = -1
+        if (seg006.getTileAtChar() == T.LEVEL_DOOR_LEFT) leveldoorTilepos = gs.currTilepos
+        else if (seg006.getTileBehindChar() == T.LEVEL_DOOR_LEFT) leveldoorTilepos = gs.currTilepos
+        else if (seg006.getTileInfrontofChar() == T.LEVEL_DOOR_LEFT) leveldoorTilepos = gs.currTilepos
+
+        if (leveldoorTilepos != -1 &&
+            gs.level.startRoom != gs.drawnRoom &&
+            (if (gs.fixes.fixExitDoor != 0)
+                gs.currRoomModif[leveldoorTilepos] >= 42
+            else
+                gs.leveldoorOpen != 0)
+        ) {
+            goUpLeveldoor()
+            return
+        }
+
+        // USE_TELEPORTS: skipped (not in reference build)
+
+        // Jump up
+        if (gs.controlX == Ctrl.HELD_FORWARD) {
+            standingJump()
+        } else {
+            checkJumpUp()
+        }
+    }
+
+    // ── down_pressed ──
+
+    /** seg005:04C7 — Down pressed: climb down, crouch, or adjust position. */
+    fun downPressed() {
+        gs.controlDown = Ctrl.IGNORE
+        if (seg006.tileIsFloor(seg006.getTileInfrontofChar()) == 0 &&
+            seg006.distanceToEdgeWeight() < 3
+        ) {
+            gs.Char.x = seg006.charDxForward(5)
+            seg006.loadFramDetCol()
+        } else {
+            if (seg006.tileIsFloor(seg006.getTileBehindChar()) == 0 &&
+                seg006.distanceToEdgeWeight() >= 8
+            ) {
+                gs.throughTile = seg006.getTileBehindChar()
+                seg006.getTileAtChar()
+                if (seg006.canGrab() != 0 &&
+                    // ALLOW_CROUCH_AFTER_CLIMBING
+                    !(gs.fixes.enableCrouchAfterClimbing != 0 && gs.controlForward == Ctrl.HELD) &&
+                    (gs.Char.direction >= Dir.RIGHT ||
+                        seg006.getTileAtChar() != T.GATE ||
+                        gs.currRoomModif[gs.currTilepos] shr 2 >= 6)
+                ) {
+                    gs.Char.x = seg006.charDxForward(seg006.distanceToEdgeWeight() - 9)
+                    seqtblOffsetChar(Seq.seq_68_climb_down)
+                } else {
+                    crouch()
+                }
+            } else {
+                crouch()
+            }
+        }
+    }
+
+    // ── go_up_leveldoor ──
+
+    /** seg005:0574 — Position char and start level door sequence. */
+    fun goUpLeveldoor() {
+        gs.Char.x = gs.xBump[gs.tileCol.toInt() + TG.FIRST_ONSCREEN_COLUMN] + 10
+        gs.Char.direction = Dir.LEFT
+        seqtblOffsetChar(Seq.seq_70_go_up_on_level_door)
+    }
+
+    // ── standing_jump ──
+
+    /** seg005:0825 — Start standing jump. */
+    fun standingJump() {
+        gs.controlUp = Ctrl.IGNORE
+        gs.controlForward = Ctrl.IGNORE
+        seqtblOffsetChar(Seq.seq_3_standing_jump)
+    }
+
+    // ── check_jump_up ──
+
+    /** seg005:0836 — Check tiles above and decide jump/grab direction. */
+    fun checkJumpUp() {
+        gs.controlUp = seg006.releaseArrows()
+        gs.throughTile = seg006.getTileAboveChar()
+        seg006.getTileFrontAboveChar()
+        if (seg006.canGrab() != 0) {
+            grabUpWithFloorBehind()
+        } else {
+            gs.throughTile = seg006.getTileBehindAboveChar()
+            seg006.getTileAboveChar()
+            if (seg006.canGrab() != 0) {
+                jumpUpOrGrab()
+            } else {
+                jumpUp()
+            }
+        }
+    }
+
+    // ── jump_up_or_grab ──
+
+    /** seg005:087B — Jump up or grab depending on distance and floor behind. */
+    fun jumpUpOrGrab() {
+        val distance = seg006.distanceToEdgeWeight()
+        if (distance < 6) {
+            jumpUp()
+        } else if (seg006.tileIsFloor(seg006.getTileBehindChar()) == 0) {
+            grabUpNoFloorBehind()
+        } else {
+            gs.Char.x = seg006.charDxForward(distance - TG.TILE_SIZEX)
+            seg006.loadFramDetCol()
+            grabUpWithFloorBehind()
+        }
+    }
+
+    // ── grab_up_no_floor_behind ──
+
+    /** seg005:08C7 — Grab up when no floor behind. */
+    fun grabUpNoFloorBehind() {
+        seg006.getTileAboveChar()
+        gs.Char.x = seg006.charDxForward(seg006.distanceToEdgeWeight() - 10)
+        seqtblOffsetChar(Seq.seq_16_jump_up_and_grab)
+    }
+
+    // ── jump_up ──
+
+    /** seg005:08E6 — Jump straight up, checking ceiling. */
+    fun jumpUp() {
+        gs.controlUp = seg006.releaseArrows()
+        val distance = seg004.getEdgeDistance()
+        if (distance < 4 && gs.edgeType == ET.WALL) {
+            gs.Char.x = seg006.charDxForward(distance - 3)
+        }
+        // FIX_JUMP_DISTANCE_AT_EDGE
+        if (gs.fixes.fixJumpDistanceAtEdge != 0 && distance == 3 && gs.edgeType == ET.CLOSER) {
+            gs.Char.x = seg006.charDxForward(-1)
+        }
+
+        // USE_SUPER_HIGH_JUMP path
+        if (gs.fixes.enableSuperHighJump != 0) {
+            val deltaX: Int = if (gs.isFeatherFall != 0 &&
+                seg006.tileIsFloor(seg006.getTileAboveChar()) == 0 &&
+                gs.currTile2 != T.WALL
+            ) {
+                if (gs.Char.direction == Dir.LEFT) 1 else 3
+            } else {
+                0
+            }
+            val charCol = seg006.getTileDivMod(seg006.backDeltaX(deltaX) + seg006.dxWeight() - 6)
+            seg006.getTile(gs.Char.room, charCol, gs.Char.currRow - 1)
+            if (gs.currTile2 != T.WALL && seg006.tileIsFloor(gs.currTile2) == 0) {
+                if (gs.fixes.enableSuperHighJump != 0 && gs.isFeatherFall != 0) {
+                    if (gs.currRoom.toInt() == 0 && gs.Char.currRow == 0) {
+                        seqtblOffsetChar(Seq.seq_14_jump_up_into_ceiling)
+                    } else {
+                        seg006.getTile(gs.Char.room, charCol, gs.Char.currRow - 2)
+                        var isTopFloor = seg006.tileIsFloor(gs.currTile2) != 0 || gs.currTile2 == T.WALL
+                        if (isTopFloor && gs.currTile2 == T.LOOSE &&
+                            (gs.currRoomTiles[gs.currTilepos] and 0x20) == 0
+                        ) {
+                            isTopFloor = false
+                        }
+                        gs.superJumpTimer = if (isTopFloor) 22 else 24
+                        gs.superJumpRoom = gs.currRoom.toInt()
+                        gs.superJumpCol = gs.tileCol.toInt()
+                        gs.superJumpRow = gs.tileRow.toInt()
+                        seqtblOffsetChar(Seq.seq_48_super_high_jump)
+                    }
+                } else {
+                    seqtblOffsetChar(Seq.seq_28_jump_up_with_nothing_above)
+                }
+            } else {
+                seqtblOffsetChar(Seq.seq_14_jump_up_into_ceiling)
+            }
+        } else {
+            // Standard path (no USE_SUPER_HIGH_JUMP)
+            seg006.getTile(
+                gs.Char.room,
+                seg006.getTileDivMod(seg006.backDeltaX(0) + seg006.dxWeight() - 6),
+                gs.Char.currRow - 1
+            )
+            if (gs.currTile2 != T.WALL && seg006.tileIsFloor(gs.currTile2) == 0) {
+                seqtblOffsetChar(Seq.seq_28_jump_up_with_nothing_above)
+            } else {
+                seqtblOffsetChar(Seq.seq_14_jump_up_into_ceiling)
+            }
+        }
+    }
+
+    // ── grab_up_with_floor_behind ──
+
+    /** seg005:0AA8 — Grab up when there is floor behind. */
+    fun grabUpWithFloorBehind() {
+        val distance = seg006.distanceToEdgeWeight()
+        val edgeDistance = seg004.getEdgeDistance()
+
+        val jumpStraight = if (gs.fixes.fixEdgeDistanceCheckWhenClimbing != 0) {
+            // FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING
+            distance < 4 && gs.edgeType != ET.WALL
+        } else {
+            distance < 4 && edgeDistance < 4 && gs.edgeType != ET.WALL
+        }
+
+        if (jumpStraight) {
+            gs.Char.x = seg006.charDxForward(distance)
+            seqtblOffsetChar(Seq.seq_8_jump_up_and_grab_straight)
+        } else {
+            gs.Char.x = seg006.charDxForward(distance - 4)
+            seqtblOffsetChar(Seq.seq_24_jump_up_and_grab_forward)
+        }
+    }
+
+    // ── run_jump ──
+
+    /** seg005:0AF7 — Running jump: align to edge and jump. */
+    fun runJump() {
+        if (gs.Char.frame >= FID.frame_7_run) {
+            val xpos = seg006.charDxForward(4)
+            var col = seg006.getTileDivModM7(xpos)
+            var posAdjustment: Int
+            for (tilesForward in 0 until 2) {
+                col += gs.dirFront[gs.Char.direction + 1]
+                seg006.getTile(gs.Char.room, col, gs.Char.currRow)
+                if (gs.currTile2 == T.SPIKE || seg006.tileIsFloor(gs.currTile2) == 0) {
+                    posAdjustment = seg006.distanceToEdge(xpos) + TG.TILE_SIZEX * tilesForward - TG.TILE_SIZEX
+                    if ((posAdjustment and 0xFFFF) < ((-8) and 0xFFFF) || posAdjustment >= 2) {
+                        if (posAdjustment < 128) return
+                        posAdjustment = -3
+                    }
+                    gs.Char.x = seg006.charDxForward(posAdjustment + 4)
+                    break
+                }
+            }
+            gs.controlUp = seg006.releaseArrows()
+            seqtblOffsetChar(Seq.seq_4_run_jump)
+        }
+    }
+
+    // ── control_hanging ──
+
+    /** seg005:0968 — Control while hanging: climb up, hang against wall, or fall. */
+    fun controlHanging() {
+        if (gs.Char.alive < 0) {
+            if (gs.grabTimer == 0 && gs.controlY == Ctrl.HELD) {
+                canClimbUp()
+            } else if (gs.controlShift == Ctrl.HELD ||
+                (gs.fixes.enableSuperHighJump != 0 && gs.superJumpFall != 0 && gs.controlY == Ctrl.HELD)
+            ) {
+                if (gs.Char.action != Act.HANG_STRAIGHT &&
+                    (seg006.getTileAtChar() == T.WALL ||
+                        (gs.Char.direction == Dir.LEFT &&
+                            (gs.currTile2 == T.DOORTOP_WITH_FLOOR || gs.currTile2 == T.DOORTOP)))
+                ) {
+                    if (gs.grabTimer == 0) {
+                        stubs.playSound(Snd.BUMPED)
+                    }
+                    seqtblOffsetChar(Seq.seq_25_hang_against_wall)
+                } else {
+                    if (seg006.tileIsFloor(seg006.getTileAboveChar()) == 0) {
+                        hangFall()
+                    }
+                }
+            } else {
+                hangFall()
+            }
+        } else {
+            hangFall()
+        }
+    }
+
+    // ── can_climb_up ──
+
+    /** seg005:09DF — Check if can climb up: mirror/chomper/closed gate block. */
+    fun canClimbUp() {
+        var seqId = Seq.seq_10_climb_up
+        gs.controlUp = seg006.releaseArrows()
+        gs.controlShift2 = gs.controlUp
+        if (gs.fixes.enableSuperHighJump != 0) {
+            gs.superJumpFall = 0
+        }
+        seg006.getTileAboveChar()
+        if (((gs.currTile2 == T.MIRROR || gs.currTile2 == T.CHOMPER) &&
+                gs.Char.direction == Dir.RIGHT) ||
+            (gs.currTile2 == T.GATE && gs.Char.direction != Dir.RIGHT &&
+                gs.currRoomModif[gs.currTilepos] shr 2 < 6)
+        ) {
+            seqId = Seq.seq_73_climb_up_to_closed_gate
+        }
+        seqtblOffsetChar(seqId)
+    }
+
+    // ── hang_fall ──
+
+    /** seg005:0A46 — Release ledge and fall or land. */
+    fun hangFall() {
+        gs.controlDown = seg006.releaseArrows()
+        if (gs.fixes.enableSuperHighJump != 0) {
+            gs.superJumpFall = 0
+        }
+        if (seg006.tileIsFloor(seg006.getTileBehindChar()) == 0 &&
+            seg006.tileIsFloor(seg006.getTileAtChar()) == 0
+        ) {
+            seqtblOffsetChar(Seq.seq_23_release_ledge_and_fall)
+        } else {
+            if (seg006.getTileAtChar() == T.WALL ||
+                (gs.Char.direction < Dir.RIGHT &&
+                    (gs.currTile2 == T.DOORTOP_WITH_FLOOR || gs.currTile2 == T.DOORTOP))
+            ) {
+                gs.Char.x = seg006.charDxForward(-7)
+            }
+            seqtblOffsetChar(Seq.seq_11_release_ledge_and_land)
+        }
+    }
+
+    // ── check_get_item ──
+
+    /** seg005:06F0 — Check if there's a potion or sword to pick up. Returns true if item found. */
+    fun checkGetItem(): Boolean {
+        if (seg006.getTileAtChar() == T.POTION || gs.currTile2 == T.SWORD) {
+            if (seg006.tileIsFloor(seg006.getTileBehindChar()) == 0) {
+                return false
+            }
+            gs.Char.x = seg006.charDxForward(-14)
+            seg006.loadFramDetCol()
+        }
+        if (seg006.getTileInfrontofChar() == T.POTION || gs.currTile2 == T.SWORD) {
+            getItem()
+            return true
+        }
+        return false
+    }
+
+    // ── get_item ──
+
+    /** seg005:073E — Pick up potion or sword. */
+    fun getItem() {
+        if (gs.Char.frame != FID.frame_109_crouch) {
+            val distance = seg004.getEdgeDistance()
+            if (gs.edgeType != ET.FLOOR) {
+                gs.Char.x = seg006.charDxForward(distance)
+            }
+            if (gs.Char.direction >= Dir.RIGHT) {
+                // C: char_dx_forward((curr_tile2 == tiles_10_potion) - 2)
+                // (curr_tile2 == tiles_10_potion) evaluates to 1 or 0 in C
+                val potionAdj = if (gs.currTile2 == T.POTION) 1 else 0
+                gs.Char.x = seg006.charDxForward(potionAdj - 2)
+            }
+            crouch()
+        } else if (gs.currTile2 == T.SWORD) {
+            stubs.doPickup(-1)
+            seqtblOffsetChar(Seq.seq_91_get_sword)
+        } else {
+            // potion
+            stubs.doPickup(gs.currRoomModif[gs.currTilepos] shr 3)
+            seqtblOffsetChar(Seq.seq_78_drink)
+            // USE_COPYPROT: skipped (not in reference build)
+        }
+    }
+
+    // ── control_jumpup ──
+
+    /** seg005:0812 — Control during jump-up start: allow standing jump. */
+    fun controlJumpup() {
+        if (gs.controlX == Ctrl.HELD_FORWARD || gs.controlForward == Ctrl.HELD) {
+            standingJump()
+        }
+    }
 
     /** Placeholder — Phase 10c */
     fun drawSword() { /* Phase 10c */ }

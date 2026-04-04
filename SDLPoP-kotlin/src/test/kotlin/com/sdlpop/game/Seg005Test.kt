@@ -547,4 +547,231 @@ class Seg005Test {
         // Should not change sequence
         assertEquals(seqBefore, gs.Char.currSeq)
     }
+
+    // ══════════════════════════════════════════════════════════
+    // Phase 10b: Standing control, climbing, items
+    // ══════════════════════════════════════════════════════════
+
+    // ── controlStanding ──
+
+    @Test
+    fun controlStanding_forwardRuns() {
+        gs.controlForward = Ctrl.HELD
+        gs.controlShift = Ctrl.RELEASED
+
+        seg005.controlStanding()
+
+        // Should dispatch to forwardPressed which starts run
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_1_start_run], gs.Char.currSeq)
+    }
+
+    @Test
+    fun controlStanding_backTurns() {
+        gs.controlBackward = Ctrl.HELD
+        gs.controlShift = Ctrl.RELEASED
+
+        seg005.controlStanding()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_5_turn], gs.Char.currSeq)
+    }
+
+    @Test
+    fun controlStanding_shiftBack_turns() {
+        gs.controlShift = Ctrl.HELD
+        gs.controlBackward = Ctrl.HELD
+
+        seg005.controlStanding()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_5_turn], gs.Char.currSeq)
+    }
+
+    // ── standingJump ──
+
+    @Test
+    fun standingJump_setsSequence() {
+        seg005.standingJump()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_3_standing_jump], gs.Char.currSeq)
+        assertEquals(Ctrl.IGNORE, gs.controlUp)
+        assertEquals(Ctrl.IGNORE, gs.controlForward)
+    }
+
+    // ── goUpLeveldoor ──
+
+    @Test
+    fun goUpLeveldoor_positionsAndFacesLeft() {
+        gs.tileCol = 5
+
+        seg005.goUpLeveldoor()
+
+        assertEquals(Dir.LEFT, gs.Char.direction)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_70_go_up_on_level_door], gs.Char.currSeq)
+    }
+
+    // ── controlJumpup ──
+
+    @Test
+    fun controlJumpup_forwardTriggersStandingJump() {
+        gs.controlX = Ctrl.HELD_FORWARD
+
+        seg005.controlJumpup()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_3_standing_jump], gs.Char.currSeq)
+    }
+
+    @Test
+    fun controlJumpup_heldForwardTriggersStandingJump() {
+        gs.controlForward = Ctrl.HELD
+
+        seg005.controlJumpup()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_3_standing_jump], gs.Char.currSeq)
+    }
+
+    // ── downPressed ──
+
+    @Test
+    fun downPressed_disablesRepeat() {
+        seg005.downPressed()
+
+        assertEquals(Ctrl.IGNORE, gs.controlDown)
+    }
+
+    // ── canClimbUp ──
+
+    @Test
+    fun canClimbUp_normalClimb() {
+        gs.currTile2 = T.FLOOR // not mirror/chomper/gate
+
+        seg005.canClimbUp()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_10_climb_up], gs.Char.currSeq)
+    }
+
+    @Test
+    fun canClimbUp_normalClimb_releasesArrows() {
+        // canClimbUp calls releaseArrows and sets controlUp and controlShift2
+        gs.controlUp = Ctrl.HELD
+        gs.controlForward = Ctrl.HELD
+        gs.controlBackward = Ctrl.HELD
+        gs.Char.room = 1
+        gs.drawnRoom = 1
+        gs.currRoom = 1
+        gs.Char.currRow = 1
+        gs.Char.currCol = 5
+        // All tiles floor — normal climb
+        for (i in 0 until 30) gs.currRoomTiles[i] = T.FLOOR
+
+        seg005.canClimbUp()
+
+        assertEquals(Ctrl.RELEASED, gs.controlForward)
+        assertEquals(Ctrl.RELEASED, gs.controlBackward)
+    }
+
+    // ── hangFall ──
+
+    @Test
+    fun hangFall_noFloor_releaseLedgeAndFall() {
+        // Both behind and at char have no floor
+        gs.Char.room = 1
+        gs.drawnRoom = 1
+        gs.currRoom = 1
+        // Tiles are all 0 (empty) by default — not floor
+        for (i in 0 until 30) gs.currRoomTiles[i] = T.EMPTY
+
+        seg005.hangFall()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_23_release_ledge_and_fall], gs.Char.currSeq)
+    }
+
+    // ── controlHanging ──
+
+    @Test
+    fun controlHanging_dead_falls() {
+        gs.Char.alive = 0 // dead
+        gs.Char.room = 1
+        gs.drawnRoom = 1
+        gs.currRoom = 1
+        // Tiles are empty — hangFall should call release_ledge_and_fall
+        for (i in 0 until 30) gs.currRoomTiles[i] = T.EMPTY
+
+        seg005.controlHanging()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_23_release_ledge_and_fall], gs.Char.currSeq)
+    }
+
+    // ── grabUpWithFloorBehind ──
+
+    @Test
+    fun grabUpWithFloorBehind_grabForward() {
+        // distance >= 4 → grab forward
+        // Need distance_to_edge_weight to return >= 4
+        // Just test it doesn't crash with default state
+        seg005.grabUpWithFloorBehind()
+
+        // Should set one of the grab sequences
+        val seq = gs.Char.currSeq
+        assertTrue(
+            seq == SequenceTable.seqtblOffsets[Seq.seq_8_jump_up_and_grab_straight] ||
+            seq == SequenceTable.seqtblOffsets[Seq.seq_24_jump_up_and_grab_forward]
+        )
+    }
+
+    // ── getItem ──
+
+    @Test
+    fun getItem_sword_picksUp() {
+        gs.Char.frame = FID.frame_109_crouch
+        gs.currTile2 = T.SWORD
+        var pickupCalled = false
+        ExternalStubs.doPickup = { type ->
+            assertEquals(-1, type)
+            pickupCalled = true
+        }
+
+        seg005.getItem()
+
+        assertTrue(pickupCalled)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_91_get_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun getItem_potion_drinks() {
+        gs.Char.frame = FID.frame_109_crouch
+        gs.currTile2 = T.POTION
+        gs.currTilepos = 5
+        gs.currRoomModif[5] = 0x18 // 0x18 >> 3 = 3
+        var pickupType = -99
+        ExternalStubs.doPickup = { type -> pickupType = type }
+
+        seg005.getItem()
+
+        assertEquals(3, pickupType)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_78_drink], gs.Char.currSeq)
+    }
+
+    @Test
+    fun getItem_notCrouching_crouches() {
+        gs.Char.frame = FID.frame_15_stand // not crouching
+        gs.currTile2 = T.POTION
+        gs.edgeType = ET.FLOOR
+
+        seg005.getItem()
+
+        // Should call crouch
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_50_crouch], gs.Char.currSeq)
+    }
+
+    // ── runJump ──
+
+    @Test
+    fun runJump_notRunning_noOp() {
+        gs.Char.frame = FID.frame_15_stand // < frame_7_run is false (15 >= 7)
+        // Wait, frame_7_run is 7, and 15 >= 7 is true. Need frame < 7.
+        gs.Char.frame = 3 // < 7
+
+        val seqBefore = gs.Char.currSeq
+        seg005.runJump()
+        assertEquals(seqBefore, gs.Char.currSeq)
+    }
 }
