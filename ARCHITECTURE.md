@@ -281,7 +281,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 
 | # | Module | Description | Regime | Depends on | Status |
 |---|--------|-------------|--------|------------|--------|
-| 6 | State Model | types.h + data.h → Kotlin | Build (autonomous) | — | **Next** |
+| 6 | State Model | types.h + data.h → Kotlin | Build (autonomous) | — | **Complete** |
 | 7 | Sequence Table | seqtbl.c → Kotlin data | Build (autonomous) | State Model | Pending |
 | 8 | Layer 1: seg006 | Character physics, tile queries | Build (autonomous) | State Model | Pending |
 | 9 | Layer 1: seg004 | Collision detection | Build (autonomous) | seg006 | Pending |

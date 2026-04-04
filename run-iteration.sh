@@ -13,6 +13,8 @@
 #   logs/loop/summary.log          — one line per iteration
 #
 # Exit: 0=all CONTINUE, 1=ESCALATE, 2=NO_SIGNAL/ERROR
+#
+# Dependencies: python3 (for JSON parsing — jq not available in this environment)
 
 set -uo pipefail
 
@@ -49,57 +51,6 @@ REASON: [one line — what was done or why stopping]'
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIR"
 
-# extract_readable: parse stream-json into human-readable summary
-extract_readable() {
-  local jsonl_file="$1"
-  local txt_file="$2"
-
-  {
-    echo "=== ITERATION TRANSCRIPT ==="
-    echo ""
-
-    # Extract assistant text messages and tool calls
-    while IFS= read -r line; do
-      local type=$(echo "$line" | jq -r '.type // empty' 2>/dev/null)
-
-      case "$type" in
-        assistant)
-          # Extract text blocks
-          echo "$line" | jq -r '
-            .message.content[]? |
-            if .type == "text" then "ASSISTANT: " + .text
-            elif .type == "tool_use" then "TOOL CALL: " + .name + "(" + (.input | keys | join(", ")) + ")"
-            else empty end
-          ' 2>/dev/null
-          ;;
-        user)
-          # Extract tool results (abbreviated)
-          local tool_result=$(echo "$line" | jq -r '.tool_use_result.type // empty' 2>/dev/null)
-          if [[ "$tool_result" == "text" ]]; then
-            local file_path=$(echo "$line" | jq -r '.tool_use_result.file.filePath // empty' 2>/dev/null)
-            if [[ -n "$file_path" ]]; then
-              local num_lines=$(echo "$line" | jq -r '.tool_use_result.file.numLines // empty' 2>/dev/null)
-              echo "  → Read $file_path ($num_lines lines)"
-            else
-              # Bash output or other tool result — first 200 chars
-              local content=$(echo "$line" | jq -r '.message.content[0].content // empty' 2>/dev/null | head -c 200)
-              if [[ -n "$content" ]]; then
-                echo "  → Result: $content"
-              fi
-            fi
-          fi
-          ;;
-        result)
-          echo ""
-          echo "=== RESULT ==="
-          echo "$line" | jq -r '"Cost: $" + (.total_cost_usd | tostring) + " | Turns: " + (.num_turns | tostring) + " | Duration: " + ((.duration_ms / 1000) | tostring) + "s"' 2>/dev/null
-          echo "$line" | jq -r '.result // empty' 2>/dev/null | tail -5
-          ;;
-      esac
-    done < "$jsonl_file"
-  } > "$txt_file"
-}
-
 FINAL_EXIT=0
 ITER=$START_ITER
 END_ITER=$(( START_ITER + MAX_ITERATIONS - 1 ))
@@ -108,12 +59,11 @@ while [[ $ITER -le $END_ITER ]]; do
   ITER_PAD=$(printf "%03d" "$ITER")
   JSONL_FILE="$LOG_DIR/iteration_${ITER_PAD}.jsonl"
   TXT_FILE="$LOG_DIR/iteration_${ITER_PAD}.txt"
+  META_FILE="$LOG_DIR/.iteration_meta.tmp"
 
   echo "=== Iteration $ITER — $(date -Iseconds) ==="
 
   # Run one iteration with full stream-json logging.
-  # --output-format stream-json captures all tool calls and results.
-  # --verbose is required for stream-json.
   claude -p "$PROMPT" \
     --dangerously-skip-permissions \
     --model opus \
@@ -124,17 +74,22 @@ while [[ $ITER -le $END_ITER ]]; do
 
   EXIT_CODE=$?
 
-  # Generate human-readable summary
-  extract_readable "$JSONL_FILE" "$TXT_FILE"
+  # Parse jsonl: generate human-readable transcript + extract metadata
+  python3 "$PROJECT_DIR/tools/parse_jsonl.py" --meta "$META_FILE" < "$JSONL_FILE" > "$TXT_FILE"
 
-  # Extract signal from the result line in jsonl
-  RESULT_LINE=$(grep '"type":"result"' "$JSONL_FILE" | tail -1)
-  RESULT_TEXT=$(echo "$RESULT_LINE" | jq -r '.result // ""' 2>/dev/null)
+  # Read metadata
+  COST="" ; TURNS="" ; DURATION="" ; RESULT_TEXT=""
+  if [[ -f "$META_FILE" ]]; then
+    COST=$(grep '^COST=' "$META_FILE" | cut -d= -f2)
+    TURNS=$(grep '^TURNS=' "$META_FILE" | cut -d= -f2)
+    DURATION=$(grep '^DURATION=' "$META_FILE" | cut -d= -f2)
+    RESULT_TEXT=$(grep '^RESULT_TEXT=' "$META_FILE" | cut -d= -f2- | python3 -c "import sys,json; print(json.loads(sys.stdin.read()))" 2>/dev/null || echo "")
+    rm -f "$META_FILE"
+  fi
+
+  # Extract signal from result text
   SIGNAL=$(echo "$RESULT_TEXT" | grep -oP 'LOOP_SIGNAL: \K\w+' || echo "")
   REASON=$(echo "$RESULT_TEXT" | grep -oP 'REASON: \K.+' || echo "")
-  COST=$(echo "$RESULT_LINE" | jq -r '.total_cost_usd // ""' 2>/dev/null)
-  TURNS=$(echo "$RESULT_LINE" | jq -r '.num_turns // ""' 2>/dev/null)
-  DURATION=$(echo "$RESULT_LINE" | jq -r '(.duration_ms / 1000 | floor | tostring) + "s"' 2>/dev/null)
 
   # Write summary line
   TIMESTAMP=$(date -Iseconds)
