@@ -2,6 +2,29 @@
 
 ## Module 7: Sequence Table
 
+### 2026-04-04 — Step 7b: Sequence table data
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 20 new tests pass (77 total), gradle build clean
+
+**What was done:**
+Created `SequenceTable.kt` containing:
+- `SEQTBL_BASE` constant (0x196E) and 108 label offset constants matching C `#define` chain
+- Builder helpers (`act()`, `jmp()`, `dx()`, `dy()`, `snd()`, `setFall()`, `jmpIfFeather()`) mirroring C macros
+- `seqtbl` IntArray (2,310 bytes) built programmatically, matching C `seqtbl[]` byte-for-byte
+- `seqtblOffsets` IntArray (115 entries) mapping sequence IDs to absolute addresses
+- Self-verification: `check()` assertion on array size at init time
+
+All sequences translated from seqtbl.c including: running, standing, jumping, climbing, hanging, falling, combat (strike/parry/block), stepping (1-14 pixel steps), crouch, drink potion, sword pickup/sheathe, death sequences, stairs, and NPC sequences (Vizier, Princess, Mouse).
+
+Used standard PoP behavior for `superhijump` (not USE_SUPER_HIGH_JUMP). Teleport sequence excluded (not in base PoP).
+
+Test file: `SequenceTableTest.kt` with 20 tests covering array size, offset lookup validation, byte pattern verification, address range validation, and negative value encoding.
+
+**Contract changes:** None — internal to Module 7.
+
+---
+
 ### 2026-04-04 — Step 7a: Prerequisite enums
 
 **Mode:** Code (autonomous)
