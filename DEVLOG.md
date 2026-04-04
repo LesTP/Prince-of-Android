@@ -2,6 +2,32 @@
 
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
+### 2026-04-04 — Phase 8c, Step 1: Falling, grabbing, damage, objects
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 29 new tests pass (166 total), gradle build clean
+
+**What was done:**
+Added 13 functions to `Seg006.kt` (Phase 8c — falling/grabbing/damage/objects):
+- Falling/grabbing: `checkAction` (dispatches to checkGrab/doFall/checkOnFloor by action), `checkGrab` (midair grab with Shift, super high jump support), `checkGrabRunJump` (USE_JUMP_GRAB — grab during jump), `fellOut` (death when falling to room 0)
+- Damage/health: `takeHp` (subtract HP from kid or guard), `checkSpiked` (spike damage during run/jump frames), `checkSpikeBelow` (trigger spike animations below character), `playDeathMusic` (select death sound by context), `drawHurtSplash` (render hurt splash effect)
+- Objects/items: `checkPress` (button/loose floor activation by standing/hanging), `onGuardKilled` (demo/Jaffar/regular guard death effects), `checkKilledShadow` (level 12 shadow death special event), `addSwordToObjtable` (add sword sprite to render table)
+
+Also added `superJumpFall` variable to `GameState.kt`.
+
+Total: 77 of 81 seg006 functions implemented. Remaining 7 functions for phase 8d (play_kid, control_kid, do_demo, play_guard, user_control, control_guard_inactive, char_opp_dist — already done in 8a: inc_curr_row).
+
+29 new tests covering: takeHp (kid partial/lethal/overkill, guard partial/lethal), fellOut (room 0 death, alive check, room check), playDeathMusic (shadow/fighting/regular), onGuardKilled (demo/Jaffar/regular/shadow), checkKilledShadow (level 12, wrong level), drawHurtSplash (kid dead, chomped skip), addSwordToObjtable (drawn/sheathed), checkAction (freefall/hangclimb), checkPress (hanging opener, floor no-trigger), checkSpiked (harmful/non-spike), checkGrab (no shift, too fast).
+
+**Design decisions:**
+- All `#ifdef` fix paths translated as runtime checks (fixGrabFallingSpeed, enableSuperHighJump, enableJumpGrab, fixStandOnThinAir, fixDeadFloatingInAir, fixPressThroughClosedGates, fixInfiniteDownBug, fixChompersNotStarting)
+- `check_grab_run_jump` returns Boolean instead of C's int 0/1 — idiomatic Kotlin, callers use it in boolean context
+- `draw_hurt_splash` C expression `(Char.charid == charid_0_kid) << 2` translated to explicit if/else for clarity
+
+**Contract changes:** None.
+
+---
+
 ### 2026-04-04 — Phase 8b, Step 1: Falling, collision, floor checks, clipping
 
 **Mode:** Code (autonomous)

@@ -1425,6 +1425,333 @@ object Seg006 {
         }
     }
 
+    // ========== Phase 8c: Falling, grabbing, damage, objects ==========
+
+    // seg006:05FC
+    fun checkAction() {
+        val action = gs.Char.action.toShort()
+        val frame = gs.Char.frame.toShort()
+        // Prince can grab tiles during a jump if Shift and up arrow, but not forward arrow, keys are pressed.
+        if (gs.fixes.enableJumpGrab != 0 && action.toInt() == Act.RUN_JUMP &&
+            gs.controlShift == Ctrl.HELD && checkGrabRunJump()) {
+            return
+        }
+        // frame 109: crouching
+        if (action.toInt() == Act.HANG_STRAIGHT ||
+            action.toInt() == Act.BUMPED
+        ) {
+            if (frame.toInt() == FID.frame_109_crouch ||
+                (gs.fixes.fixStandOnThinAir != 0 &&
+                    frame >= FID.frame_110_stand_up_from_crouch_1 && frame <= FID.frame_119_stand_up_from_crouch_10) ||
+                (gs.fixes.fixDeadFloatingInAir != 0 &&
+                    frame >= FID.frame_177_spiked && frame <= FID.frame_185_dead)
+            ) {
+                checkOnFloor()
+            }
+        } else if (action.toInt() == Act.IN_FREEFALL) {
+            ext.doFall()
+        } else if (action.toInt() == Act.IN_MIDAIR) {
+            // frame 102..106: start fall + fall
+            if (frame >= FID.frame_102_start_fall_1 && frame < FID.frame_106_fall) {
+                checkGrab()
+            }
+        } else if (action.toInt() != Act.HANG_CLIMB) {
+            checkOnFloor()
+        }
+    }
+
+    // seg006:0658
+    fun checkSpiked() {
+        val frame = gs.Char.frame.toShort()
+        if (getTile(gs.Char.room, gs.Char.currCol, gs.Char.currRow) == T.SPIKE) {
+            val harmful = ext.isSpikePowerful().toShort()
+            // frames 7..14: running
+            // frames 34..39: start run-jump
+            // frame 43: land from run-jump
+            // frame 26: land from standing jump
+            if (
+                (harmful >= 2 && ((frame >= FID.frame_7_run && frame < 15) || (frame >= FID.frame_34_start_run_jump_1 && frame < 40))) ||
+                ((frame.toInt() == FID.frame_43_running_jump_4 || frame.toInt() == FID.frame_26_standing_jump_11) && harmful != 0.toShort())
+            ) {
+                ext.spiked()
+            }
+        }
+    }
+
+    // seg006:06BD
+    fun takeHp(count: Int): Int {
+        var dead = 0
+        if (gs.Char.charid == CID.KID) {
+            if (count >= gs.hitpCurr) {
+                gs.hitpDelta = (-gs.hitpCurr).toShort()
+                dead = 1
+            } else {
+                gs.hitpDelta = (-count).toShort()
+            }
+        } else {
+            if (count >= gs.guardhpCurr) {
+                gs.guardhpDelta = (-gs.guardhpCurr).toShort()
+                dead = 1
+            } else {
+                gs.guardhpDelta = (-count).toShort()
+            }
+        }
+        return dead
+    }
+
+    // seg006:0941
+    fun checkGrab() {
+        val maxGrabFallingSpeed = if (gs.fixes.fixGrabFallingSpeed != 0) 30 else 32
+
+        if ((gs.controlShift == Ctrl.HELD ||
+            (gs.fixes.enableSuperHighJump != 0 && gs.superJumpFall != 0 && gs.controlY == Ctrl.HELD_UP)) &&
+            gs.Char.fallY < maxGrabFallingSpeed &&
+            gs.Char.alive < 0 &&
+            (gs.yLand[gs.Char.currRow + 1].toInt() and 0xFFFF) <= ((gs.Char.y + 25) and 0xFFFF)
+        ) {
+            val oldX = gs.Char.x
+            val superDeltaX = if (gs.Char.direction == Dir.LEFT) 3 else 4
+            gs.Char.x = charDxForward(-8 +
+                if (gs.fixes.enableSuperHighJump != 0 && gs.superJumpFall != 0) superDeltaX else 0)
+            loadFramDetCol()
+            if (canGrabFrontAbove() == 0) {
+                gs.Char.x = oldX
+            } else {
+                gs.Char.x = charDxForward(distanceToEdgeWeight() -
+                    if (gs.fixes.enableSuperHighJump != 0 && gs.superJumpFall != 0) superDeltaX else 0)
+                gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+                gs.Char.fallY = 0
+                ext.seqtblOffsetChar(Seq.seq_15_grab_ledge_midair)
+                playSeq()
+                gs.grabTimer = 12
+                ext.playSound(Snd.GRAB)
+                gs.isScreaming = 0
+                if (gs.fixes.fixChompersNotStarting != 0) ext.startChompers()
+            }
+        }
+    }
+
+    // USE_JUMP_GRAB
+    fun checkGrabRunJump(): Boolean {
+        val frame = gs.Char.frame
+        val isJump = frame >= FID.frame_22_standing_jump_7 && frame <= FID.frame_23_standing_jump_8
+        val isRunningJump = frame >= FID.frame_39_start_run_jump_6 && frame <= FID.frame_41_running_jump_2
+        val charRoomM1 = gs.Char.room - 1
+        if (gs.Char.action == Act.RUN_JUMP &&
+            (isJump || isRunningJump) &&
+            gs.controlX == Ctrl.RELEASED && gs.controlY == Ctrl.HELD_UP
+        ) {
+            if (canGrabFrontAbove() != 0) {
+                val grabTile = gs.currTile2
+                var grabCol = gs.tileCol.toInt()
+                // Prince's and tile rooms can get out of sync at the edge of a room
+                if (gs.currRoom.toInt() != gs.Char.room) {
+                    val leftRoom = gs.level.roomlinks[charRoomM1].left
+                    val rightRoom = gs.level.roomlinks[charRoomM1].right
+                    val upRoom = gs.level.roomlinks[charRoomM1].up
+                    if (gs.currRoom.toInt() == rightRoom) {
+                        grabCol += 10
+                    } else if (gs.currRoom.toInt() == leftRoom) {
+                        grabCol -= 10
+                    } else if (rightRoom != 0 && gs.currRoom.toInt() == gs.level.roomlinks[rightRoom - 1].up) {
+                        grabCol += 10
+                    } else if (leftRoom != 0 && gs.currRoom.toInt() == gs.level.roomlinks[leftRoom - 1].up) {
+                        grabCol -= 10
+                    } else if (upRoom != 0 && gs.currRoom.toInt() == gs.level.roomlinks[upRoom - 1].right) {
+                        grabCol += 10
+                    } else if (upRoom != 0 && gs.currRoom.toInt() == gs.level.roomlinks[upRoom - 1].left) {
+                        grabCol -= 10
+                    }
+                }
+                gs.Char.x = gs.xBump[grabCol + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_MIDX
+                gs.Char.x = charDxForward(if (gs.Char.direction == Dir.LEFT) -12 else 2)
+                gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+                ext.seqtblOffsetChar(Seq.seq_9_grab_while_jumping)
+                playSeq()
+                gs.grabTimer = 12
+                ext.playSound(Snd.GRAB)
+                // check_press() is not going to work on the next frame if Shift is released immediately
+                if (grabTile == T.OPENER || grabTile == T.CLOSER) {
+                    ext.triggerButton(1, 0, -1)
+                } else if (grabTile == T.LOOSE) {
+                    gs.isGuardNotice = 1
+                    ext.makeLooseFall(1)
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    // seg006:0BC4
+    fun fellOut() {
+        if (gs.Char.alive < 0 && gs.Char.room == 0) {
+            takeHp(100)
+            gs.Char.alive = 0
+            ext.eraseBottomText(1)
+            gs.Char.frame = FID.frame_185_dead
+        }
+    }
+
+    // seg006:1199
+    fun checkSpikeBelow() {
+        val rightCol = getTileDivModM7(gs.charXRight.toInt())
+        if (rightCol < 0) return
+        var row: Int
+        val room = gs.Char.room
+        var col = getTileDivModM7(gs.charXLeft.toInt())
+        while (col <= rightCol) {
+            row = gs.Char.currRow
+            var notFinished: Boolean
+            do {
+                notFinished = false
+                if (getTile(room, col, row) == T.SPIKE) {
+                    ext.startAnimSpike(gs.currRoom.toInt(), gs.currTilepos)
+                } else if (
+                    tileIsFloor(gs.currTile2) == 0 &&
+                    gs.currRoom.toInt() != 0 &&
+                    (if (gs.fixes.fixInfiniteDownBug != 0) (row <= 2) else (room == gs.currRoom.toInt()))
+                ) {
+                    ++row
+                    notFinished = true
+                }
+            } while (notFinished)
+            ++col
+        }
+    }
+
+    // seg006:10E9
+    fun checkPress() {
+        val frame = gs.Char.frame
+        val action = gs.Char.action
+        // frames 87..99: hanging
+        // frames 135..140: start climb up
+        if ((frame >= FID.frame_87_hanging_1 && frame < 100) || (frame >= FID.frame_135_climbing_1 && frame < FID.frame_141_climbing_7)) {
+            // the pressed tile is the one that the char is grabbing
+            getTileAboveChar()
+        } else if (action == Act.TURN || action == Act.BUMPED || action < Act.HANG_CLIMB) {
+            // frame 79: jumping up
+            if (frame == FID.frame_79_jumphang && getTileAboveChar() == T.LOOSE) {
+                // break a loose floor from above
+                ext.makeLooseFall(1)
+            } else {
+                // the pressed tile is the one that the char is standing on
+                if ((gs.curFrame.flags and FF.NEEDS_FLOOR) == 0) return
+                if (gs.fixes.fixPressThroughClosedGates != 0) determineCol()
+                getTileAtChar()
+            }
+        } else {
+            return
+        }
+        if (gs.currTile2 == T.OPENER || gs.currTile2 == T.CLOSER) {
+            if (gs.Char.alive < 0) {
+                ext.triggerButton(1, 0, -1)
+            } else {
+                ext.diedOnButton()
+            }
+        } else if (gs.currTile2 == T.LOOSE) {
+            gs.isGuardNotice = 1
+            ext.makeLooseFall(1)
+        }
+    }
+
+    // seg006:15B8
+    fun playDeathMusic() {
+        val soundId: Int
+        if (gs.Guard.charid == CID.SHADOW) {
+            soundId = Snd.SHADOW_MUSIC // killed by shadow
+        } else if (gs.holdingSword != 0) {
+            soundId = Snd.DEATH_IN_FIGHT // death in fight
+        } else {
+            soundId = Snd.DEATH_REGULAR // death not in fight
+        }
+        ext.playSound(soundId)
+    }
+
+    // seg006:15E8
+    fun onGuardKilled() {
+        if (gs.currentLevel == 0) {
+            // demo level: after killing Guard, run out of room
+            gs.checkpoint = 1
+            gs.demoIndex = 0
+            gs.demoTime = 0
+        } else if (gs.currentLevel == gs.custom.jaffarVictoryLevel) {
+            // Jaffar's level: flash
+            gs.flashColor = Col.BRIGHTWHITE
+            gs.flashTime = gs.custom.jaffarVictoryFlashTime
+            gs.isShowTime = 1
+            gs.leveldoorOpen = 2
+            ext.playSound(Snd.VICTORY_JAFFAR)
+        } else if (gs.Char.charid != CID.SHADOW) {
+            ext.playSound(Snd.VICTORY)
+        }
+    }
+
+    // seg006:16CE
+    fun drawHurtSplash() {
+        val frame = gs.Char.frame
+        if (frame != FID.frame_178_chomped) {
+            saveObj()
+            gs.objTilepos = -1
+            // frame 185: dead
+            // frame 106..110: fall + land
+            if (frame == FID.frame_185_dead || (frame >= FID.frame_106_fall && frame < 111)) {
+                gs.objY += 4
+                objDxForward(5)
+            } else if (frame == FID.frame_177_spiked) {
+                objDxForward(-5)
+            } else {
+                gs.objY -= (if (gs.Char.charid == CID.KID) 1 else 0).shl(2) + 11
+                objDxForward(5)
+            }
+            if (gs.Char.charid == CID.KID) {
+                gs.objChtab = Cht.KID
+                gs.objId = 218 // splash!
+            } else {
+                gs.objChtab = Cht.GUARD
+                gs.objId = 1 // splash!
+            }
+            resetObjClip()
+            ext.addObjtable(5) // hurt splash
+            loadObj()
+        }
+    }
+
+    // seg006:175D
+    fun checkKilledShadow() {
+        // Special event: killed the shadow
+        if (gs.currentLevel == 12) {
+            if ((gs.Char.charid or gs.Opp.charid) == CID.SHADOW &&
+                gs.Char.alive < 0 && gs.Opp.alive >= 0
+            ) {
+                gs.flashColor = Col.BRIGHTWHITE
+                gs.flashTime = 5
+                takeHp(100)
+            }
+        }
+    }
+
+    // seg006:1798
+    fun addSwordToObjtable() {
+        val frame = gs.Char.frame
+        if ((frame >= FID.frame_229_found_sword && frame < 238) ||
+            gs.Char.sword != Sword.SHEATHED ||
+            (gs.Char.charid == CID.GUARD && gs.Char.alive < 0)
+        ) {
+            val swordFrame = gs.curFrame.sword and 0x3F
+            if (swordFrame != 0) {
+                gs.objId = swordTbl[swordFrame].id
+                if (gs.objId != 0xFF) {
+                    gs.objX = ext.calcScreenXCoord(gs.objX)
+                    objDxForward(swordTbl[swordFrame].x)
+                    gs.objY += swordTbl[swordFrame].y
+                    gs.objChtab = Cht.SWORD
+                    ext.addObjtable(3) // sword
+                }
+            }
+        }
+    }
+
     // seg006:0E50
     fun clipChar() {
         val frame = gs.Char.frame

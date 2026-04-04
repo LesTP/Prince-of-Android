@@ -796,6 +796,436 @@ class Seg006Test {
         assertNotEquals(99.toShort(), gs.objClipTop)
     }
 
+    // === Phase 8c: Falling, grabbing, damage, objects tests ===
+
+    // --- takeHp ---
+
+    @Test
+    fun takeHpKidPartialDamage() {
+        val gs = GameState
+        gs.Char.charid = CharIds.KID
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        val dead = Seg006.takeHp(1)
+        assertEquals(0, dead)
+        assertEquals(-1, gs.hitpDelta.toInt())
+    }
+
+    @Test
+    fun takeHpKidLethalDamage() {
+        val gs = GameState
+        gs.Char.charid = CharIds.KID
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        val dead = Seg006.takeHp(3)
+        assertEquals(1, dead)
+        assertEquals(-3, gs.hitpDelta.toInt())
+    }
+
+    @Test
+    fun takeHpKidOverkillDamage() {
+        val gs = GameState
+        gs.Char.charid = CharIds.KID
+        gs.hitpCurr = 2
+        gs.hitpDelta = 0
+        val dead = Seg006.takeHp(100)
+        assertEquals(1, dead)
+        assertEquals(-2, gs.hitpDelta.toInt())
+    }
+
+    @Test
+    fun takeHpGuardPartialDamage() {
+        val gs = GameState
+        gs.Char.charid = CharIds.GUARD
+        gs.guardhpCurr = 4
+        gs.guardhpDelta = 0
+        val dead = Seg006.takeHp(2)
+        assertEquals(0, dead)
+        assertEquals(-2, gs.guardhpDelta.toInt())
+    }
+
+    @Test
+    fun takeHpGuardLethalDamage() {
+        val gs = GameState
+        gs.Char.charid = CharIds.GUARD
+        gs.guardhpCurr = 3
+        gs.guardhpDelta = 0
+        val dead = Seg006.takeHp(5)
+        assertEquals(1, dead)
+        assertEquals(-3, gs.guardhpDelta.toInt())
+    }
+
+    // --- fellOut ---
+
+    @Test
+    fun fellOutKillsCharInRoom0() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.Char.room = 0
+        gs.Char.frame = 15
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        gs.Char.charid = CharIds.KID
+        Seg006.fellOut()
+        assertEquals(0, gs.Char.alive)
+        assertEquals(FrameIds.frame_185_dead, gs.Char.frame)
+        // takeHp(100) should have set hitpDelta = -hitpCurr
+        assertEquals(-3, gs.hitpDelta.toInt())
+    }
+
+    @Test
+    fun fellOutNoEffectIfAlive() {
+        val gs = GameState
+        gs.Char.alive = 0  // already dead
+        gs.Char.room = 0
+        gs.Char.frame = 15
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        Seg006.fellOut()
+        // Should not change anything — alive >= 0
+        assertEquals(15, gs.Char.frame)
+        assertEquals(0, gs.hitpDelta.toInt())
+    }
+
+    @Test
+    fun fellOutNoEffectIfNotRoom0() {
+        val gs = GameState
+        gs.Char.alive = -1
+        gs.Char.room = 5  // not room 0
+        gs.Char.frame = 15
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        Seg006.fellOut()
+        // Should not change anything
+        assertEquals(15, gs.Char.frame)
+    }
+
+    // --- playDeathMusic ---
+
+    @Test
+    fun playDeathMusicShadow() {
+        val gs = GameState
+        gs.Guard.charid = CharIds.SHADOW
+        gs.holdingSword = 0
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.playDeathMusic()
+        assertEquals(SoundIds.SHADOW_MUSIC, playedSound)
+    }
+
+    @Test
+    fun playDeathMusicFighting() {
+        val gs = GameState
+        gs.Guard.charid = CharIds.GUARD
+        gs.holdingSword = 1
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.playDeathMusic()
+        assertEquals(SoundIds.DEATH_IN_FIGHT, playedSound)
+    }
+
+    @Test
+    fun playDeathMusicRegular() {
+        val gs = GameState
+        gs.Guard.charid = CharIds.GUARD
+        gs.holdingSword = 0
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.playDeathMusic()
+        assertEquals(SoundIds.DEATH_REGULAR, playedSound)
+    }
+
+    // --- onGuardKilled ---
+
+    @Test
+    fun onGuardKilledDemoLevel() {
+        val gs = GameState
+        gs.currentLevel = 0
+        gs.checkpoint = 0
+        gs.demoIndex = 5
+        gs.demoTime = 10
+        Seg006.onGuardKilled()
+        assertEquals(1, gs.checkpoint)
+        assertEquals(0, gs.demoIndex)
+        assertEquals(0, gs.demoTime.toInt())
+    }
+
+    @Test
+    fun onGuardKilledJaffarLevel() {
+        val gs = GameState
+        gs.currentLevel = 13
+        gs.custom = CustomOptionsType()  // defaults: jaffarVictoryLevel=13
+        gs.flashColor = 0
+        gs.flashTime = 0
+        gs.isShowTime = 0
+        gs.leveldoorOpen = 0
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.onGuardKilled()
+        assertEquals(Colors.BRIGHTWHITE, gs.flashColor)
+        assertEquals(18, gs.flashTime)
+        assertEquals(1, gs.isShowTime)
+        assertEquals(2, gs.leveldoorOpen)
+        assertEquals(SoundIds.VICTORY_JAFFAR, playedSound)
+    }
+
+    @Test
+    fun onGuardKilledRegularGuard() {
+        val gs = GameState
+        gs.currentLevel = 5
+        gs.Char.charid = CharIds.KID
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.onGuardKilled()
+        assertEquals(SoundIds.VICTORY, playedSound)
+    }
+
+    @Test
+    fun onGuardKilledShadowNoSound() {
+        val gs = GameState
+        gs.currentLevel = 5
+        gs.Char.charid = CharIds.SHADOW
+        var playedSound = -1
+        ExternalStubs.playSound = { id -> playedSound = id }
+        Seg006.onGuardKilled()
+        assertEquals(-1, playedSound)  // no sound played
+    }
+
+    // --- checkKilledShadow ---
+
+    @Test
+    fun checkKilledShadowOnLevel12() {
+        val gs = GameState
+        gs.currentLevel = 12
+        gs.Char.charid = CharIds.SHADOW  // shadow
+        gs.Opp.charid = CharIds.KID      // kid — (shadow | kid) = shadow
+        // Wait, (0 | 1) = 1 = shadow. Let's check: C code is `(Char.charid | Opp.charid) == charid_1_shadow`
+        // charid_1_shadow = 1, so one must be 0 and the other 1, or both 1
+        // KID=0, SHADOW=1 → (0 | 1) = 1 ✓
+        gs.Char.charid = CharIds.KID
+        gs.Opp.charid = CharIds.SHADOW
+        gs.Char.alive = -1
+        gs.Opp.alive = 0  // Opp is dead
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        gs.flashColor = 0
+        gs.flashTime = 0
+        Seg006.checkKilledShadow()
+        assertEquals(Colors.BRIGHTWHITE, gs.flashColor)
+        assertEquals(5, gs.flashTime)
+        assertEquals(-3, gs.hitpDelta.toInt())  // takeHp(100) on 3hp
+    }
+
+    @Test
+    fun checkKilledShadowWrongLevel() {
+        val gs = GameState
+        gs.currentLevel = 5  // not level 12
+        gs.Char.charid = CharIds.KID
+        gs.Opp.charid = CharIds.SHADOW
+        gs.Char.alive = -1
+        gs.Opp.alive = 0
+        gs.hitpCurr = 3
+        gs.hitpDelta = 0
+        gs.flashColor = 0
+        Seg006.checkKilledShadow()
+        assertEquals(0, gs.flashColor)  // no effect
+        assertEquals(0, gs.hitpDelta.toInt())
+    }
+
+    // --- drawHurtSplash ---
+
+    @Test
+    fun drawHurtSplashKidDead() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_185_dead
+        gs.Char.charid = CharIds.KID
+        gs.objY = 10
+        gs.objX = 50
+        gs.objDirection = 0  // right
+        var addedLayer = -1
+        ExternalStubs.addObjtable = { layer -> addedLayer = layer }
+        Seg006.drawHurtSplash()
+        assertEquals(5, addedLayer)  // hurt splash layer
+    }
+
+    @Test
+    fun drawHurtSplashChompedNoSplash() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_178_chomped
+        gs.Char.charid = CharIds.KID
+        var addedLayer = -1
+        ExternalStubs.addObjtable = { layer -> addedLayer = layer }
+        Seg006.drawHurtSplash()
+        assertEquals(-1, addedLayer)  // no splash for chomped
+    }
+
+    // --- addSwordToObjtable ---
+
+    @Test
+    fun addSwordToObjtableWhenSwordDrawn() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_158_stand_with_sword
+        gs.Char.sword = SwordStatus.DRAWN
+        gs.Char.charid = CharIds.KID
+        gs.curFrame = FrameType(sword = 1)  // sword frame index 1
+        gs.objX = 100
+        gs.objY = 50
+        var addedLayer = -1
+        ExternalStubs.addObjtable = { layer -> addedLayer = layer }
+        ExternalStubs.calcScreenXCoord = { x -> x }  // identity
+        Seg006.addSwordToObjtable()
+        assertEquals(3, addedLayer)  // sword layer
+    }
+
+    @Test
+    fun addSwordToObjtableWhenSheathedStanding() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_15_stand
+        gs.Char.sword = SwordStatus.SHEATHED
+        gs.Char.charid = CharIds.KID
+        gs.curFrame = FrameType(sword = 0)
+        var addedLayer = -1
+        ExternalStubs.addObjtable = { layer -> addedLayer = layer }
+        Seg006.addSwordToObjtable()
+        assertEquals(-1, addedLayer)  // no sword added
+    }
+
+    // --- checkAction ---
+
+    @Test
+    fun checkActionFreefallCallsDoFall() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.frame = FrameIds.frame_106_fall
+        gs.fixes = FixesOptionsType()  // all fixes off
+        var doFallCalled = false
+        ExternalStubs.doFall = { doFallCalled = true }
+        Seg006.checkAction()
+        assertTrue(doFallCalled)
+    }
+
+    @Test
+    fun checkActionHangClimbDoesNothing() {
+        val gs = GameState
+        gs.Char.action = Actions.HANG_CLIMB
+        gs.Char.frame = 135
+        gs.fixes = FixesOptionsType()
+        // Should not call checkOnFloor or doFall — just return
+        // If this throws, it means something unexpected was called
+        Seg006.checkAction()
+        // No assertion needed — if it doesn't crash, it passed
+    }
+
+    // --- checkPress ---
+
+    @Test
+    fun checkPressHangingOnOpener() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_87_hanging_1
+        gs.Char.action = Actions.HANG_CLIMB
+        gs.Char.room = 1
+        gs.Char.currRow = 0
+        gs.Char.currCol = 5
+        gs.Char.alive = -1
+        setupBasicRoom()
+        // Set the tile above to be an opener
+        gs.level.fg[5] = Tiles.OPENER  // row 0 col 5 → but getTileAboveChar goes to row-1
+        // Actually getTileAboveChar goes row-1, so we need row -1 which wraps to upper room.
+        // Let's set it up so currRow=1, and row 0 has the opener
+        gs.Char.currRow = 1
+        gs.level.fg[5] = Tiles.OPENER  // tilepos for row 0 col 5 = 5
+        var triggered = false
+        ExternalStubs.triggerButton = { _, _, _ -> triggered = true }
+        ExternalStubs.getRoomAddress(1)
+        Seg006.checkPress()
+        assertTrue(triggered)
+    }
+
+    @Test
+    fun checkPressCrouchOnFloorNoTrigger() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_109_crouch
+        gs.Char.action = Actions.STAND  // action < HANG_CLIMB
+        gs.Char.room = 1
+        gs.Char.currRow = 1
+        gs.Char.currCol = 5
+        gs.Char.alive = -1
+        setupBasicRoom()
+        gs.curFrame = FrameType(flags = FrameFlags.NEEDS_FLOOR)
+        gs.fixes = FixesOptionsType()
+        var triggered = false
+        ExternalStubs.triggerButton = { _, _, _ -> triggered = true }
+        Seg006.checkPress()
+        assertFalse(triggered)  // floor tile, not opener/closer
+    }
+
+    // --- checkSpiked ---
+
+    @Test
+    fun checkSpikedRunningOnHarmfulSpike() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Char.currCol = 5
+        gs.Char.currRow = 1
+        gs.Char.frame = FrameIds.frame_7_run
+        setupBasicRoom()
+        // Set tile at char position to spike
+        gs.level.fg[15] = Tiles.SPIKE  // tilepos for row 1 col 5 = 15
+        ExternalStubs.getRoomAddress(1)
+        var harmfulCallCount = 0
+        ExternalStubs.isSpikePowerful = { harmfulCallCount++; 2 }  // harmful >= 2
+        var spikedCalled = false
+        ExternalStubs.spiked = { spikedCalled = true }
+        Seg006.checkSpiked()
+        assertTrue(spikedCalled)
+    }
+
+    @Test
+    fun checkSpikedNotOnSpikeTile() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Char.currCol = 5
+        gs.Char.currRow = 1
+        gs.Char.frame = FrameIds.frame_7_run
+        setupBasicRoom()  // all floor tiles, no spikes
+        var spikedCalled = false
+        ExternalStubs.spiked = { spikedCalled = true }
+        Seg006.checkSpiked()
+        assertFalse(spikedCalled)
+    }
+
+    // --- checkGrab ---
+
+    @Test
+    fun checkGrabNotHoldingShift() {
+        val gs = GameState
+        gs.controlShift = Control.RELEASED  // not holding shift
+        gs.Char.fallY = 10
+        gs.Char.alive = -1
+        gs.Char.currRow = 1
+        gs.Char.y = 100
+        gs.Char.x = 50
+        gs.fixes = FixesOptionsType()
+        val origX = gs.Char.x
+        Seg006.checkGrab()
+        assertEquals(origX, gs.Char.x)  // no change — shift not held
+    }
+
+    @Test
+    fun checkGrabFallingTooFast() {
+        val gs = GameState
+        gs.controlShift = Control.HELD
+        gs.Char.fallY = 33  // > 32 (max grab speed)
+        gs.Char.alive = -1
+        gs.Char.currRow = 1
+        gs.Char.y = 100
+        gs.Char.x = 50
+        gs.fixes = FixesOptionsType()
+        val origX = gs.Char.x
+        Seg006.checkGrab()
+        assertEquals(origX, gs.Char.x)  // no grab — too fast
+    }
+
     // Helper to set up a basic room with all floor tiles
     private fun setupBasicRoom() {
         val gs = GameState

@@ -28,7 +28,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 8 — Layer 1: seg006 (Character physics, tile queries) — **IN PROGRESS**
-**Phase:** 8b — COMPLETE (18 new tests, 137 total). Next: Phase 8c — Falling, grabbing, damage, objects
+**Phase:** 8c — COMPLETE (29 new tests, 166 total). Next: Phase 8d — Player/guard control, integration
 **Blocked/Broken:** None.
 
 ### Module 8: seg006.c → Kotlin
