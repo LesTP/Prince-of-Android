@@ -27,8 +27,8 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 6 — State Model — **COMPLETE** (2026-04-04). See DEVLOG §Module 6.
-**Next:** Module 7 — Sequence Table (seqtbl.c → Kotlin data)
+**Module:** 7 — Sequence Table (seqtbl.c → Kotlin data) — **IN PROGRESS**
+**Phase:** 7a — Planning complete. Ready for step execution.
 **Blocked/Broken:** None.
 
 **Migration from Windows (2026-04-03) — COMPLETE.** See DEVLOG §Pi Migration.
@@ -56,3 +56,43 @@ One-line: Built replay oracle toolchain: 13 reference traces, Python comparator,
 
 ### Module 6: State Model — COMPLETE
 One-line: Translated types.h + data.h → Kotlin (4 files, 27 tests pass). See DEVLOG §Module 6.
+
+### Module 7: Sequence Table — IN PROGRESS
+
+**Regime:** Build (autonomous)
+**Source:** `seqtbl.c` (1,228 lines) — pure data, zero game logic
+**Depends on:** Module 6 (State Model — types and enums)
+
+**What seqtbl.c is:** A byte array encoding animation sequences as a mini virtual machine. Each sequence is a stream of bytes: frame IDs (0-228), instruction opcodes (0xF1-0xFF for dx, dy, jump, action, sound, etc.), and operands. Game logic reads this table via `Char.curr_seq` pointer to drive character animation.
+
+**Key structures:**
+- `seqtbl[]` — ~2,300-byte array of packed sequence data
+- `seqtbl_offsets[]` — lookup table mapping `seqids` (1-115) to byte offsets into `seqtbl[]`
+- Labels are computed as cumulative offsets from `SEQTBL_BASE` (0x196E)
+
+**Translation approach:** The C file uses macros (`act()`, `jmp()`, `dx()`, `dy()`, `snd()`, `set_fall()`) and computed label offsets to build the byte array at compile time. In Kotlin, we can either:
+- (A) Reproduce the macro expansion → build the byte array programmatically with helper functions
+- (B) Pre-compute the final byte values and store as a literal array
+
+**Decision: Option A** — helper functions match the C structure, are readable, and are self-verifying (offset mismatches cause test failures).
+
+#### Step breakdown
+
+**Step 7a — Prerequisite enums** (Enums.kt additions):
+- `SeqtblInstructions` — 15 opcodes (SEQ_DX=0xFB through SEQ_END_LEVEL=0xF1)
+- `SeqtblSounds` — 5 entries (SND_SILENT through SND_LEVEL)
+- `FrameIds` — ~230 frame ID constants (frame_0 through frame_228)
+- `SeqIds` — ~100 sequence ID constants (seq_1 through seq_114)
+- Tests: verify enum values match C originals for spot-checked entries
+
+**Step 7b — Sequence table data** (new file `SequenceTable.kt`):
+- `SEQTBL_BASE` constant (0x196E)
+- Builder helpers: `act()`, `jmp()`, `dx()`, `dy()`, `snd()`, `setFall()`, `jmpIfFeather()`
+- `seqtbl` IntArray built using helpers (matching C byte-for-byte)
+- `seqtblOffsets` IntArray (mapping seq IDs to offsets)
+- Tests: verify array size, spot-check known offsets, verify specific sequence byte patterns
+
+**Step 7c — Validation and review:**
+- Cross-reference: verify `seqtblOffsets` entries match C `seqtbl_offsets[]` values
+- Verify total byte count matches C array size
+- Build passes (`gradle build`)
