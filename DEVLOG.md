@@ -2,6 +2,22 @@
 
 ## Module 9: Layer 1 — seg004 (Collision detection)
 
+### 2026-04-04 — Phase 9b: Review and cleanup
+
+**Mode:** Review (autonomous)
+**Outcome:** Complete — no must-fix or should-fix issues found
+
+**Review findings:**
+- All 26 C functions present in Kotlin (28 total including 2 private helpers: `getEdgeDistanceFront`, `loadFrameToObj`). Function count verified against C source.
+- Integer semantics audit: Short/Int conversions correct — `.toInt()` for arithmetic/indexing, `.toShort()` for assignment. Unsigned word comparison in `bumpedFloor` uses `and 0xFFFF`. Signed byte truncation in `bumped`/`loadFrameToObj` uses `.toByte().toInt()`.
+- All 7 `#ifdef` fix paths correctly translated as runtime checks (`!= 0`). `fixCollFlags` (disabled in ref build) added to FixesOptionsType with default 0.
+- No dead code, unused imports, TODOs, or NotImplementedError in Seg004.kt.
+- No architecture drift: zero platform calls, pure game logic, deterministic.
+- Build: `gradle build` clean, `gradle test` 232/232 pass.
+- No fixes required. Ready for phase completion.
+
+---
+
 ### 2026-04-04 — Phase 9a: Full translation (all 26 functions)
 
 **Mode:** Code (autonomous)
