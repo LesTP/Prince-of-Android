@@ -27,40 +27,9 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 9 — Layer 1: seg004 (Collision detection) — **IN PROGRESS**
-**Phase:** 9b — COMPLETE (review: no issues found). All 26 seg004 functions translated, 232 tests pass. Next: Phase completion (phase-complete).
+**Module:** 10 — Layer 1: seg005 (Player control, sword fighting) — **NOT STARTED**
+**Phase:** Pending phase-plan.
 **Blocked/Broken:** None.
-
-### Module 9: seg004.c → Kotlin
-
-**Scope:** 621 lines, 26 functions. Collision detection, wall bumping, chomper damage, gate pushing, edge distance.
-
-**Dependencies:** seg006 (already translated — provides `getTile`, `wallType`, `tileIsFloor`, `charDxForward`, `distanceToEdgeWeight`, `setCharCollision`, `determineCol`, `loadFramDetCol`, `playSeq`, `takeHp`, `getTileAtChar`, `getTileInfrontofChar`, `getTileBehindChar`, `getTileDivModM7`). External stubs needed: `loadFrameToObj` (seg006 ExternalStubs — already exists), `playSound` (already stubbed), `seqtblOffsetChar` (already stubbed).
-
-**New globals (seg004-local):** `bumpColLeftOfWall`, `bumpColRightOfWall`, `rightCheckedCol`, `leftCheckedCol`, `collTileLeftXpos` (5 variables). Constants: `wallDistFromLeft[]`, `wallDistFromRight[]` (2 lookup tables).
-
-**`#ifdef` flags:** `FIX_COLL_FLAGS`, `FIX_TWO_COLL_BUG`, `USE_JUMP_GRAB` (already handled in seg006), `FIX_SKELETON_CHOMPER_BLOOD`, `FIX_OFFSCREEN_GUARDS_DISAPPEARING`, `FIX_CAPED_PRINCE_SLIDING_THROUGH_GATE`, `FIX_PUSH_GUARD_INTO_WALL` (7 flags).
-
-**Steps:**
-
-**Phase 9a — Full translation (all 26 functions)**
-Given seg004's small size (621 lines), translate all functions in one phase:
-- Collision detection core (4): `checkCollisions`, `moveCollToPrev`, `getRowCollisionData`, `clearCollRooms`
-- Wall position (2): `getLeftWallXpos`, `getRightWallXpos`
-- Bump detection (4): `checkBumped`, `checkBumpedLookLeft`, `checkBumpedLookRight`, `isObstacleAtCol`
-- Obstacle/position (2): `isObstacle`, `xposInDrawnRoom`
-- Bump response (4): `bumped`, `bumpedFall`, `bumpedFloor`, `bumpedSound`
-- Chomper (4): `checkChompedKid`, `chomped`, `checkChompedGuard`, `checkChompedHere`
-- Gate/guard (2): `checkGatePush`, `checkGuardBumped`
-- Edge/wall distance (3): `getEdgeDistance`, `distFromWallForward`, `distFromWallBehind`
-- Gate helper (1): `canBumpIntoGate`
-- Add seg004-local globals to GameState.kt
-- Unit tests: collision setup/clear, bump detection, chomper checks, edge distance, gate push
-- **Test:** `gradle build` clean, `gradle test` all pass
-
-**Phase 9b — Review and cleanup**
-- Code review: naming consistency, integer semantics, `#ifdef` paths
-- DEVLOG update, DEVPLAN cleanup
 
 **Tracks overview:**
 - **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. **Full shell access on Pi — true autonomous mode.** Current.
@@ -91,3 +60,6 @@ One-line: Translated seqtbl.c → Kotlin (SequenceTable.kt + enums, 2,310-byte a
 
 ### Module 8: Layer 1 seg006 — COMPLETE
 One-line: Translated seg006.c → Kotlin (81 functions, 2,154 lines C → Seg006.kt + ExternalStubs.kt, 190 tests pass, zero escalations). See DEVLOG §Module 8.
+
+### Module 9: Layer 1 seg004 — COMPLETE
+One-line: Translated seg004.c → Kotlin (26 functions, 621 lines C → Seg004.kt, 42 new tests, 232 total pass, zero escalations). See DEVLOG §Module 9.

@@ -2,6 +2,20 @@
 
 ## Module 9: Layer 1 — seg004 (Collision detection)
 
+### 2026-04-04 — Module 9 Complete (phase-complete)
+
+**All 26 seg004.c functions translated to Kotlin.** 232 tests pass (42 new), gradle build clean.
+2 phases (9a–9b) completed autonomously with zero escalations.
+
+Files produced:
+- `Seg004.kt` — 26 game logic functions + 2 private helpers (collision detection, wall bumping, chomper damage, gate pushing, edge distance)
+- `Seg004Test.kt` — 42 unit tests
+
+Key decisions: `get_edge_distance` goto refactored to extracted helper, `load_frame_to_obj` inlined as private method, all 7 `#ifdef` fix flags as runtime checks.
+No contract changes. No trial-and-error patterns — all phases completed in single attempts.
+
+---
+
 ### 2026-04-04 — Phase 9b: Review and cleanup
 
 **Mode:** Review (autonomous)
