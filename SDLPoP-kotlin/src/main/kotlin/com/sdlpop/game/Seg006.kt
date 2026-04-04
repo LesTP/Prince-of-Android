@@ -1238,4 +1238,253 @@ object Seg006 {
         getTileFrontAboveChar()
         return canGrab()
     }
+
+    // ========== Phase 8b — Falling, collision, clipping ==========
+
+    // seg006:055C
+    fun fallAccel() {
+        if (gs.Char.action == Act.IN_FREEFALL) {
+            if (gs.isFeatherFall != 0 &&
+                (gs.fixes.fixFeatherFallAffectsGuards == 0 || gs.Char.charid == CID.KID)
+            ) {
+                gs.Char.fallY += Fall.SPEED_ACCEL_FEATHER
+                if (gs.Char.fallY > Fall.SPEED_MAX_FEATHER) gs.Char.fallY = Fall.SPEED_MAX_FEATHER
+            } else {
+                gs.Char.fallY += Fall.SPEED_ACCEL
+                if (gs.Char.fallY > Fall.SPEED_MAX) gs.Char.fallY = Fall.SPEED_MAX
+            }
+        }
+    }
+
+    // seg006:05AE
+    fun fallSpeed() {
+        gs.Char.y += gs.Char.fallY
+        if (gs.Char.action == Act.IN_FREEFALL) {
+            gs.Char.x = charDxForward(gs.Char.fallX)
+            loadFramDetCol()
+        }
+    }
+
+    // seg006:0723
+    fun setCharCollision() {
+        val image = ext.getImage(gs.objChtab, gs.objId)
+        if (image == null) {
+            gs.charWidthHalf = 0
+            gs.charHeight = 0
+        } else {
+            gs.charWidthHalf = (image.first + 1) / 2
+            gs.charHeight = image.second
+        }
+        gs.charXLeft = (gs.objX / 2 + 58).toShort()
+        if (gs.Char.direction >= Dir.RIGHT) {
+            gs.charXLeft = (gs.charXLeft - gs.charWidthHalf).toShort()
+        }
+        gs.charXLeftColl = gs.charXLeft
+        gs.charXRight = (gs.charXLeft + gs.charWidthHalf).toShort()
+        gs.charXRightColl = gs.charXRight
+        gs.charTopY = (gs.objY - gs.charHeight + 1).toShort()
+        if (gs.charTopY >= 192) {
+            gs.charTopY = 0
+        }
+        gs.charTopRow = yToRowMod4(gs.charTopY.toInt()).toShort()
+        gs.charBottomRow = yToRowMod4(gs.objY).toShort()
+        if (gs.charBottomRow.toInt() == -1) {
+            gs.charBottomRow = 3
+        }
+        gs.charColLeft = maxOf(getTileDivMod(gs.charXLeft.toInt()), 0).toShort()
+        gs.charColRight = minOf(getTileDivMod(gs.charXRight.toInt()), 9).toShort()
+        if (gs.curFrame.flags and FF.THIN != 0) {
+            gs.charXLeftColl = (gs.charXLeftColl + 4).toShort()
+            gs.charXRightColl = (gs.charXRightColl - 4).toShort()
+        }
+    }
+
+    // seg006:0815
+    fun checkOnFloor() {
+        if (gs.curFrame.flags and FF.NEEDS_FLOOR != 0) {
+            if (gs.fixes.fixFallingThroughFloorDuringSwordStrike != 0) {
+                if (gs.Char.frame == FID.frame_153_strike_3) return
+            }
+            if (getTileAtChar() == T.WALL) {
+                inWall()
+            }
+            if (tileIsFloor(gs.currTile2) == 0) {
+                // Special event: floors appear (level 12)
+                if (gs.currentLevel == 12 &&
+                    (gs.unitedWithShadow < 0 ||
+                        (gs.fixes.fixHiddenFloorsDuringFlashing != 0 && gs.unitedWithShadow > 0)) &&
+                    gs.Char.currRow == 0 &&
+                    (gs.Char.room == 2 || (gs.Char.room == 13 && gs.tileCol >= 6))
+                ) {
+                    gs.currRoomTiles[gs.currTilepos] = T.FLOOR
+                    ext.setWipe(gs.currTilepos, 1)
+                    ext.setRedrawFull(gs.currTilepos, 1)
+                    ++gs.currTilepos
+                    ext.setWipe(gs.currTilepos, 1)
+                    ext.setRedrawFull(gs.currTilepos, 1)
+                } else {
+                    if (gs.fixes.fixStandOnThinAir != 0 &&
+                        gs.Char.frame >= FID.frame_110_stand_up_from_crouch_1 &&
+                        gs.Char.frame <= FID.frame_119_stand_up_from_crouch_10
+                    ) {
+                        val col = getTileDivModM7(dxWeight() + backDeltaX(2))
+                        if (tileIsFloor(getTile(gs.Char.room, col, gs.Char.currRow)) != 0) {
+                            return
+                        }
+                    }
+                    startFall()
+                }
+            }
+        }
+    }
+
+    // seg006:0ACD
+    fun inWall() {
+        var deltaX = distanceToEdgeWeight()
+        if (deltaX >= 8 || getTileInfrontofChar() == T.WALL) {
+            deltaX = 6 - deltaX
+        } else {
+            deltaX += 4
+        }
+        gs.Char.x = charDxForward(deltaX)
+        loadFramDetCol()
+        getTileAtChar()
+    }
+
+    // seg006:08B9
+    fun startFall() {
+        val seqId: Int
+        val frame = gs.Char.frame
+        gs.Char.sword = Sword.SHEATHED
+        incCurrRow()
+        ext.startChompers()
+        gs.fallFrame = frame
+        if (frame == FID.frame_9_run) {
+            seqId = Seq.seq_7_fall
+        } else if (frame == FID.frame_13_run) {
+            seqId = Seq.seq_19_fall
+        } else if (frame == FID.frame_26_standing_jump_11) {
+            seqId = Seq.seq_18_fall_after_standing_jump
+        } else if (frame == FID.frame_44_running_jump_5) {
+            seqId = Seq.seq_21_fall_after_running_jump
+        } else if (frame >= FID.frame_81_hangdrop_1 && frame < 86) {
+            seqId = Seq.seq_19_fall
+            gs.Char.x = charDxForward(5)
+            loadFramDetCol()
+        } else if (frame >= 150 && frame < 180) {
+            if (gs.Char.charid == CID.GUARD) {
+                if (gs.Char.currRow == 3 && gs.Char.currCol == 10) {
+                    clearChar()
+                    return
+                }
+                if (gs.Char.fallX < 0) {
+                    seqId = Seq.seq_82_guard_pushed_off_ledge
+                    if (gs.Char.direction < Dir.RIGHT && distanceToEdgeWeight() <= 7) {
+                        gs.Char.x = charDxForward(-5)
+                    }
+                } else {
+                    gs.droppedout = 0
+                    seqId = Seq.seq_83_guard_fall
+                }
+            } else {
+                gs.droppedout = 1
+                if (gs.Char.direction < Dir.RIGHT && distanceToEdgeWeight() <= 7) {
+                    gs.Char.x = charDxForward(-5)
+                }
+                seqId = Seq.seq_81_kid_pushed_off_ledge
+            }
+        } else {
+            seqId = Seq.seq_7_fall
+        }
+        ext.seqtblOffsetChar(seqId)
+        playSeq()
+        loadFramDetCol()
+        if (getTileAtChar() == T.WALL) {
+            inWall()
+            return
+        }
+        val tile = getTileInfrontofChar()
+        if (tile == T.WALL ||
+            (gs.fixes.fixRunningJumpThroughTapestry != 0 && gs.Char.direction == Dir.LEFT &&
+                (tile == T.DOORTOP || tile == T.DOORTOP_WITH_FLOOR))
+        ) {
+            if (gs.fallFrame != 44 || distanceToEdgeWeight() >= 6) {
+                gs.Char.x = charDxForward(-1)
+            } else {
+                ext.seqtblOffsetChar(Seq.seq_104_start_fall_in_front_of_wall)
+                playSeq()
+            }
+            loadFramDetCol()
+        }
+    }
+
+    // seg006:13E6
+    fun stuckLower() {
+        if (getTileAtChar() == T.STUCK) {
+            ++gs.Char.y
+        }
+    }
+
+    // seg006:0E50
+    fun clipChar() {
+        val frame = gs.Char.frame
+        val action = gs.Char.action
+        val room = gs.Char.room
+        val row = gs.Char.currRow
+        resetObjClip()
+        // frames 224..228: going up the level door
+        if (frame >= FID.frame_224_exit_stairs_8 && frame < 229) {
+            gs.objClipTop = (gs.leveldoorYbottom + 1).toShort()
+            gs.objClipRight = gs.leveldoorRight.toShort()
+        } else {
+            if (getTile(room, gs.charColLeft.toInt(), gs.charTopRow.toInt()) == T.WALL ||
+                tileIsFloor(gs.currTile2) != 0
+            ) {
+                if ((action == Act.STAND && (frame == FID.frame_79_jumphang || frame == FID.frame_81_hangdrop_1)) ||
+                    getTile(room, gs.charColRight.toInt(), gs.charTopRow.toInt()) == T.WALL ||
+                    tileIsFloor(gs.currTile2) != 0
+                ) {
+                    val clipRow = row + 1
+                    val clipY = gs.yClip[clipRow]
+                    if (clipRow == 1 ||
+                        (clipY < gs.objY && clipY - 15 < gs.charTopY)
+                    ) {
+                        gs.charTopY = clipY
+                        gs.objClipTop = clipY
+                    }
+                }
+            }
+            var col = getTileDivMod(gs.charXLeftColl - 4)
+            if (getTile(room, col + 1, row) == T.DOORTOP_WITH_FLOOR ||
+                gs.currTile2 == T.DOORTOP
+            ) {
+                gs.objClipRight = ((gs.tileCol.toInt() shl 5) + 32).toShort()
+            } else {
+                if ((getTile(room, col, row) != T.DOORTOP_WITH_FLOOR &&
+                    gs.currTile2 != T.DOORTOP) ||
+                    action == Act.IN_MIDAIR ||
+                    (action == Act.IN_FREEFALL && frame == FID.frame_106_fall) ||
+                    (action == Act.BUMPED && frame == FID.frame_107_fall_land_1) ||
+                    (gs.Char.direction < Dir.RIGHT && (
+                        action == Act.HANG_CLIMB ||
+                        action == Act.HANG_STRAIGHT ||
+                        (action == Act.RUN_JUMP &&
+                            frame >= FID.frame_137_climbing_3 && frame < FID.frame_140_climbing_6)
+                    ))
+                ) {
+                    col = getTileDivMod(gs.charXRightColl.toInt())
+                    if ((getTile(room, col, row) == T.WALL ||
+                        (gs.currTile2 == T.MIRROR && gs.Char.direction == Dir.RIGHT)) &&
+                        (getTile(room, col, gs.charTopRow.toInt()) == T.WALL ||
+                            gs.currTile2 == T.MIRROR) &&
+                        room == gs.currRoom.toInt()
+                    ) {
+                        gs.objClipRight = (gs.tileCol.toInt() shl 5).toShort()
+                    }
+                } else {
+                    gs.objClipRight = ((gs.tileCol.toInt() shl 5) + 32).toShort()
+                }
+            }
+        }
+    }
 }

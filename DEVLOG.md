@@ -2,6 +2,32 @@
 
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
+### 2026-04-04 — Phase 8b, Step 1: Falling, collision, floor checks, clipping
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 18 new tests pass (137 total), gradle build clean
+
+**What was done:**
+Added 8 functions to `Seg006.kt` (Phase 8b — physics/collision/clipping):
+- Falling: `fallAccel` (with feather fall fix), `fallSpeed` (applies Y velocity + X movement in freefall)
+- Collision: `setCharCollision` (computes collision bounds from image/frame), `checkOnFloor` (floor check + level 12 special floors + thin air fix)
+- Wall/clipping: `inWall` (wall collision adjustment), `clipChar` (character clipping against walls/doors/level door), `stuckLower` (stuck tile Y adjustment)
+- Falling entry: `startFall` (determines fall sequence from current frame, handles guard/kid pushed-off-ledge, tapestry fix)
+
+Total: 64 of 81 seg006 functions implemented. Remaining 17 functions for phases 8c-8d.
+
+18 new tests covering: fall acceleration (normal, capped, feather, guard-with-fix), fall speed, collision setup (null image, with image, thin frame), inWall, checkOnFloor (no flag, with floor), stuckLower (stuck tile, non-stuck), clipChar (exit stairs, reset).
+
+**Design decisions:**
+- `startFall` included in 8b (not 8c as originally planned) because `checkOnFloor` calls it directly — they are tightly coupled
+- `FIX_FEATHER_FALL_AFFECTS_GUARDS` included as runtime check on `gs.fixes.fixFeatherFallAffectsGuards`
+- `USE_SUPER_HIGH_JUMP` paths excluded (matching reference build — `enableSuperHighJump` defaults to 0)
+- `FIX_RUNNING_JUMP_THROUGH_TAPESTRY` included in `startFall` as runtime check
+
+**Contract changes:** None.
+
+---
+
 ### 2026-04-04 — Phase 8a, Step 1: Constants, frame tables, tile/room queries, state management
 
 **Mode:** Code (autonomous)

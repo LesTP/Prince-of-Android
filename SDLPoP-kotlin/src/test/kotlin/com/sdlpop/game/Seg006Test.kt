@@ -548,4 +548,263 @@ class Seg006Test {
         Seg006.incCurrRow()
         assertEquals(2, gs.Char.currRow)
     }
+
+    // ========== Phase 8b — fallAccel Tests ==========
+
+    @Test
+    fun fallAccelNormalAcceleration() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.fallY = 0
+        gs.isFeatherFall = 0
+        Seg006.fallAccel()
+        assertEquals(Falling.SPEED_ACCEL, gs.Char.fallY)
+    }
+
+    @Test
+    fun fallAccelCapsAtMax() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.fallY = Falling.SPEED_MAX
+        gs.isFeatherFall = 0
+        Seg006.fallAccel()
+        assertEquals(Falling.SPEED_MAX, gs.Char.fallY)
+    }
+
+    @Test
+    fun fallAccelFeatherFallSlower() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.fallY = 0
+        gs.isFeatherFall = 1
+        gs.Char.charid = CharIds.KID
+        gs.fixes = FixesOptionsType()  // default (all fixes off)
+        Seg006.fallAccel()
+        assertEquals(Falling.SPEED_ACCEL_FEATHER, gs.Char.fallY)
+    }
+
+    @Test
+    fun fallAccelFeatherCapsAtFeatherMax() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.fallY = Falling.SPEED_MAX_FEATHER
+        gs.isFeatherFall = 1
+        gs.Char.charid = CharIds.KID
+        Seg006.fallAccel()
+        assertEquals(Falling.SPEED_MAX_FEATHER, gs.Char.fallY)
+    }
+
+    @Test
+    fun fallAccelNotInFreefallNoOp() {
+        val gs = GameState
+        gs.Char.action = Actions.STAND
+        gs.Char.fallY = 5
+        Seg006.fallAccel()
+        assertEquals(5, gs.Char.fallY) // unchanged
+    }
+
+    @Test
+    fun fallAccelFeatherFixGuardGetsNormalAccel() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.fallY = 0
+        gs.isFeatherFall = 1
+        gs.Char.charid = CharIds.GUARD
+        gs.fixes = FixesOptionsType(fixFeatherFallAffectsGuards = 1)
+        Seg006.fallAccel()
+        assertEquals(Falling.SPEED_ACCEL, gs.Char.fallY)
+        gs.fixes = gs.fixesDisabledState // restore
+    }
+
+    // ========== fallSpeed Tests ==========
+
+    @Test
+    fun fallSpeedAppliesYVelocity() {
+        val gs = GameState
+        gs.Char.action = Actions.STAND  // not freefall — just applies Y
+        gs.Char.y = 100
+        gs.Char.fallY = 6
+        Seg006.fallSpeed()
+        assertEquals(106, gs.Char.y)
+    }
+
+    @Test
+    fun fallSpeedFreefallAppliesXAndLoadsFrame() {
+        val gs = GameState
+        gs.Char.action = Actions.IN_FREEFALL
+        gs.Char.y = 50
+        gs.Char.fallY = 3
+        gs.Char.fallX = 2
+        gs.Char.x = 100
+        gs.Char.direction = Directions.RIGHT
+        gs.Char.frame = FrameIds.frame_106_fall
+        Seg006.fallSpeed()
+        assertEquals(53, gs.Char.y)
+        assertEquals(102, gs.Char.x)  // moved forward by fallX=2
+    }
+
+    // ========== setCharCollision Tests ==========
+
+    @Test
+    fun setCharCollisionNullImage() {
+        val gs = GameState
+        ExternalStubs.getImage = { _, _ -> null }
+        gs.objX = 100
+        gs.Char.direction = Directions.RIGHT
+        Seg006.setCharCollision()
+        assertEquals(0, gs.charWidthHalf)
+        assertEquals(0, gs.charHeight)
+        assertEquals((100 / 2 + 58).toShort(), gs.charXLeft)
+    }
+
+    @Test
+    fun setCharCollisionWithImage() {
+        val gs = GameState
+        ExternalStubs.getImage = { _, _ -> Pair(20, 40) }
+        gs.objX = 100
+        gs.objY = 80
+        gs.Char.direction = Directions.RIGHT
+        gs.curFrame = FrameType(0, 0, 0, 0, 0)
+        Seg006.setCharCollision()
+        assertEquals(10, gs.charWidthHalf)  // (20+1)/2 = 10
+        assertEquals(40, gs.charHeight)
+        // charXLeft = 100/2+58 - 10 = 98
+        assertEquals(98.toShort(), gs.charXLeft)
+        assertEquals(108.toShort(), gs.charXRight)  // 98+10
+    }
+
+    @Test
+    fun setCharCollisionThinFrame() {
+        val gs = GameState
+        ExternalStubs.getImage = { _, _ -> Pair(20, 40) }
+        gs.objX = 100
+        gs.objY = 80
+        gs.Char.direction = Directions.RIGHT
+        gs.curFrame = FrameType(flags = FrameFlags.THIN)
+        Seg006.setCharCollision()
+        assertEquals((98 + 4).toShort(), gs.charXLeftColl)
+        assertEquals((108 - 4).toShort(), gs.charXRightColl)
+    }
+
+    // ========== inWall Tests ==========
+
+    @Test
+    fun inWallAdjustsPosition() {
+        val gs = GameState
+        // Set up a character at a known position facing right
+        gs.Char.direction = Directions.RIGHT
+        gs.Char.x = 100
+        gs.Char.frame = FrameIds.frame_15_stand
+        gs.Char.currCol = 3
+        gs.Char.currRow = 0
+        gs.Char.room = 1
+        // Set up room so tile in front is not a wall (simple case)
+        setupBasicRoom()
+        val oldX = gs.Char.x
+        Seg006.inWall()
+        // Position should be adjusted
+        assertNotEquals(oldX, gs.Char.x)
+    }
+
+    // ========== checkOnFloor Tests ==========
+
+    @Test
+    fun checkOnFloorNoFlagDoesNothing() {
+        val gs = GameState
+        gs.curFrame = FrameType(0, 0, 0, 0, 0)  // no NEEDS_FLOOR flag
+        gs.Char.action = Actions.STAND
+        gs.Char.y = 55
+        val oldY = gs.Char.y
+        Seg006.checkOnFloor()
+        assertEquals(oldY, gs.Char.y) // nothing happened
+    }
+
+    @Test
+    fun checkOnFloorWithFloorPresent() {
+        val gs = GameState
+        gs.curFrame = FrameType(flags = FrameFlags.NEEDS_FLOOR)
+        gs.Char.room = 1
+        gs.Char.currCol = 5
+        gs.Char.currRow = 0
+        setupBasicRoom()
+        gs.currRoomTiles[5] = Tiles.FLOOR  // there IS a floor
+        val oldAction = gs.Char.action
+        Seg006.checkOnFloor()
+        assertEquals(oldAction, gs.Char.action) // no fall started
+    }
+
+    // ========== stuckLower Tests ==========
+
+    @Test
+    fun stuckLowerIncrementsYOnStuckTile() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Char.currCol = 3
+        gs.Char.currRow = 0
+        // Set tile 3 in level data to STUCK, then load room
+        gs.level = LevelType()
+        for (i in 0 until 30) { gs.level.fg[i] = Tiles.FLOOR; gs.level.bg[i] = 0 }
+        gs.level.fg[3] = Tiles.STUCK
+        ExternalStubs.getRoomAddress(1)
+        gs.Char.y = 50
+        Seg006.stuckLower()
+        assertEquals(51, gs.Char.y)
+    }
+
+    @Test
+    fun stuckLowerNoOpOnNonStuck() {
+        val gs = GameState
+        gs.Char.room = 1
+        gs.Char.currCol = 3
+        gs.Char.currRow = 0
+        setupBasicRoom()
+        gs.Char.y = 50
+        Seg006.stuckLower()
+        assertEquals(50, gs.Char.y) // unchanged
+    }
+
+    // ========== clipChar Tests ==========
+
+    @Test
+    fun clipCharExitStairsClipsToLevelDoor() {
+        val gs = GameState
+        gs.Char.frame = FrameIds.frame_224_exit_stairs_8
+        gs.Char.room = 1
+        gs.Char.currRow = 0
+        gs.leveldoorYbottom = 42
+        gs.leveldoorRight = 200
+        Seg006.clipChar()
+        assertEquals(43.toShort(), gs.objClipTop)
+        assertEquals(200.toShort(), gs.objClipRight)
+    }
+
+    @Test
+    fun clipCharResetObjClipCalled() {
+        val gs = GameState
+        gs.objClipTop = 99
+        gs.objClipBottom = 99
+        gs.Char.frame = 0
+        gs.Char.room = 1
+        gs.Char.currRow = 0
+        gs.Char.action = Actions.STAND
+        gs.charColLeft = 0
+        gs.charTopRow = 0
+        gs.charColRight = 0
+        setupBasicRoom()
+        Seg006.clipChar()
+        // resetObjClip should have been called, restoring defaults
+        assertNotEquals(99.toShort(), gs.objClipTop)
+    }
+
+    // Helper to set up a basic room with all floor tiles
+    private fun setupBasicRoom() {
+        val gs = GameState
+        gs.level = LevelType()
+        // Set room 1 links to 0 (no neighbors)
+        for (i in 0 until 30) {
+            gs.level.fg[i] = Tiles.FLOOR
+            gs.level.bg[i] = 0
+        }
+        ExternalStubs.getRoomAddress(1)
+    }
 }
