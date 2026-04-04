@@ -66,19 +66,19 @@ Decide and log — do not wait for human approval.
 
 **Runner:** `run-iteration.sh` — runs `claude -p` per iteration, logs to `logs/loop/`.
 **Orchestrator:** TG bot session invokes the runner, analyzes output, reports via Telegram.
-**Slash commands:** Available in `.claude/commands/` — adapted for autonomous execution (human-wait gates removed). Use them as appropriate for the current loop state.
+**Slash commands:** Project commands in `.claude/commands/` — these are NOT Skill-tool skills. To use them, read the `.md` file and follow its instructions. Do NOT call them via the Skill tool. Adapted for autonomous execution (human-wait gates removed).
 
 ### Each Iteration
 1. Read this file and follow `@` references to load project documents
 2. Read DEVPLAN's Current Status to determine the active track and module
 3. Read ARCHITECTURE.md's layer contract for the active module
 4. Execute the next action — exactly one of:
-   - **No active phase:** Run /phase-plan. Update DEVPLAN with step breakdown. Commit. Exit.
+   - **No active phase:** Read `.claude/commands/phase-plan.md` and follow it. Update DEVPLAN with step breakdown. Commit. Exit.
    - **Phase in progress:** Pick the next step from DEVPLAN. Do all
-     file read/write work. Run shell commands directly (builds, git, tests). Run /step-done. Exit.
-   - **All steps complete:** Run /phase-review. Log decisions to DECISIONS.md. Exit.
-   - **Review fixes done:** Run /phase-complete. Full doc update, contract propagation,
-     DEVPLAN cleanup. Commit. Exit.
+     file read/write work. Run shell commands directly (builds, git, tests). Read `.claude/commands/step-done.md` and follow it. Exit.
+   - **All steps complete:** Read `.claude/commands/phase-review.md` and follow it. Log decisions to DECISIONS.md. Exit.
+   - **Review fixes done:** Read `.claude/commands/phase-complete.md` and follow it. Full doc update, contract propagation,
+     DEVPLAN cleanup. Update ARCHITECTURE.md Implementation Sequence table status. Commit. Exit.
 5. Output exit signal as the final two lines:
    ```
    LOOP_SIGNAL: CONTINUE
