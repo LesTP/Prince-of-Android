@@ -2,6 +2,21 @@
 
 ## Module 8: Layer 1 — seg006 (Character physics, tile queries)
 
+### 2026-04-04 — Module 8 Complete (phase-complete)
+
+**All 81 seg006.c functions translated to Kotlin.** 190 tests pass, gradle build clean.
+5 phases (8a–8e) completed autonomously with zero escalations.
+
+Files produced:
+- `Seg006.kt` — 81 game logic functions (tile queries, physics, collision, falling, grabbing, damage, player/guard control)
+- `ExternalStubs.kt` — 30 stubs for cross-segment dependencies (seg000/002/003/005/007/008/replay)
+- `Seg006Test.kt` — 190 unit tests
+
+Key decisions: external dependency stub pattern, `#ifdef` flags as runtime checks, `getRoomAddress` inlined.
+No contract changes. No trial-and-error patterns — all phases completed in single attempts.
+
+---
+
 ### 2026-04-04 — Phase 8e: Review and cleanup
 
 **Mode:** Review (autonomous)

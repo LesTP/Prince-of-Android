@@ -283,7 +283,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 |---|--------|-------------|--------|------------|--------|
 | 6 | State Model | types.h + data.h → Kotlin | Build (autonomous) | — | **Complete** |
 | 7 | Sequence Table | seqtbl.c → Kotlin data | Build (autonomous) | State Model | **Complete** |
-| 8 | Layer 1: seg006 | Character physics, tile queries | Build (autonomous) | State Model | **In progress** |
+| 8 | Layer 1: seg006 | Character physics, tile queries | Build (autonomous) | State Model | **Complete** |
 | 9 | Layer 1: seg004 | Collision detection | Build (autonomous) | seg006 | Pending |
 | 10 | Layer 1: seg005 | Player control, sword fighting | Build (autonomous) | seg006, seg004 | Pending |
 | 11 | Layer 1: seg002 | Guard AI, room transitions | Build (autonomous) | seg005, seg006 | Pending |

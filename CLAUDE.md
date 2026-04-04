@@ -37,7 +37,7 @@ For layer contracts and module dependencies, see ARCHITECTURE.md.
 
 ## Environment (Raspberry Pi 5)
 - **Host:** Raspberry Pi 5 (16GB), Incus container `claude-code` (Debian 12 arm64, 12GB RAM, 3 CPUs)
-- **Project path:** `/home/claude/workspace/PoP port/`
+- **Project path:** `/home/claude/workspace/PoP_port/`
 - **Storage:** Project on USB drive (NTFS, 466GB, mounted at /home/claude/workspace). OS on SD card (29GB).
 - **Shell:** Full bash access — no Sandboxie restrictions. Can run `gradle`, `make`, `python3`, `git` directly.
 

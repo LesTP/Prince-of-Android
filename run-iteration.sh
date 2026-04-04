@@ -18,7 +18,7 @@
 
 set -uo pipefail
 
-PROJECT_DIR="/home/claude/workspace/PoP port"
+PROJECT_DIR="/home/claude/workspace/PoP_port"
 LOG_DIR="$PROJECT_DIR/logs/loop"
 SUMMARY_FILE="$LOG_DIR/summary.log"
 
