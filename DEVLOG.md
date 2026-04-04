@@ -2,6 +2,24 @@
 
 ## Module 7: Sequence Table
 
+### 2026-04-04 — Step 7c: Validation and review (phase complete)
+
+**Mode:** Review (autonomous)
+**Outcome:** Complete — Module 7 fully validated and closed
+
+**What was done:**
+Cross-reference validation of Kotlin sequence table against C source:
+- All 108 label offsets verified to match C `#define` chain exactly
+- All 115 `seqtblOffsets` entries verified to match C `seqtbl_offsets[]` (same labels, same order)
+- Array size confirmed: 2,310 bytes (Mclimb_loop at offset 2306 + 4 bytes)
+- No `USE_TELEPORTS` — standard PoP behavior, matching C `#ifdef` exclusion
+- All 77 tests pass, `gradle build` clean
+- No dead code, no simplification needed — helpers mirror C macros cleanly
+
+**Contract changes:** None.
+
+---
+
 ### 2026-04-04 — Step 7b: Sequence table data
 
 **Mode:** Code (autonomous)
