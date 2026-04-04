@@ -2,7 +2,41 @@
 
 ## Module 6: State Model
 
-### 2026-04-03 — Phase-plan: Module 6 breakdown (Loop iteration 1)
+### 2026-04-04 — Phase 6a+6b+6c+6d: Core types, enums, globals, tests (Loop iteration 2)
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — all 27 tests pass, gradle build clean
+
+**What happened:**
+Implemented all four phases of Module 6 (State Model) in a single iteration:
+
+**Phase 6a — Core Game Types** (`Types.kt`):
+- Type aliases documented (byte→Int, sbyte→Int, word→Int, short→Short, dword→Long)
+- 11 data classes: `CharType` (16 bytes), `TrobType` (3 bytes), `MobType` (6 bytes), `LevelType` (2305 bytes), `FrameType` (5 bytes), `RectType`, `TileAndMod`, `LinkType`, `AutoMoveType`, `SwordTableType`, `ObjtableType`
+- `CharType.copyFrom()` utility for Kid↔Char swapping pattern used throughout game logic
+- `LevelType` has proper `equals`/`hashCode` for IntArray fields
+
+**Phase 6b — Game Enums** (`Enums.kt`):
+- Used Kotlin `object` with `const val` (not enum classes) to match C integer semantics
+- Translated: `Tiles` (0-30), `CharIds`, `SwordStatus`, `Directions`, `Actions`, `FrameFlags`, `SoundIds`, `SoundFlags`, `Chtabs`, `Blitters`, `Control`, `EdgeType`, `TileGeometry`, `Falling`, `GameConstants`
+
+**Phase 6c — Global State Object** (`GameState.kt`, `CustomOptions.kt`):
+- `GameState` singleton with all ~344 game-logic globals as mutable properties
+- Organized by category: character, level/room, hit points, timer, RNG, controls, trobs, mobs, guard, sword/combat, sound, position/collision, falling, frame/animation, rendering, doors, game flow, replay, configuration
+- Constant arrays: `yLand`, `xBump`, `tblLine`, `dirFront`, `dirBehind`, `yClip`, `soundInterruptible`, `chtabFlipClip`, `chtabShift`
+- `CustomOptionsType` with all default values matching C `custom_defaults` initializer
+- `FixesOptionsType` with all 48 bug-fix toggle fields
+- SDL/platform types correctly excluded (surfaces, textures, renderers, joystick, font, dialog)
+
+**Phase 6d — Compile & Structural Verification** (`TypesTest.kt`):
+- 18 tests: struct size assertions, enum value spot-checks, default value verification, constant array validation, `CharType.copyFrom` test
+- Combined with 9 existing P1RParser tests: 27 total, all passing
+
+**Decisions:** None needed — mechanical translation as anticipated.
+
+---
+
+
 
 **Mode:** Discuss (autonomous)
 **Outcome:** Complete — committed fedbe8e
