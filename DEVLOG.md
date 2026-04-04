@@ -1,5 +1,34 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 10: Layer 1 — seg005 (Player control, sword fighting)
+
+### 2026-04-04 — Phase 10a: Falling, landing, movement basics (14 functions)
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 36 new tests pass (268 total), gradle build clean
+
+**What was done:**
+Created `Seg005.kt` with Phase 10a functions (14 of 38):
+- Sequence helpers: `seqtblOffsetChar`, `seqtblOffsetOpp`
+- Falling/landing: `doFall` (scream, grab check, wall/floor dispatch), `land` (C goto refactored to helper methods: `landSoftOrActive`, `landFatal`, `landFatalSound`), `spiked`
+- Control dispatch: `control` (main frame-based dispatch with all fix flag paths)
+- Control handlers: `controlCrouched` (level 1 music, stand up, crouch-hop), `controlTurning` (run-after-turn, joystick cleanup), `crouch`
+- Movement: `backPressed` (turn or turn-draw-sword), `forwardPressed` (run or safe-step), `controlRunning` (stop/turn/jump/crouch), `safeStep` (careful step to edge), `controlStartrun`
+
+Phase 10b/10c functions included as placeholders (empty method bodies).
+
+Created `Seg005Test.kt` with 36 unit tests covering: seqtblOffsetChar/Opp, doFall (scream/no-scream/low-fallY/continues-falling), land (soft/medium/fatal 3-row/guard fatal/shadow soft/start-chompers), spiked (modif set/offscreen fix), control (dead-dying/bumped-release/standing/crouching/fix-move-after-drink), controlCrouched (stand-up/crouch-hop/level1-music), controlTurning (run-after-turn/fix-near-wall/joystick-clear), crouch, backPressed (turn-no-sword/turn-with-sword), forwardPressed (start-run), controlRunning (stop/turn/crouch-while-running), safeStep, controlStartrun.
+
+**Design decisions:**
+- `land()` C goto labels (loc_5EE6, loc_5EFD, loc_5F6C, loc_5F75) refactored to helper methods (`landSoftOrActive`, `landFatal`, `landFatalSound`) — cleaner control flow, identical behavior
+- `ALLOW_CROUCH_AFTER_CLIMBING` correctly placed as `else if` in control dispatch chain (not separate `if`)
+- `FIX_DROP_THROUGH_TAPESTRY` correctly placed as `else if` on wall check in `doFall`
+- CharType fields are all `Int` — no `.toByte()` conversions needed (unlike GameState Short fields)
+
+**Contract changes:** None.
+
+---
+
 ## Module 9: Layer 1 — seg004 (Collision detection)
 
 ### 2026-04-04 — Module 9 Complete (phase-complete)
