@@ -68,6 +68,11 @@ Decide and log — do not wait for human approval.
 **Orchestrator:** TG bot session invokes the runner, analyzes output, reports via Telegram.
 **Slash commands:** Project commands in `.claude/commands/` — these are NOT Skill-tool skills. To use them, read the `.md` file and follow its instructions. Do NOT call them via the Skill tool. Adapted for autonomous execution (human-wait gates removed).
 
+### Tool Efficiency Rules
+- **File discovery:** Use `bash find` or `bash ls` for listing files. Do NOT spawn Agent(Explore) subagents for simple file discovery — they waste turns and budget.
+- **Search in this project:** Use `bash grep` instead of the Grep tool, and `bash find` instead of the Glob tool. The built-in tools have issues with this project's directory paths.
+- **Edit tool requires fresh reads:** Before editing any file (especially DEVPLAN.md), read it immediately before the edit — not at the start of the iteration. The Edit tool rejects edits if other files were read in between.
+
 ### Each Iteration
 1. Read this file and follow `@` references to load project documents
 2. Read DEVPLAN's Current Status to determine the active track and module
