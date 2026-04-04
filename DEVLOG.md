@@ -1,5 +1,25 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 7: Sequence Table
+
+### 2026-04-04 — Step 7a: Prerequisite enums
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 30 new tests pass (57 total), gradle build clean
+
+**What was done:**
+Added four enum objects to `Enums.kt` for sequence table translation:
+- `SeqtblInstructions` — 15 opcodes (SEQ_END_LEVEL=0xF1 through SEQ_JMP=0xFF)
+- `SeqtblSounds` — 5 sound IDs (SND_SILENT=0 through SND_LEVEL=4)
+- `FrameIds` — 170 frame ID constants (frame_0 through frame_240_sheathe, matching C gaps: no 66, 100-101, 120, 176, 184, 189-190, 206, 211-216)
+- `SeqIds` — 98 sequence ID constants (seq_1 through seq_teleport=115, including USE_SUPER_HIGH_JUMP and USE_TELEPORTS entries)
+
+All values verified against `types.h` enum definitions. Test file: `SeqtblEnumsTest.kt` with spot-checks across all four groups.
+
+**Contract changes:** None — internal to Module 7.
+
+---
+
 ## Module 6: State Model
 
 ### 2026-04-04 — Phase 6a+6b+6c+6d: Core types, enums, globals, tests (Loop iteration 2)

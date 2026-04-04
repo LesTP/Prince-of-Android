@@ -28,7 +28,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 7 — Sequence Table (seqtbl.c → Kotlin data) — **IN PROGRESS**
-**Phase:** 7a — Planning complete. Ready for step execution.
+**Phase:** Step 7a complete. Next: Step 7b (sequence table data).
 **Blocked/Broken:** None.
 
 **Migration from Windows (2026-04-03) — COMPLETE.** See DEVLOG §Pi Migration.
