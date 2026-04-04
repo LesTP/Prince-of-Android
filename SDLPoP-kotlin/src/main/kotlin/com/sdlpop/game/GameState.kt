@@ -271,6 +271,18 @@ object GameState {
     val customSaved = CustomOptionsType()
     var custom = customDefaults            // pointer equivalent
 
+    // === Object save/restore (obj2_*) — used by save_obj/load_obj ===
+    var obj2Tilepos: Int = 0       // byte (obj2_tilepos)
+    var obj2X: Short = 0           // word (obj2_x) — stored as Short matching obj_x
+    var obj2Y: Int = 0             // byte (obj2_y)
+    var obj2Direction: Int = 0     // sbyte (obj2_direction)
+    var obj2Id: Int = 0            // byte (obj2_id)
+    var obj2Chtab: Int = 0         // byte (obj2_chtab)
+    var obj2ClipTop: Short = 0     // short (obj2_clip_top)
+    var obj2ClipBottom: Short = 0  // short (obj2_clip_bottom)
+    var obj2ClipLeft: Short = 0    // short (obj2_clip_left)
+    var obj2ClipRight: Short = 0   // short (obj2_clip_right)
+
     // === Rendering table counts ===
     val tableCounts = ShortArray(5)       // short[5] (table_counts)
     // backtable_count = tableCounts[0], foretable_count = tableCounts[1],

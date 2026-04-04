@@ -1,5 +1,50 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 8: Layer 1 — seg006 (Character physics, tile queries)
+
+### 2026-04-04 — Phase 8a, Step 1: Constants, frame tables, tile/room queries, state management
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 42 new tests pass (119 total), gradle build clean
+
+**What was done:**
+Created `Seg006.kt` (Phase 8a — ~45 functions of 81 total) containing:
+- Frame data tables: `frameTableKid` (241 entries), `frameTblGuard` (41), `frameTblCuts` (86), `swordTbl` (51)
+- Tile lookup tables: `tileDivTbl` (256), `tileModTbl` (256) with DOS overflow simulation
+- Constants: `SEQTBL_BASE` (0x196E)
+- Tile/room query functions (16): `getTile`, `findRoomOfTile`, `getTilepos`, `getTileposNominus`, `getTileDivModM7`, `getTileDivMod`, `yToRowMod4`, `getTileAtChar`, `getTileAboveChar`, `getTileBehindChar`, `getTileInfrontofChar`, `getTileInfrontof2Char`, `getTileBehindAboveChar`, `getTileFrontAboveChar`, `tileIsFloor`, `wallType`
+- Character state save/load (16): `loadkid`, `savekid`, `loadshad`, `saveshad`, `loadkidAndOpp`, `savekidAndOpp`, `loadshadAndOpp`, `saveshadAndOpp`, `clearChar`, `resetObjClip`, `saveObj`, `loadObj`, `saveCtrl1`, `restCtrl1`, `clearSavedCtrl`, `readUserControl`
+- Frame loading (4): `loadFrame`, `getFrameInternal`, `loadFramDetCol`, `determineCol`
+- Physics/distance (5): `dxWeight`, `charDxForward`, `objDxForward`, `distanceToEdgeWeight`, `distanceToEdge`
+- Play sequence: `playSeq` (full seqtbl instruction interpreter, matching C implementation)
+- Additional functions: `flipControlX`, `releaseArrows`, `procGetObject`, `isDead`, `doPickup`, `setObjtileAtChar`, `canGrab`, `canGrabFrontAbove`, `backDeltaX`, `incCurrRow`
+
+Created `ExternalStubs.kt` — stub/interface pattern for functions from other segments (seg000/002/003/005/007/008/replay). Uses `var` function references so real implementations can be wired in when modules are translated. Key stubs include `getRoomAddress` (inlined from seg008) and rendering no-ops.
+
+Added `Colors` object to `Enums.kt` (RED, BRIGHTYELLOW, BRIGHTWHITE).
+Added `obj2*` save/restore state variables to `GameState.kt`.
+
+Created `Seg006Test.kt` with 42 unit tests covering:
+- Frame table sizes and spot-check entries
+- Tile queries: room 0 edge, valid room lookup, wrapping (left/right/up/down)
+- getTilepos: valid, negative row, out-of-bounds
+- tileIsFloor/wallType return values
+- State save/load round-trips: Kid, Guard, Opp, Object
+- Control input: readUserControl, flipControlX, releaseArrows, saveCtrl1/restCtrl1
+- Frame loading: Kid standing, Guard, out-of-bounds
+- Physics: charDxForward, objDxForward, getTileDivMod
+- isDead, clearChar, incCurrRow
+
+**Design decisions:**
+- FIX_CORNER_GRAB enabled: `findRoomOfTile` checks row<0 before col<0 (matching reference build)
+- FIX_SPRITE_XPOS enabled: `xToXhAndXl` uses shift/mask (not conditional logic)
+- All `#ifdef` paths from reference build included; runtime checks against `gs.fixes.*`/`gs.custom.*`
+- `getRoomAddress` inlined in ExternalStubs rather than stubbed, since it's a simple array copy needed for tile queries to work in tests
+
+**Contract changes:** None.
+
+---
+
 ## Module 7: Sequence Table
 
 ### 2026-04-04 — Step 7c: Validation and review (phase complete)

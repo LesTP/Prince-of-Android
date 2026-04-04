@@ -491,6 +491,13 @@ object FrameIds {
     const val frame_240_sheathe = 240
 }
 
+// Color IDs (from types.h enum colors)
+object Colors {
+    const val RED = 4
+    const val BRIGHTYELLOW = 14
+    const val BRIGHTWHITE = 15
+}
+
 // Sequence IDs — animation sequence identifiers (from types.h enum seqids)
 object SeqIds {
     const val seq_1_start_run = 1

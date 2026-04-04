@@ -28,7 +28,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 8 — Layer 1: seg006 (Character physics, tile queries) — **IN PROGRESS**
-**Phase:** 8a — Constants, frame tables, tile/room queries, state management
+**Phase:** 8a — COMPLETE (42 tests, 119 total). Next: Phase 8b — Frame/animation loading, physics, collision
 **Blocked/Broken:** None.
 
 ### Module 8: seg006.c → Kotlin
