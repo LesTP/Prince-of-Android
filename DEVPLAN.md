@@ -34,8 +34,8 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
-**Phase:** 11c — Sword combat detection & shadow autocontrol — **PLANNED**
-**Next:** Phase plan for 11c, then implement (~15 functions, ~350 lines)
+**Phase:** 11c — Sword combat detection & shadow autocontrol — **IN PROGRESS**
+**Next:** Step 1 — implement sword combat functions
 **Blocked/Broken:** None.
 
 ## Phase Summary
@@ -85,17 +85,32 @@ One-line: 19 functions (move helpers, guard init/state, room transitions, specia
 #### Phase 11b: Guard AI & autocontrol — COMPLETE
 One-line: 16 autocontrol/guard AI functions (dispatch, inactive/active states, combat probability), 30 tests, 386 total. Clean review. See DEVLOG.
 
-#### Phase 11c: Sword combat detection & shadow autocontrol (~15 functions, ~350 lines)
+#### Phase 11c: Sword combat detection & shadow autocontrol (~15 functions, ~350 lines) — IN PROGRESS
 
-Functions: `hurt_by_sword`, `check_sword_hurt`, `check_sword_hurting`, `check_hurting`, `check_skel`, `do_auto_moves`, `autocontrol_shadow_level4`, `autocontrol_shadow_level5`, `autocontrol_shadow_level6`, `autocontrol_shadow_level12`
+**Step 1: Sword combat functions (6 functions, ~22 tests)**
+Implement `hurtBySword`, `checkSwordHurt`, `checkSwordHurting`, `checkHurting` in Seg002.kt.
+- `hurtBySword`: HP deduction via `takeHp`, death sequence (not in fighting pose → instant kill), skeleton immunity, gate positioning with `fixOffscreenGuardsDisappearing`, pushed-off-ledge path, sound dispatch. Uses `getTileBehindChar`, `distanceToEdgeWeight`, `charDxForward`, `loadFramDetCol`, `incCurrRow`.
+- `checkSwordHurt`: Routes Guard.action==99 → loadshad/hurt_by_sword/saveshad + refrac timer; Kid.action==99 → loadkid/hurt_by_sword/savekid.
+- `checkSwordHurting`: Skip if Kid on stairs (frames 219-228), then check both sides via loadshadAndOpp/saveshadAndOpp + loadkidAndOpp/savekidAndOpp.
+- `checkHurting`: Distance + frame checks (frames 153-154 poking), parry detection (frames 150/161), min_hurt_range (8 unarmed, 12 armed), `actions_99_hurt` assignment, parry counter-sequence, sword moving sound.
+Tests: ~22 covering all branches.
 
-**Tests:**
-- `hurt_by_sword`: HP deduction, death sequence, skeleton immunity, edge/wall positioning
-- `check_hurting`: distance + frame checks, parry detection, `actions_99_hurt` assignment
-- `check_sword_hurt`: Kid vs Guard routing, refrac timer set
-- `check_skel`: skeleton wake conditions, tile erasure, state setup
-- `do_auto_moves`: demo_time progression, move dispatch
-- Shadow level autocontrol: level 4 (mirror approach), level 5 (potion steal), level 6 (step), level 12 (unite/fight)
+**Step 2: Skeleton wake + auto moves (2 functions, ~10 tests)**
+Implement `checkSkel`, `doAutoMoves` in Seg002.kt.
+- `checkSkel`: Level/room/door conditions from custom options, tile erasure (tiles_21_skeleton → tiles_1_floor), guard setup (skeleton charid, skill, drawn sword, 3HP).
+- `doAutoMoves`: demo_time increment (cap at 0xFE), index advancement, move dispatch switch (0-7 → move_N functions). Takes `Array<AutoMoveType>` parameter.
+Tests: ~10 covering wake conditions, tile changes, move dispatch.
+
+**Step 3: Shadow autocontrol functions (4 functions, ~12 tests)**
+Implement `autocontrolShadowLevel4`, `autocontrolShadowLevel5`, `autocontrolShadowLevel6`, `autocontrolShadowLevel12` in Seg002.kt (replace stub bodies).
+- Level 4: Mirror room approach, clearChar when x<80.
+- Level 5: Door open check (modif>=80), doAutoMoves with shadDrinkMove, clearChar when x<15.
+- Level 6: Kid running jump frame 43 + x<128 → shift+forward.
+- Level 12: Complex — init shadow, sword drawn combat (autocontrolGuardActive or down), sword draw approach, unite (flash+addLife+unitedWithShadow=42), follow Kid.
+Tests: ~12 covering each level's logic paths.
+
+**Step 4: Wire-up + review (~4 tests)**
+Replace ExternalStubs.doAutoMoves with real call. Add any new stubs needed for remaining seg002 external deps. Verify all 386+ tests still pass. Clean review pass.
 
 #### Wire-up
 
