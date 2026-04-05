@@ -25,56 +25,15 @@
 - **SDL headless mode:** Pi has no display. Use `SDL_VIDEODRIVER=offscreen` (not `dummy` — dummy hangs). Requires `xvfb` package installed but `offscreen` driver doesn't need it.
 - **NTFS execute permissions:** USB drive is NTFS — `chmod +x` is silently ignored. Workaround: copy binaries to `/tmp/sdlpop/` with symlinks to data/replays/doc/SDLPoP.ini.
 - **Line endings:** Source files from Windows have CRLF. Run `dos2unix *.c *.h` in SDLPoP/src/ after any file transfer. Grep/ripgrep fail silently on CRLF files.
+- **C unsigned word comparisons:** `(word)x < (word)y` in C casts to unsigned 16-bit. Translate as `(x and 0xFFFF) < (y and 0xFFFF)`. Common in distance checks (seg005 `controlStanding`, `controlWithSword`). Getting this wrong produces subtle distance-check bugs.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 10 — Layer 1: seg005 (Player control, sword fighting) — **IN PROGRESS**
-**Phase:** 10c — COMPLETE (7 functions translated, 22 new tests, 307 total pass). All 38 seg005 functions translated. Next: phase-complete (review + doc cleanup).
+**Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **PENDING**
+**Phase:** Needs phase-plan.
 **Blocked/Broken:** None.
-
-### Module 10: seg005.c → Kotlin
-
-**Scope:** 1,172 lines, 38 functions (excluding `teleport` — `USE_TELEPORTS` only, not in reference build). Player control dispatch, movement, falling/landing, item pickup, sword fighting, parry.
-
-**Dependencies:** seg006 (complete — provides tile queries, physics, `playSeq`, `charDxForward`, `distanceToEdgeWeight`, `getEdgeDistance`, `charOppDist`, `canGrab`, `releaseArrows`, `incCurrRow`, `loadFramDetCol`, `getTileDivModM7`, `backDeltaX`, `dxWeight`, `distanceToEdge`, etc.), seg004 (complete — provides `clearCollRooms`, `canBumpIntoGate`, `inWall`). External stubs needed: `playSound` (already stubbed), `checkSoundPlaying` (stubbed), `startChompers` (seg007, stubbed), `isSpikeHarmful` (seg007, stubbed), `doPickup` (seg003, needs stub), `leaveGuard` (seg002, needs stub).
-
-**New globals (seg005-local):** `sourceModifier`, `sourceRoom`, `sourceTilepos` (3 variables — teleport only, may skip).
-
-**`#ifdef` flags (18 unique):** `FIX_GLIDE_THROUGH_WALL`, `FIX_JUMP_THROUGH_WALL_ABOVE_GATE`, `FIX_DROP_THROUGH_TAPESTRY`, `USE_SUPER_HIGH_JUMP`, `FIX_OFFSCREEN_GUARDS_DISAPPEARING`, `FIX_LAND_AGAINST_GATE_OR_TAPESTRY`, `FIX_SAFE_LANDING_ON_SPIKES`, `ALLOW_CROUCH_AFTER_CLIMBING`, `FIX_MOVE_AFTER_DRINK`, `FIX_MOVE_AFTER_SHEATHE`, `FIX_TURN_RUN_NEAR_WALL`, `FIX_EDGE_DISTANCE_CHECK_WHEN_CLIMBING`, `FIX_JUMP_DISTANCE_AT_EDGE`, `FIX_UNINTENDED_SWORD_STRIKE`, `FIX_EXIT_DOOR` (in `up_pressed`), `USE_REPLAY` (stub-only), `USE_COPYPROT` (skip — level 15 copy protection), `USE_TELEPORTS` (skip).
-
-**Wire-up:** `seqtblOffsetChar` and `seqtblOffsetOpp` stubs in ExternalStubs already point to `SequenceTable.seqtblOffsets[]`. When Seg005 is created, wire `ExternalStubs.control`, `ExternalStubs.drawSword`, `ExternalStubs.spiked` to Seg005's implementations.
-
-**Steps:**
-
-**Phase 10a — Falling, landing, movement basics (14 functions)**
-- Falling/landing: `seqtblOffsetChar`, `seqtblOffsetOpp`, `doFall`, `land`, `spiked`
-- Control dispatch: `control`, `controlCrouched`, `controlTurning`, `crouch`
-- Movement: `forwardPressed`, `backPressed`, `controlRunning`, `controlStartrun`, `safeStep`
-- Unit tests: fall/land sequences, spike handling, control dispatch by frame, movement edge cases
-- **Test:** `gradle build` clean, `gradle test` all pass
-
-**Phase 10b — Standing control, climbing, items (14 functions)**
-- Standing: `controlStanding`, `upPressed`, `downPressed`, `goUpLeveldoor`
-- Jumping: `standingJump`, `checkJumpUp`, `jumpUpOrGrab`, `grabUpNoFloorBehind`, `jumpUp`, `grabUpWithFloorBehind`, `runJump`
-- Hanging: `controlHanging`, `canClimbUp`, `hangFall`
-- Items: `checkGetItem`, `getItem`
-- Unit tests: standing control branches, jump/grab logic, hanging control, item pickup
-- **Test:** `gradle build` clean, `gradle test` all pass
-
-**Phase 10c — Sword fighting (8 functions) + review**
-- Sword: `drawSword`, `controlWithSword`, `swordfight`, `swordStrike`, `parry`, `backWithSword`, `forwardWithSword`
-- Wire-up: connect Seg005 functions to ExternalStubs (`control`, `drawSword`, `spiked`, `doFall`)
-- Code review: naming consistency, integer semantics, `#ifdef` paths
-- Unit tests: sword draw/sheathe, strike/parry sequences, distance-based sword control
-- **Test:** `gradle build` clean, `gradle test` all pass
-- DEVLOG update, DEVPLAN cleanup
-
-**Tracks overview:**
-- **Track A (Game Logic):** C→Kotlin translation of ~7,200 lines, validated by replay oracle. **Full shell access on Pi — true autonomous mode.** Current.
-- **Track B (Android Platform):** Rendering, platform, audio, game loop. Requires Android Studio. **After Track A.**
-- **Track C (Touch Controls):** Gesture prototype + playtesting. Requires Android Studio + phone. **Parallel, any time.**
 
 ## Phase Summary
 
@@ -103,3 +62,6 @@ One-line: Translated seg006.c → Kotlin (81 functions, 2,154 lines C → Seg006
 
 ### Module 9: Layer 1 seg004 — COMPLETE
 One-line: Translated seg004.c → Kotlin (26 functions, 621 lines C → Seg004.kt, 42 new tests, 232 total pass, zero escalations). See DEVLOG §Module 9.
+
+### Module 10: Layer 1 seg005 — COMPLETE
+One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005.kt, 75 new tests, 307 total pass, zero escalations). See DEVLOG §Module 10.

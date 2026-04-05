@@ -2,6 +2,23 @@
 
 ## Module 10: Layer 1 — seg005 (Player control, sword fighting)
 
+### 2026-04-05 — Module 10 Complete (phase-complete)
+
+**All 38 seg005.c functions translated to Kotlin.** 307 tests pass (75 new), gradle build clean.
+3 phases (10a–10c) completed autonomously with zero escalations.
+
+Files produced:
+- `Seg005.kt` — 38 game logic functions (player control, movement, falling/landing, jumping/climbing, items, sword fighting)
+- `Seg005Test.kt` — 75 unit tests
+
+Key decisions: C goto labels refactored to helper methods (`land` → `landSoftOrActive`/`landFatal`/`landFatalSound`), unsigned word comparisons translated as `(x and 0xFFFF) < (y and 0xFFFF)`, `USE_COPYPROT`/`USE_TELEPORTS` paths skipped (not in reference build), all 18 `#ifdef` fix flags as runtime checks.
+
+Contract changes: ExternalStubs wired — `control`, `drawSword`, `spiked`, `doFall` now point to Seg005 implementations. `doPickup` (seg003) and `leaveGuard` (seg002) stubs added.
+
+Gotcha promoted: C unsigned word comparison pattern `(word)x < (word)y` → `(x and 0xFFFF) < (y and 0xFFFF)`.
+
+---
+
 ### 2026-04-05 — Phase 10c: Sword fighting (7 functions)
 
 **Mode:** Code (autonomous)
