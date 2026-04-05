@@ -774,4 +774,325 @@ class Seg005Test {
         seg005.runJump()
         assertEquals(seqBefore, gs.Char.currSeq)
     }
+
+    // ══════════════════════════════════════════════════════════
+    // Phase 10c: Sword fighting tests
+    // ══════════════════════════════════════════════════════════
+
+    // ── backWithSword ──
+
+    @Test
+    fun backWithSword_standWithSword_backsUp() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.controlBackward = Ctrl.HELD
+
+        seg005.backWithSword()
+
+        assertEquals(Ctrl.IGNORE, gs.controlBackward)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_57_back_with_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun backWithSword_wrongFrame_noOp() {
+        gs.Char.frame = FID.frame_15_stand
+        gs.controlBackward = Ctrl.HELD
+        val seqBefore = gs.Char.currSeq
+
+        seg005.backWithSword()
+
+        assertEquals(Ctrl.HELD, gs.controlBackward)
+        assertEquals(seqBefore, gs.Char.currSeq)
+    }
+
+    // ── forwardWithSword ──
+
+    @Test
+    fun forwardWithSword_kid_usesKidSeq() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.KID
+        gs.controlForward = Ctrl.HELD
+
+        seg005.forwardWithSword()
+
+        assertEquals(Ctrl.IGNORE, gs.controlForward)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_86_forward_with_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun forwardWithSword_guard_usesGuardSeq() {
+        gs.Char.frame = FID.frame_170_stand_with_sword
+        gs.Char.charid = CID.GUARD
+        gs.controlForward = Ctrl.HELD
+
+        seg005.forwardWithSword()
+
+        assertEquals(Ctrl.IGNORE, gs.controlForward)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_56_guard_forward_with_sword], gs.Char.currSeq)
+    }
+
+    // ── drawSword ──
+
+    @Test
+    fun drawSword_kid_playsSound() {
+        gs.Char.charid = CID.KID
+        gs.offguard = 1
+
+        seg005.drawSword()
+
+        assertEquals(Snd.DRAW_SWORD, lastSoundPlayed)
+        assertEquals(0, gs.offguard)
+        assertEquals(Sword.DRAWN, gs.Char.sword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_55_draw_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun drawSword_guard_usesEnGarde() {
+        gs.Char.charid = CID.GUARD
+
+        seg005.drawSword()
+
+        assertEquals(Sword.DRAWN, gs.Char.sword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_90_en_garde], gs.Char.currSeq)
+    }
+
+    @Test
+    fun drawSword_shadow_usesDrawSwordSeq() {
+        gs.Char.charid = CID.SHADOW
+
+        seg005.drawSword()
+
+        assertEquals(Sword.DRAWN, gs.Char.sword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_55_draw_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun drawSword_fixUnintendedStrike_setsCtrl1Shift2() {
+        gs.Char.charid = CID.KID
+        gs.fixes.fixUnintendedSwordStrike = 1
+        gs.ctrl1Shift2 = Ctrl.HELD
+
+        seg005.drawSword()
+
+        assertEquals(Ctrl.IGNORE, gs.ctrl1Shift2)
+    }
+
+    // ── controlWithSword ──
+
+    @Test
+    fun controlWithSword_oppInRange_callsSwordfight() {
+        gs.Char.action = Act.STAND
+        gs.Char.charid = CID.KID
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.room = 1
+        gs.Char.currRow = 1
+        gs.Char.currCol = 5
+        gs.canGuardSeeKid = 2
+        gs.loadedRoom = 1
+        // Set tile at char position to loose
+        val tilepos = gs.Char.currRow * 10 + gs.Char.currCol
+        gs.currRoomTiles[tilepos] = T.LOOSE
+        // Set up Opp nearby (distance < 90)
+        gs.Opp.room = gs.Char.room
+        gs.Opp.x = gs.Char.x + 30
+        gs.Opp.direction = Dir.LEFT
+        gs.Char.direction = Dir.RIGHT
+        gs.controlShift2 = Ctrl.RELEASED // not striking
+        gs.controlDown = Ctrl.RELEASED
+        gs.controlUp = Ctrl.RELEASED
+        gs.controlForward = Ctrl.RELEASED
+        gs.controlBackward = Ctrl.RELEASED
+
+        seg005.controlWithSword()
+
+        // swordfight was called — checks down/up/forward/backward controls
+        // With all controls released, swordfight is a no-op, but it ran without error
+    }
+
+    @Test
+    fun controlWithSword_kidAlive_sheathes() {
+        gs.Char.action = Act.STAND
+        gs.Char.charid = CID.KID
+        gs.Char.alive = -1
+        gs.Char.frame = FID.frame_171_stand_with_sword
+        gs.Char.room = 1
+        gs.Char.currRow = 1
+        gs.Char.currCol = 5
+        gs.canGuardSeeKid = 0
+        gs.holdingSword = 1
+        gs.loadedRoom = 1
+        // Set tile to floor (not loose, can_guard_see_kid < 2)
+        val tilepos = gs.Char.currRow * 10 + gs.Char.currCol
+        gs.currRoomTiles[tilepos] = T.FLOOR
+
+        seg005.controlWithSword()
+
+        assertEquals(0, gs.holdingSword)
+        assertEquals(Sword.SHEATHED, gs.Char.sword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_92_put_sword_away], gs.Char.currSeq)
+    }
+
+    // ── swordfight ──
+
+    @Test
+    fun swordfight_parryFrame_shiftReleased_backsUp() {
+        gs.Char.frame = FID.frame_161_parry
+        gs.controlShift2 = Ctrl.RELEASED
+
+        seg005.swordfight()
+
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_57_back_with_sword], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordfight_downPressed_kid_sheathes() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.KID
+        gs.controlShift2 = Ctrl.RELEASED
+        gs.controlDown = Ctrl.HELD
+
+        seg005.swordfight()
+
+        assertEquals(Ctrl.IGNORE, gs.controlDown)
+        assertEquals(Sword.SHEATHED, gs.Char.sword)
+        assertEquals(1, gs.offguard)
+        assertEquals(9, gs.guardRefrac)
+        assertEquals(0, gs.holdingSword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_93_put_sword_away_fast], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordfight_downPressed_guard_becomesInactive() {
+        gs.Char.frame = FID.frame_170_stand_with_sword
+        gs.Char.charid = CID.GUARD
+        gs.controlShift2 = Ctrl.RELEASED
+        gs.controlDown = Ctrl.HELD
+
+        seg005.swordfight()
+
+        assertEquals(Sword.SHEATHED, gs.Char.sword)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_87_guard_become_inactive], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordfight_upPressed_callsParry() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.KID
+        gs.controlShift2 = Ctrl.RELEASED
+        gs.controlDown = Ctrl.RELEASED
+        gs.controlUp = Ctrl.HELD
+        // parry needs Opp setup — set opp to striking frame
+        gs.Opp.frame = FID.frame_152_strike_2
+        gs.Opp.room = gs.Char.room
+        gs.Opp.x = gs.Char.x + 20
+        gs.Opp.direction = Dir.LEFT
+        gs.Char.direction = Dir.RIGHT
+
+        seg005.swordfight()
+
+        // parry should have been called and set seq_62_parry
+        assertEquals(Ctrl.IGNORE, gs.controlUp)
+    }
+
+    // ── swordStrike ──
+
+    @Test
+    fun swordStrike_standWithSword_kid_strikes() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.KID
+
+        seg005.swordStrike()
+
+        assertEquals(Ctrl.IGNORE, gs.controlShift2)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_75_strike], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordStrike_standWithSword_guard_strikes() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.GUARD
+
+        seg005.swordStrike()
+
+        assertEquals(Ctrl.IGNORE, gs.controlShift2)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_58_guard_strike], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordStrike_parryFrame_strikesAfterParry() {
+        gs.Char.frame = FID.frame_150_parry
+
+        seg005.swordStrike()
+
+        assertEquals(Ctrl.IGNORE, gs.controlShift2)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_66_strike_after_parry], gs.Char.currSeq)
+    }
+
+    @Test
+    fun swordStrike_wrongFrame_noOp() {
+        gs.Char.frame = FID.frame_15_stand
+        gs.controlShift2 = Ctrl.HELD
+        val seqBefore = gs.Char.currSeq
+
+        seg005.swordStrike()
+
+        assertEquals(Ctrl.HELD, gs.controlShift2) // not changed
+        assertEquals(seqBefore, gs.Char.currSeq)
+    }
+
+    // ── parry ──
+
+    @Test
+    fun parry_kid_oppStriking_parries() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.KID
+        gs.Opp.frame = FID.frame_152_strike_2
+        gs.Opp.room = gs.Char.room
+        gs.Opp.x = gs.Char.x + 20
+        gs.Opp.direction = Dir.LEFT
+        gs.Char.direction = Dir.RIGHT
+
+        seg005.parry()
+
+        assertEquals(Ctrl.IGNORE, gs.controlUp)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_62_parry], gs.Char.currSeq)
+    }
+
+    @Test
+    fun parry_guard_oppNotStriking_returns() {
+        gs.Char.frame = FID.frame_158_stand_with_sword
+        gs.Char.charid = CID.GUARD
+        gs.Opp.frame = FID.frame_15_stand // not strike_2
+        gs.Opp.room = gs.Char.room
+        // Close distance so charOppDist < 32 — guard falls to opp frame check
+        gs.Char.x = 100
+        gs.Opp.x = 110
+        gs.Opp.direction = Dir.LEFT
+        gs.Char.direction = Dir.RIGHT
+        val seqBefore = gs.Char.currSeq
+
+        seg005.parry()
+
+        assertEquals(seqBefore, gs.Char.currSeq) // early return, opp not striking
+    }
+
+    @Test
+    fun parry_blockedFrame_parriesAfterStrike() {
+        gs.Char.frame = FID.frame_167_blocked
+        gs.Char.charid = CID.KID
+
+        seg005.parry()
+
+        assertEquals(Ctrl.IGNORE, gs.controlUp)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_61_parry_after_strike], gs.Char.currSeq)
+    }
+
+    @Test
+    fun parry_wrongFrame_noOp() {
+        gs.Char.frame = FID.frame_15_stand // not a sword frame, not blocked
+        val seqBefore = gs.Char.currSeq
+
+        seg005.parry()
+
+        assertEquals(seqBefore, gs.Char.currSeq)
+    }
 }

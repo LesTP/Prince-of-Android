@@ -934,12 +934,205 @@ object Seg005 {
         }
     }
 
-    /** Placeholder — Phase 10c */
-    fun drawSword() { /* Phase 10c */ }
-    fun controlWithSword() { /* Phase 10c */ }
-    fun swordfight() { /* Phase 10c */ }
-    fun swordStrike() { /* Phase 10c */ }
-    fun parry() { /* Phase 10c */ }
-    fun backWithSword() { /* Phase 10c */ }
-    fun forwardWithSword() { /* Phase 10c */ }
+    // ══════════════════════════════════════════════════════════
+    // Phase 10c: Sword fighting
+    // ══════════════════════════════════════════════════════════
+
+    // ── back_with_sword ──
+
+    /** seg005:0BB5 — Step back with sword drawn. */
+    fun backWithSword() {
+        val frame = gs.Char.frame
+        if (frame == FID.frame_158_stand_with_sword || frame == FID.frame_170_stand_with_sword || frame == FID.frame_171_stand_with_sword) {
+            gs.controlBackward = Ctrl.IGNORE
+            seqtblOffsetChar(Seq.seq_57_back_with_sword)
+        }
+    }
+
+    // ── forward_with_sword ──
+
+    /** seg005:0BE3 — Step forward with sword drawn. */
+    fun forwardWithSword() {
+        val frame = gs.Char.frame
+        if (frame == FID.frame_158_stand_with_sword || frame == FID.frame_170_stand_with_sword || frame == FID.frame_171_stand_with_sword) {
+            gs.controlForward = Ctrl.IGNORE
+            if (gs.Char.charid != CID.KID) {
+                seqtblOffsetChar(Seq.seq_56_guard_forward_with_sword)
+            } else {
+                seqtblOffsetChar(Seq.seq_86_forward_with_sword)
+            }
+        }
+    }
+
+    // ── draw_sword ──
+
+    /** seg005:0C1D — Draw sword (Kid plays sound, Guard uses en_garde). */
+    fun drawSword() {
+        var seqId = Seq.seq_55_draw_sword
+        gs.controlForward = seg006.releaseArrows()
+        gs.controlShift2 = gs.controlForward
+        // FIX_UNINTENDED_SWORD_STRIKE
+        if (gs.fixes.fixUnintendedSwordStrike != 0) {
+            gs.ctrl1Shift2 = Ctrl.IGNORE
+        }
+        if (gs.Char.charid == CID.KID) {
+            stubs.playSound(Snd.DRAW_SWORD)
+            gs.offguard = 0
+        } else if (gs.Char.charid != CID.SHADOW) {
+            seqId = Seq.seq_90_en_garde
+        }
+        gs.Char.sword = Sword.DRAWN
+        seqtblOffsetChar(seqId)
+    }
+
+    // ── control_with_sword ──
+
+    /** seg005:0C67 — Control dispatch when sword is drawn. */
+    fun controlWithSword() {
+        if (gs.Char.action < Act.HANG_CLIMB) {
+            if (seg006.getTileAtChar() == T.LOOSE || gs.canGuardSeeKid.toInt() >= 2) {
+                val distance = seg006.charOppDist()
+                if ((distance and 0xFFFF) < (90 and 0xFFFF)) {
+                    swordfight()
+                    return
+                } else if (distance < 0) {
+                    if ((distance and 0xFFFF) < ((-4) and 0xFFFF)) {
+                        seqtblOffsetChar(Seq.seq_60_turn_with_sword)
+                        return
+                    } else {
+                        swordfight()
+                        return
+                    }
+                }
+            }
+            // No opponent in range — sheathe or become inactive
+            if (gs.Char.charid == CID.KID && gs.Char.alive < 0) {
+                gs.holdingSword = 0
+            }
+            if (gs.Char.charid < CID.GUARD) {
+                if (gs.Char.frame == FID.frame_171_stand_with_sword) {
+                    gs.Char.sword = Sword.SHEATHED
+                    seqtblOffsetChar(Seq.seq_92_put_sword_away)
+                }
+            } else {
+                swordfight()
+            }
+        }
+    }
+
+    // ── swordfight ──
+
+    /** seg005:0CDB — Main sword fighting control dispatch. */
+    fun swordfight() {
+        val frame = gs.Char.frame
+        val charid = gs.Char.charid
+        // frame 161: parry — if shift released, back with sword
+        if (frame == FID.frame_161_parry && gs.controlShift2 >= Ctrl.RELEASED) {
+            seqtblOffsetChar(Seq.seq_57_back_with_sword)
+            return
+        } else if (gs.controlShift2 == Ctrl.HELD) {
+            if (charid == CID.KID) {
+                gs.kidSwordStrike = 15
+            }
+            swordStrike()
+            if (gs.controlShift2 == Ctrl.IGNORE) return
+        }
+        if (gs.controlDown == Ctrl.HELD) {
+            if (frame == FID.frame_158_stand_with_sword || frame == FID.frame_170_stand_with_sword || frame == FID.frame_171_stand_with_sword) {
+                gs.controlDown = Ctrl.IGNORE
+                gs.Char.sword = Sword.SHEATHED
+                val seqId: Int
+                if (charid == CID.KID) {
+                    gs.offguard = 1
+                    gs.guardRefrac = 9
+                    gs.holdingSword = 0
+                    seqId = Seq.seq_93_put_sword_away_fast
+                } else if (charid == CID.SHADOW) {
+                    seqId = Seq.seq_92_put_sword_away
+                } else {
+                    seqId = Seq.seq_87_guard_become_inactive
+                }
+                seqtblOffsetChar(seqId)
+            }
+        } else if (gs.controlUp == Ctrl.HELD) {
+            parry()
+        } else if (gs.controlForward == Ctrl.HELD) {
+            forwardWithSword()
+        } else if (gs.controlBackward == Ctrl.HELD) {
+            backWithSword()
+        }
+    }
+
+    // ── sword_strike ──
+
+    /** seg005:0DB0 — Attempt sword strike from eligible frames. */
+    fun swordStrike() {
+        val frame = gs.Char.frame
+        val seqId: Int
+        if (frame == FID.frame_157_walk_with_sword ||
+            frame == FID.frame_158_stand_with_sword ||
+            frame == FID.frame_170_stand_with_sword ||
+            frame == FID.frame_171_stand_with_sword ||
+            frame == FID.frame_165_walk_with_sword
+        ) {
+            seqId = if (gs.Char.charid == CID.KID) {
+                Seq.seq_75_strike
+            } else {
+                Seq.seq_58_guard_strike
+            }
+        } else if (frame == FID.frame_150_parry || frame == FID.frame_161_parry) {
+            seqId = Seq.seq_66_strike_after_parry
+        } else {
+            return
+        }
+        gs.controlShift2 = Ctrl.IGNORE
+        seqtblOffsetChar(seqId)
+    }
+
+    // ── parry ──
+
+    /** seg005:0E0F — Parry with sword: check opponent frame, play parry sequence. */
+    fun parry() {
+        val charFrame = gs.Char.frame
+        val oppFrame = gs.Opp.frame
+        val charCharid = gs.Char.charid
+        var seqId = Seq.seq_62_parry
+        var doPlaySeq = false
+        if (charFrame == FID.frame_158_stand_with_sword ||
+            charFrame == FID.frame_170_stand_with_sword ||
+            charFrame == FID.frame_171_stand_with_sword ||
+            charFrame == FID.frame_168_back ||
+            charFrame == FID.frame_165_walk_with_sword
+        ) {
+            if (seg006.charOppDist() >= 32 && charCharid != CID.KID) {
+                backWithSword()
+                return
+            } else if (charCharid == CID.KID) {
+                if (oppFrame == FID.frame_168_back) return
+                if (oppFrame != FID.frame_151_strike_1 &&
+                    oppFrame != FID.frame_152_strike_2 &&
+                    oppFrame != FID.frame_162_block_to_strike
+                ) {
+                    if (oppFrame == FID.frame_153_strike_3) {
+                        doPlaySeq = true
+                    } else if (charCharid != CID.KID) {
+                        // Note: this branch is unreachable since we're inside charCharid == KID,
+                        // but matches the C source structure exactly
+                        backWithSword()
+                        return
+                    }
+                }
+            } else {
+                if (oppFrame != FID.frame_152_strike_2) return
+            }
+        } else {
+            if (charFrame != FID.frame_167_blocked) return
+            seqId = Seq.seq_61_parry_after_strike
+        }
+        gs.controlUp = Ctrl.IGNORE
+        seqtblOffsetChar(seqId)
+        if (doPlaySeq) {
+            seg006.playSeq()
+        }
+    }
 }

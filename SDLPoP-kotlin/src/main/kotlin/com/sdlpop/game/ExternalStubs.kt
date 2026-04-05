@@ -16,7 +16,7 @@ package com.sdlpop.game
  */
 object ExternalStubs {
     // --- seg005 (player control) ---
-    var control: () -> Unit = { throw NotImplementedError("control (seg005)") }
+    var control: () -> Unit = { Seg005.control() }
     var seqtblOffsetChar: (Int) -> Unit = { seqIndex ->
         GameState.Char.currSeq = SequenceTable.seqtblOffsets[seqIndex]
     }
@@ -38,12 +38,12 @@ object ExternalStubs {
     var leaveGuard: () -> Unit = { throw NotImplementedError("leave_guard (seg002)") }
 
     // --- seg003 (game loop helpers) ---
-    var doFall: () -> Unit = { throw NotImplementedError("do_fall (seg003)") }
+    var doFall: () -> Unit = { Seg005.doFall() }
     var doPickup: (Int) -> Unit = { _ -> throw NotImplementedError("do_pickup (seg003)") }
 
     // --- seg005 (sword/combat) ---
-    var drawSword: () -> Unit = { throw NotImplementedError("draw_sword (seg005)") }
-    var spiked: () -> Unit = { throw NotImplementedError("spiked (seg005)") }
+    var drawSword: () -> Unit = { Seg005.drawSword() }
+    var spiked: () -> Unit = { Seg005.spiked() }
 
     // --- seg008 (rendering) ---
     var getRoomAddress: (Int) -> Unit = { room ->
