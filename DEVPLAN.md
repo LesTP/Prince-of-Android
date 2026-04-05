@@ -31,8 +31,8 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **PENDING**
-**Phase:** Needs phase-plan.
+**Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
+**Phase:** 11a — Guard init, room management, special events (planned, not started)
 **Blocked/Broken:** None.
 
 ## Phase Summary
@@ -65,3 +65,56 @@ One-line: Translated seg004.c → Kotlin (26 functions, 621 lines C → Seg004.k
 
 ### Module 10: Layer 1 seg005 — COMPLETE
 One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005.kt, 75 new tests, 307 total pass, zero escalations). See DEVLOG §Module 10.
+
+### Module 11: Layer 1 seg002 — IN PROGRESS
+
+**Scope:** Translate seg002.c (1,237 lines, 52 functions) → Seg002.kt. Guard AI, room transitions, sword combat detection, special level events, shadow/skeleton autocontrol.
+
+**Regime:** Build (autonomous). Validated by compilation + unit tests (replay oracle deferred to Module 13 integration).
+
+**Dependencies consumed:** Seg006 (tile queries, character physics), Seg005 (combat helpers via stubs), Seg004 (collision), GameState, SequenceTable, ExternalStubs.
+
+**Dependencies provided:** `autocontrol_opponent`, `leave_guard`, `check_shadow`, `enter_guard`, `exit_room`, `check_guard_fallout`, `check_sword_hurt`, `check_sword_hurting`, `check_skel`, `hurt_by_sword`, `do_auto_moves` — replace ExternalStubs entries + provide new functions for Module 12/13.
+
+#### Phase 11a: Guard init, room management & special events (~19 functions, ~530 lines)
+
+Functions: `do_init_shad`, `get_guard_hp`, `check_shadow`, `enter_guard`, `check_guard_fallout`, `leave_guard`, `follow_guard`, `exit_room`, `goto_other_room`, `leave_room`, `Jaffar_exit`, `level3_set_chkp`, `sword_disappears`, `meet_Jaffar`, `play_mirr_mus`
+
+Also: move helpers `move_0_nothing` through `move_7`, `move_up_back`, `move_down_back`, `move_down_forw` (~10 trivial functions, ~60 lines)
+
+**Tests:**
+- Guard init: `do_init_shad` sets Char fields + shadow state correctly
+- `enter_guard`: loads guard from level data, sets charid/skill/hp, handles skeleton vs guard
+- `check_guard_fallout`: shadow clears, skeleton reappears, regular guard dies
+- `leave_guard`: saves guard state back to level arrays
+- `goto_other_room`: coordinate adjustments per direction (left +140, right -140, up +189, down -189)
+- `leave_room`: frame-based exit direction logic, special event triggers
+- Special events: `check_shadow` level 5/6/12, `check_skel` skeleton wake, `meet_Jaffar`, `play_mirr_mus`
+- Move helpers: verify control variable settings
+
+#### Phase 11b: Guard AI & autocontrol (~18 functions, ~350 lines)
+
+Functions: `autocontrol_opponent` (dispatch), `autocontrol_mouse`, `autocontrol_shadow`, `autocontrol_skeleton`, `autocontrol_Jaffar`, `autocontrol_kid`, `autocontrol_guard`, `autocontrol_guard_inactive`, `autocontrol_guard_active`, `autocontrol_guard_kid_far`, `guard_follows_kid_down`, `autocontrol_guard_kid_in_sight`, `autocontrol_guard_kid_armed`, `guard_advance`, `guard_block`, `guard_strike`
+
+**Tests:**
+- `autocontrol_opponent` dispatch: routes by charid (kid, mouse, skeleton, shadow, Jaffar, guard)
+- Guard inactive: detects Kid, turns to face, enters fighting pose
+- Guard active: distance-based behavior (far → advance, close → block/strike, very close → retreat)
+- Guard combat: `guard_advance` probability, `guard_block` frame-dependent, `guard_strike` restrike logic
+- `guard_follows_kid_down`: wall/spike/loose-floor safety checks
+
+#### Phase 11c: Sword combat detection & shadow autocontrol (~15 functions, ~350 lines)
+
+Functions: `hurt_by_sword`, `check_sword_hurt`, `check_sword_hurting`, `check_hurting`, `check_skel`, `do_auto_moves`, `autocontrol_shadow_level4`, `autocontrol_shadow_level5`, `autocontrol_shadow_level6`, `autocontrol_shadow_level12`
+
+**Tests:**
+- `hurt_by_sword`: HP deduction, death sequence, skeleton immunity, edge/wall positioning
+- `check_hurting`: distance + frame checks, parry detection, `actions_99_hurt` assignment
+- `check_sword_hurt`: Kid vs Guard routing, refrac timer set
+- `check_skel`: skeleton wake conditions, tile erasure, state setup
+- `do_auto_moves`: demo_time progression, move dispatch
+- Shadow level autocontrol: level 4 (mirror approach), level 5 (potion steal), level 6 (step), level 12 (unite/fight)
+
+#### Wire-up
+
+After all phases: replace `ExternalStubs.autocontrolOpponent` and `ExternalStubs.leaveGuard` with real Seg002 calls. Add any new stubs needed for seg002's external dependencies (seg003, seg000, seg007, seg008).

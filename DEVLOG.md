@@ -1,5 +1,20 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
+
+### 2026-04-05 — Phase plan for Module 11
+
+**Scope:** 1,237 lines C, 52 functions → Seg002.kt. Three phases:
+- **11a** — Guard init, room management, special events, move helpers (~29 functions, ~590 lines)
+- **11b** — Guard AI & autocontrol (~18 functions, ~350 lines)
+- **11c** — Sword combat detection & shadow autocontrol (~15 functions, ~350 lines)
+
+**Key dependencies:** seg002 calls into Seg006 (tile queries, physics), Seg005 (combat), Seg004 (collision). Also needs stubs for seg000/seg003/seg007/seg008 functions. Two ExternalStubs entries already exist (`autocontrolOpponent`, `leaveGuard`) — will be wired to real implementations.
+
+**Notable complexity:** `enter_guard` has a large `FIX_OFFSCREEN_GUARDS_DISAPPEARING` block (~60 lines) that retrieves guards from adjacent rooms. `exit_room` has complex frame-based leave conditions + guard follow logic. `hurt_by_sword` has gate-positioning edge cases. Shadow level 12 autocontrol has unite/fight dual behavior.
+
+---
+
 ## Module 10: Layer 1 — seg005 (Player control, sword fighting)
 
 ### 2026-04-05 — Module 10 Complete (phase-complete)

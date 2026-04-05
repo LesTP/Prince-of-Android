@@ -286,7 +286,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 8 | Layer 1: seg006 | Character physics, tile queries | Build (autonomous) | State Model | **Complete** |
 | 9 | Layer 1: seg004 | Collision detection | Build (autonomous) | seg006 | **Complete** |
 | 10 | Layer 1: seg005 | Player control, sword fighting | Build (autonomous) | seg006, seg004 | **Complete** |
-| 11 | Layer 1: seg002 | Guard AI, room transitions | Build (autonomous) | seg005, seg006 | Pending |
+| 11 | Layer 1: seg002 | Guard AI, room transitions | Build (autonomous) | seg005, seg006 | **In progress** |
 | 12 | Layer 1: seg007 | Traps, triggers, animated tiles | Build (autonomous) | seg006 | Pending |
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | Pending |
 | 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | Pending |
