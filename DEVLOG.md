@@ -2,6 +2,12 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-05 — Phase 11b Plan: Guard AI & autocontrol
+
+**Mode:** Discuss | **Outcome:** Phase planned
+
+Planned Phase 11b as a single step: 16 autocontrol/guard AI functions (~280 lines C). Key complexity in `autocontrol_guard_active` (distance-based behavior tree with 3-state `can_guard_see_kid`) and `guard_follows_kid_down` (tile safety checks with `++tile_row` side effect). Combat probability functions use `custom.advprob/blockprob/strikeprob/restrikeprob/impblockprob` arrays indexed by `guardSkill`. Shadow autocontrol dispatches to level-specific functions deferred to Phase 11c. ~25 tests planned.
+
 ### 2026-04-05 — Phase 11a Step 1: Move helpers, guard init/state, room transitions, special events
 
 **Mode:** Code | **Outcome:** ✓ All 356 tests pass (49 new)

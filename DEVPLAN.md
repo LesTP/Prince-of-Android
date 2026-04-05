@@ -34,8 +34,8 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
-**Phase:** 11a — Guard init, room management, special events (step 1 done: 19 functions translated, 49 tests, 356 total pass)
-**Next:** Phase 11b — Guard AI & autocontrol (~18 functions)
+**Phase:** 11b — Guard AI & autocontrol — **PLANNED** (step breakdown below)
+**Next:** Step 1 — Translate 16 autocontrol/guard AI functions + write tests
 **Blocked/Broken:** None.
 
 ## Phase Summary
@@ -95,16 +95,49 @@ Also: move helpers `move_0_nothing` through `move_7`, `move_up_back`, `move_down
 - Special events: `check_shadow` level 5/6/12, `check_skel` skeleton wake, `meet_Jaffar`, `play_mirr_mus`
 - Move helpers: verify control variable settings
 
-#### Phase 11b: Guard AI & autocontrol (~18 functions, ~350 lines)
+#### Phase 11b: Guard AI & autocontrol (~16 functions, ~280 lines) — PLANNED
 
-Functions: `autocontrol_opponent` (dispatch), `autocontrol_mouse`, `autocontrol_shadow`, `autocontrol_skeleton`, `autocontrol_Jaffar`, `autocontrol_kid`, `autocontrol_guard`, `autocontrol_guard_inactive`, `autocontrol_guard_active`, `autocontrol_guard_kid_far`, `guard_follows_kid_down`, `autocontrol_guard_kid_in_sight`, `autocontrol_guard_kid_armed`, `guard_advance`, `guard_block`, `guard_strike`
+**Scope:** All autocontrol dispatch and guard AI functions. These implement the opponent behavior loop: dispatch by charid → inactive/active guard states → distance-based tactics → probabilistic combat decisions.
 
-**Tests:**
-- `autocontrol_opponent` dispatch: routes by charid (kid, mouse, skeleton, shadow, Jaffar, guard)
-- Guard inactive: detects Kid, turns to face, enters fighting pose
-- Guard active: distance-based behavior (far → advance, close → block/strike, very close → retreat)
-- Guard combat: `guard_advance` probability, `guard_block` frame-dependent, `guard_strike` restrike logic
-- `guard_follows_kid_down`: wall/spike/loose-floor safety checks
+**Step 1: Translate all 16 functions + write tests** (~280 lines C → Kotlin, single step)
+
+Functions (in call-graph order):
+1. `autocontrol_opponent` — main dispatch: decrement counters, route by charid
+2. `autocontrol_mouse` — mouse: stand → clear at x≥200, or trigger seq_107 at x<166
+3. `autocontrol_shadow` — shadow: dispatch to level-specific handlers (Phase 11c)
+4. `autocontrol_skeleton` — skeleton: set sword drawn, delegate to guard
+5. `autocontrol_Jaffar` — Jaffar: delegate to guard
+6. `autocontrol_kid` — kid (demo mode): delegate to guard
+7. `autocontrol_guard` — guard: dispatch to inactive (sword < 2) or active
+8. `autocontrol_guard_inactive` — detect Kid, turn to face, enter fighting pose
+9. `autocontrol_guard_active` — main active AI: distance-based behavior tree
+10. `autocontrol_guard_kid_far` — Kid far: check floor ahead, advance or retreat
+11. `guard_follows_kid_down` — follow Kid down: safety checks (wall/spike/loose/chasm)
+12. `autocontrol_guard_kid_in_sight` — Kid in sight: route to armed or advance/shift
+13. `autocontrol_guard_kid_armed` — Kid armed: distance-based advance/block/strike
+14. `guard_advance` — probabilistic advance (advprob[guard_skill])
+15. `guard_block` — probabilistic block on opponent strike frames (blockprob/impblockprob)
+16. `guard_strike` — probabilistic strike/restrike (strikeprob/restrikeprob)
+
+**Key translation notes:**
+- `autocontrol_guard_inactive`: uses `(word)distance < (word)-8` → unsigned comparison: `(distance and 0xFFFF) < ((-8) and 0xFFFF)`. Same pattern for `(word)-4`.
+- `autocontrol_guard_active`: complex nested branching with `can_guard_see_kid` (0/1/2 states). `frame >= 150` check uses raw int, not named constant.
+- `guard_follows_kid_down`: calls `get_tile()` with `++tile_row` side effect — must increment `gs.tileRow` before use.
+- Combat probability functions use `custom.advprob[guard_skill]`, etc. — `custom` is `gs.custom`, arrays indexed by `gs.guardSkill`.
+- `autocontrol_shadow` just dispatches to level-specific functions that are in Phase 11c — add placeholder stubs or empty functions for now.
+
+**Tests (~25 expected):**
+- `autocontrol_opponent` dispatch: 6 tests — one per charid (kid→autocontrol_kid, mouse, skeleton, shadow, Jaffar, guard), verify counter decrements (justblocked, kidSwordStrike, guardRefrac)
+- `autocontrol_mouse`: 3 tests — direction none (return), stand + x≥200 (clear), x<166 (seq trigger)
+- `autocontrol_guard_inactive`: 4 tests — Kid dead (return), Kid behind + notice (turn), Kid behind no notice (return), can see Kid (move to fight), Jaffar level 13 guard_notice_timer delay
+- `autocontrol_guard_active`: 3 tests — can_guard_see_kid=0 + droppedout (follows down), can_guard_see_kid=2 + close distance (retreat/advance), can_guard_see_kid=2 + far distance (kid_far)
+- `guard_follows_kid_down`: 3 tests — wall ahead (don't follow), spike below (don't follow), safe floor (follow)
+- `autocontrol_guard_kid_armed`: 2 tests — distance<10 (advance), distance 12-28 (block+strike)
+- `guard_advance/block/strike`: 6 tests — probability-based outcomes using seeded prandom, verify move calls
+
+**Dependencies:**
+- Consumes: `Seg006.charOppDist`, `Seg006.getTileInfontofChar`, `Seg006.getTileInfontof2Char`, `Seg006.wallType`, `Seg006.tileIsFloor`, `Seg006.clearChar`, `Seg006.playSeq`, `Seg006.seqtblOffsetChar`, `Seg006.getTile`, `Seg002.prandom`, `Seg002.move*` helpers (Phase 11a)
+- New stubs needed: `autocontrol_shadow_level4/5/6/12` → stub or empty (Phase 11c will implement)
 
 #### Phase 11c: Sword combat detection & shadow autocontrol (~15 functions, ~350 lines)
 
