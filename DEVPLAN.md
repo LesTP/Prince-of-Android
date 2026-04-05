@@ -31,7 +31,7 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 10 — Layer 1: seg005 (Player control, sword fighting) — **IN PROGRESS**
-**Phase:** 10b — COMPLETE (17 functions translated, 17 new tests, 285 total pass). Next: Phase 10c (sword fighting + review).
+**Phase:** 10c — COMPLETE (7 functions translated, 22 new tests, 307 total pass). All 38 seg005 functions translated. Next: phase-complete (review + doc cleanup).
 **Blocked/Broken:** None.
 
 ### Module 10: seg005.c → Kotlin

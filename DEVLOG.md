@@ -2,6 +2,32 @@
 
 ## Module 10: Layer 1 — seg005 (Player control, sword fighting)
 
+### 2026-04-05 — Phase 10c: Sword fighting (7 functions)
+
+**Mode:** Code (autonomous)
+**Outcome:** Complete — 22 new tests pass (307 total), gradle build clean
+
+**What was done:**
+Replaced Phase 10c placeholder functions in `Seg005.kt` with full implementations:
+- Sword basics: `backWithSword` (step back), `forwardWithSword` (Kid/Guard variants), `drawSword` (sound, en_garde for guards, FIX_UNINTENDED_SWORD_STRIKE)
+- Sword control: `controlWithSword` (main dispatch when sword drawn — swordfight/sheathe/become inactive), `swordfight` (parry release, strike, sheathe, parry/forward/back dispatch)
+- Combat: `swordStrike` (strike from eligible frames, Kid/Guard sequences, strike-after-parry), `parry` (opponent frame checks, distance-based guard back, play_seq for Kid vs strike_3)
+
+Wired ExternalStubs: `control` → Seg005.control(), `drawSword` → Seg005.drawSword(), `spiked` → Seg005.spiked(), `doFall` → Seg005.doFall().
+
+22 new tests: backWithSword (2), forwardWithSword (2), drawSword (4 — Kid/Guard/Shadow/fix), controlWithSword (2), swordfight (4), swordStrike (4), parry (4).
+
+All 38 seg005 functions now translated. Module 10 translation complete.
+
+**Design decisions:**
+- `controlWithSword` C comment `/*else*/` indicates fall-through from both if branches — translated as sequential blocks after the opponent-in-range check
+- `parry` unreachable branch (`charCharid != CID.KID` inside `charCharid == CID.KID` block) preserved to match C source exactly
+- `(word)distance < (word)90` and `(word)distance < (word)-4` in controlWithSword use unsigned 16-bit comparison pattern
+
+**Contract changes:** ExternalStubs wired: control, drawSword, spiked, doFall now point to Seg005 implementations instead of throwing NotImplementedError.
+
+---
+
 ### 2026-04-04 — Phase 10b: Standing control, climbing, items (17 functions)
 
 **Mode:** Code (autonomous)
