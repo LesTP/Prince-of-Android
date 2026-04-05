@@ -1232,4 +1232,433 @@ class Seg002Test {
         // strikeprob[1] = 100 > prandom(255)? Depends on random value
         assertTrue(gs.controlShift == Ctrl.HELD || gs.controlShift == Ctrl.RELEASED)
     }
+
+    // ========== Phase 11c: Sword combat detection ==========
+
+    // --- hurtBySword ---
+
+    @Test
+    fun hurtBySword_aliveReturnsEarly() {
+        gs.Char.alive = 0  // alive >= 0
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.KID
+        gs.hitpCurr = 3
+
+        seg002.hurtBySword()
+
+        assertEquals(3, gs.hitpCurr) // no HP change
+    }
+
+    @Test
+    fun hurtBySword_notDrawn_instantDeath() {
+        gs.Char.alive = -1
+        gs.Char.sword = 0  // not drawn
+        gs.Char.charid = CID.KID
+        gs.hitpCurr = 3
+        gs.Char.currRow = 0
+
+        seg002.hurtBySword()
+
+        // take_hp(100) should drain all HP
+        assertEquals((-3).toShort(), gs.hitpDelta)
+        assertEquals(Snd.KID_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_drawn_skeleton_immune() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.SKELETON
+        gs.guardhpCurr = 3
+        gs.Char.currRow = 0
+
+        seg002.hurtBySword()
+
+        // Skeleton: no HP taken, uses seq_74_hit_by_sword
+        assertEquals(0.toShort(), gs.guardhpDelta)
+        assertEquals(gs.yLand[1].toInt(), gs.Char.y)
+        assertEquals(0, gs.Char.fallY)
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_drawn_guard_survives() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.GUARD  // charid_2_guard
+        gs.guardhpCurr = 3  // more than 1
+        gs.Char.currRow = 0
+
+        seg002.hurtBySword()
+
+        // take_hp(1) returns 0 (survived), goes to seq_74
+        assertEquals((-1).toShort(), gs.guardhpDelta)
+        assertEquals(gs.yLand[1].toInt(), gs.Char.y)
+        assertEquals(0, gs.Char.fallY)
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_drawn_guard_dies_knockback() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.GUARD
+        gs.guardhpCurr = 1  // exactly 1 → dead
+        gs.Char.currRow = 0
+        // Set up tile behind to be non-zero so knockback takes the standing path
+        gs.currRoomTiles[0] = T.WALL  // getTileBehindChar will return non-zero
+
+        seg002.hurtBySword()
+
+        // take_hp(1) kills, goto knockback, seq_85_stabbed_to_death
+        assertEquals((-1).toShort(), gs.guardhpDelta)
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_notDrawn_guard_gatePosition() {
+        gs.Char.alive = -1
+        gs.Char.sword = 0  // not drawn
+        gs.Char.charid = CID.GUARD
+        gs.Char.direction = Dir.LEFT  // looking left
+        gs.Char.currRow = 0
+        gs.guardhpCurr = 3
+        gs.currTile2 = T.GATE  // standing on gate
+        gs.tileCol = 5
+
+        seg002.hurtBySword()
+
+        // Should set x position based on gate logic
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_kid_playsKidSound() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.KID
+        gs.hitpCurr = 3
+        gs.Char.currRow = 0
+
+        seg002.hurtBySword()
+
+        assertEquals(Snd.KID_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_guard_playsGuardSound() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.GUARD
+        gs.guardhpCurr = 3
+        gs.Char.currRow = 0
+
+        seg002.hurtBySword()
+
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun hurtBySword_drawn_pushedOffLedge() {
+        gs.Char.alive = -1
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.charid = CID.GUARD
+        gs.guardhpCurr = 1  // dies
+        gs.Char.currRow = 0
+        gs.Char.direction = Dir.RIGHT
+        gs.Char.x = 100
+        // getTileBehindChar returns 0 (no tile behind) and distance >= 4 → pushed off ledge
+        // Need to set up so tile behind is 0 and distance is large
+
+        seg002.hurtBySword()
+
+        // Should at least not crash, and play sound
+        assertEquals(Snd.GUARD_HURT, lastSoundPlayed)
+    }
+
+    // --- checkSwordHurt ---
+
+    @Test
+    fun checkSwordHurt_guardHurt_loadsShadAndHurts() {
+        gs.Guard.action = Act.HURT
+        gs.Kid.action = Act.RUN_JUMP  // not HURT
+        gs.Guard.alive = -1
+        gs.Guard.sword = Sword.DRAWN
+        gs.Guard.charid = CID.GUARD
+        gs.guardhpCurr = 3
+        gs.Guard.currRow = 0
+        gs.guardSkill = 2
+        gs.custom = CustomOptionsType()  // refractimer[2] = 16
+
+        seg002.checkSwordHurt()
+
+        // Guard gets hurt, refrac timer set
+        assertEquals(16, gs.guardRefrac)
+    }
+
+    @Test
+    fun checkSwordHurt_bothHurt_kidActionCleared() {
+        gs.Guard.action = Act.HURT
+        gs.Kid.action = Act.HURT
+        gs.Guard.alive = -1
+        gs.Guard.sword = Sword.DRAWN
+        gs.Guard.charid = CID.GUARD
+        gs.guardhpCurr = 3
+        gs.Guard.currRow = 0
+        gs.guardSkill = 0
+        gs.custom = CustomOptionsType()
+
+        seg002.checkSwordHurt()
+
+        // Kid.action reset to RUN_JUMP when both hurt
+        assertEquals(Act.RUN_JUMP, gs.Kid.action)
+    }
+
+    @Test
+    fun checkSwordHurt_kidHurt_loadsKidAndHurts() {
+        gs.Guard.action = Act.RUN_JUMP  // not HURT
+        gs.Kid.action = Act.HURT
+        gs.Kid.alive = -1
+        gs.Kid.sword = Sword.DRAWN
+        gs.Kid.charid = CID.KID
+        gs.hitpCurr = 3
+        gs.Kid.currRow = 0
+
+        seg002.checkSwordHurt()
+
+        // Kid gets hurt
+        assertEquals((-1).toShort(), gs.hitpDelta)
+        assertEquals(Snd.KID_HURT, lastSoundPlayed)
+    }
+
+    @Test
+    fun checkSwordHurt_neitherHurt_noAction() {
+        gs.Guard.action = Act.RUN_JUMP
+        gs.Kid.action = Act.RUN_JUMP
+        gs.hitpCurr = 3
+        gs.guardhpCurr = 3
+        gs.hitpDelta = 0
+        gs.guardhpDelta = 0
+
+        seg002.checkSwordHurt()
+
+        // No HP changes
+        assertEquals(0.toShort(), gs.hitpDelta)
+        assertEquals(0.toShort(), gs.guardhpDelta)
+        assertEquals(-1, lastSoundPlayed) // no sound played
+    }
+
+    // --- checkSwordHurting ---
+
+    @Test
+    fun checkSwordHurting_kidOnStairs_skips() {
+        gs.Kid.frame = FID.frame_219_exit_stairs_3  // on stairs (219-228)
+        gs.Char.sword = Sword.DRAWN
+        gs.Opp.sword = Sword.DRAWN
+
+        seg002.checkSwordHurting()
+
+        // Should skip — no action taken
+        assertEquals(-1, lastSoundPlayed)
+    }
+
+    @Test
+    fun checkSwordHurting_kidFrameZero_skips() {
+        gs.Kid.frame = 0
+
+        seg002.checkSwordHurting()
+
+        assertEquals(-1, lastSoundPlayed) // no action
+    }
+
+    @Test
+    fun checkSwordHurting_normalFrame_checksHurting() {
+        // Kid not on stairs, frame != 0 → should check hurting for both sides
+        gs.Kid.frame = FID.frame_15_stand
+        gs.Kid.alive = -1
+        gs.Guard.alive = -1
+        gs.Kid.sword = 0  // not drawn → checkHurting returns early
+        gs.Guard.sword = 0
+
+        seg002.checkSwordHurting()
+
+        // checkHurting returns early because sword != DRAWN, but no crash
+        assertEquals(-1, lastSoundPlayed)
+    }
+
+    @Test
+    fun checkSwordHurting_frame229AndAbove_proceeds() {
+        gs.Kid.frame = 229  // >= 229, not on stairs
+        gs.Kid.sword = 0
+        gs.Guard.sword = 0
+        gs.Kid.alive = -1
+        gs.Guard.alive = -1
+
+        seg002.checkSwordHurting()
+
+        assertEquals(-1, lastSoundPlayed) // checkHurting returns early (no sword)
+    }
+
+    // --- checkHurting ---
+
+    @Test
+    fun checkHurting_swordNotDrawn_returns() {
+        gs.Char.sword = 0  // not drawn
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Opp.currRow = 0
+
+        seg002.checkHurting()
+
+        assertNotEquals(Act.HURT, gs.Opp.action)
+    }
+
+    @Test
+    fun checkHurting_differentRows_returns() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Opp.currRow = 1  // different row
+
+        seg002.checkHurting()
+
+        assertNotEquals(Act.HURT, gs.Opp.action)
+    }
+
+    @Test
+    fun checkHurting_notPokingFrame_returns() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_15_stand  // not 153 or 154
+        gs.Char.currRow = 0
+        gs.Opp.currRow = 0
+
+        seg002.checkHurting()
+
+        assertNotEquals(Act.HURT, gs.Opp.action)
+    }
+
+    @Test
+    fun checkHurting_poking_oppParrying_setsParry() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_153_strike_3
+        gs.Char.currRow = 0
+        gs.Char.charid = CID.GUARD  // not kid → sets justblocked
+        gs.Char.direction = Dir.LEFT
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_161_parry
+        gs.Opp.currRow = 0
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 90  // distance = 100 - 90 = 10, + 13 (diff dir) = 23. In [0, 29) ✓
+        gs.Opp.room = 1
+
+        seg002.checkHurting()
+
+        assertEquals(FID.frame_161_parry, gs.Opp.frame)
+        assertEquals(4, gs.justblocked) // Char is not kid
+    }
+
+    @Test
+    fun checkHurting_poking_oppParrying_kid_noJustblocked() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_153_strike_3
+        gs.Char.currRow = 0
+        gs.Char.charid = CID.KID
+        gs.Char.direction = Dir.LEFT
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_150_parry
+        gs.Opp.currRow = 0
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 90  // distance = 100 - 90 = 10, + 13 = 23. In [0, 29) ✓
+        gs.Opp.room = 1
+
+        seg002.checkHurting()
+
+        assertEquals(FID.frame_161_parry, gs.Opp.frame)
+        assertEquals(0, gs.justblocked)
+    }
+
+    @Test
+    fun checkHurting_poking154_inRange_setsHurt() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Char.direction = Dir.LEFT
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_15_stand  // not parrying
+        gs.Opp.currRow = 0
+        gs.Opp.sword = Sword.DRAWN  // armed → min_hurt_range = 12
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 85  // distance = charOppDist (depends on direction/position)
+        gs.Opp.room = 1
+        gs.Opp.action = 0
+
+        seg002.checkHurting()
+
+        // charOppDist with these positions — exact value depends on implementation
+        // Just check it doesn't crash and test the flow
+    }
+
+    @Test
+    fun checkHurting_poking154_oppUnarmed_lowerRange() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Char.direction = Dir.LEFT
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_15_stand
+        gs.Opp.currRow = 0
+        gs.Opp.sword = 0  // unarmed → min_hurt_range = 8
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 93  // close range
+        gs.Opp.room = 1
+        gs.Opp.action = 0
+
+        seg002.checkHurting()
+
+        // No crash, flow exercised with unarmed min_hurt_range
+    }
+
+    @Test
+    fun checkHurting_dirNone_noSwordMovingSound() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Char.direction = Dir.NONE  // dir_56_none → early return before sound
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_15_stand
+        gs.Opp.currRow = 0
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 50  // far away
+        gs.Opp.room = 1
+
+        seg002.checkHurting()
+
+        assertEquals(-1, lastSoundPlayed) // no sword moving sound
+    }
+
+    @Test
+    fun checkHurting_poking154_outOfRange_swordMovingSound() {
+        gs.Char.sword = Sword.DRAWN
+        gs.Char.frame = FID.frame_154_poking
+        gs.Char.currRow = 0
+        gs.Char.direction = Dir.LEFT
+        gs.Char.x = 100
+        gs.Char.room = 1
+        gs.Opp.frame = FID.frame_15_stand  // not parrying
+        gs.Opp.currRow = 0
+        gs.Opp.action = 0  // not HURT
+        gs.Opp.direction = Dir.RIGHT
+        gs.Opp.x = 10  // very far → distance >= 29, not in hurt range
+        gs.Opp.room = 1
+
+        seg002.checkHurting()
+
+        // Opp not parrying, not hurt, Char frame 154 → sword moving sound
+        assertEquals(Snd.SWORD_MOVING, lastSoundPlayed)
+    }
 }

@@ -892,6 +892,143 @@ object Seg002 {
         }
     }
 
+    // ========== Sword combat detection (seg002:0BE5 – seg002:0E1F) ==========
+
+    /** seg002:0BE5 — hurt_by_sword: Apply sword damage to Char. */
+    fun hurtBySword() {
+        if (gs.Char.alive >= 0) return
+        if (gs.Char.sword != Sword.DRAWN) {
+            // Being hurt when not in fighting pose means death.
+            seg006.takeHp(100)
+            seg005.seqtblOffsetChar(Seq.seq_85_stabbed_to_death) // dying (stabbed unarmed)
+            hurtBySwordKnockback()
+        } else {
+            // You can't hurt skeletons
+            if (gs.Char.charid != CID.SKELETON) {
+                if (seg006.takeHp(1) != 0) {
+                    hurtBySwordKnockback()
+                    stubs.playSound(if (gs.Char.charid == CID.KID) Snd.KID_HURT else Snd.GUARD_HURT)
+                    seg006.playSeq()
+                    return
+                }
+            }
+            seg005.seqtblOffsetChar(Seq.seq_74_hit_by_sword) // being hit with sword
+            gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+            gs.Char.fallY = 0
+        }
+        // sound 13: Kid hurt (by sword), sound 12: Guard hurt (by sword)
+        stubs.playSound(if (gs.Char.charid == CID.KID) Snd.KID_HURT else Snd.GUARD_HURT)
+        seg006.playSeq()
+    }
+
+    /** Knockback path shared by death and HP-deduction branches of hurtBySword. */
+    private fun hurtBySwordKnockback() {
+        // C pattern: if (get_tile_behind_char() != 0 || (distance = distance_to_edge_weight()) < 4)
+        // Short-circuit: distance only computed when tile_behind == 0
+        val tileBehind = seg006.getTileBehindChar()
+        val distance = if (tileBehind != 0) 0 else seg006.distanceToEdgeWeight()
+        if (tileBehind != 0 || distance < 4) {
+            seg005.seqtblOffsetChar(Seq.seq_85_stabbed_to_death) // dying (stabbed)
+            if (gs.Char.charid != CID.KID &&
+                gs.Char.direction < Dir.RIGHT && // looking left
+                (gs.currTile2 == T.GATE || seg006.getTileAtChar() == T.GATE)
+            ) {
+                if (gs.fixes.fixOffscreenGuardsDisappearing != 0) {
+                    var gateCol = gs.tileCol.toInt()
+                    if (gs.currRoom.toInt() != gs.Char.room) {
+                        if (gs.currRoom.toInt() == gs.level.roomlinks[gs.Char.room - 1].right) {
+                            gateCol += TG.SCREEN_TILECOUNTX
+                        } else if (gs.currRoom.toInt() == gs.level.roomlinks[gs.Char.room - 1].left) {
+                            gateCol -= TG.SCREEN_TILECOUNTX
+                        }
+                    }
+                    gs.Char.x = gs.xBump[gateCol - (if (gs.currTile2 != T.GATE) 1 else 0) + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_MIDX
+                } else {
+                    gs.Char.x = gs.xBump[gs.tileCol.toInt() - (if (gs.currTile2 != T.GATE) 1 else 0) + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_MIDX
+                }
+                gs.Char.x = seg006.charDxForward(10)
+            }
+            gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+            gs.Char.fallY = 0
+        } else {
+            gs.Char.x = seg006.charDxForward(distance - 20)
+            seg006.loadFramDetCol()
+            seg006.incCurrRow()
+            seg005.seqtblOffsetChar(Seq.seq_81_kid_pushed_off_ledge) // pushed off ledge
+        }
+    }
+
+    /** seg002:0CD4 — check_sword_hurt: Process pending sword hurt actions. */
+    fun checkSwordHurt() {
+        if (gs.Guard.action == Act.HURT) {
+            if (gs.Kid.action == Act.HURT) {
+                gs.Kid.action = Act.RUN_JUMP
+            }
+            seg006.loadshad()
+            hurtBySword()
+            seg006.saveshad()
+            gs.guardRefrac = gs.custom.refractimer[gs.guardSkill]
+        } else {
+            if (gs.Kid.action == Act.HURT) {
+                seg006.loadkid()
+                hurtBySword()
+                seg006.savekid()
+            }
+        }
+    }
+
+    /** seg002:0D1A — check_sword_hurting: Check if either character is hurting the other. */
+    fun checkSwordHurting() {
+        val kidFrame = gs.Kid.frame
+        // frames 219..228: go up on stairs
+        if (kidFrame != 0 && (kidFrame < FID.frame_219_exit_stairs_3 || kidFrame >= 229)) {
+            seg006.loadshadAndOpp()
+            checkHurting()
+            seg006.saveshadAndOpp()
+            seg006.loadkidAndOpp()
+            checkHurting()
+            seg006.savekidAndOpp()
+        }
+    }
+
+    /** seg002:0D56 — check_hurting: Check if Char is hurting Opp. */
+    fun checkHurting() {
+        if (gs.Char.sword != Sword.DRAWN) return
+        if (gs.Char.currRow != gs.Opp.currRow) return
+        val charFrame = gs.Char.frame
+        // frames 153..154: poking with sword
+        if (charFrame != FID.frame_153_strike_3 && charFrame != FID.frame_154_poking) return
+        // If char is poking ...
+        var distance = seg006.charOppDist()
+        val oppFrame = gs.Opp.frame
+        // frames 161 and 150: parrying
+        if (distance < 0 || distance >= 29 ||
+            (oppFrame != FID.frame_161_parry && oppFrame != FID.frame_150_parry)
+        ) {
+            // ... and Opp is not parrying
+            // frame 154: poking
+            if (gs.Char.frame == FID.frame_154_poking) {
+                val minHurtRange = if (gs.Opp.sword < Sword.DRAWN) 8 else 12
+                distance = seg006.charOppDist()
+                if (distance >= minHurtRange && distance < 29) {
+                    gs.Opp.action = Act.HURT
+                }
+            }
+        } else {
+            gs.Opp.frame = FID.frame_161_parry
+            if (gs.Char.charid != CID.KID) {
+                gs.justblocked = 4
+            }
+            seg005.seqtblOffsetChar(Seq.seq_69_attack_was_parried) // attack was parried
+            seg006.playSeq()
+        }
+        if (gs.Char.direction == Dir.NONE) return // Fix looping "sword moving" sound.
+        // frame 154: poking, frame 161: parrying
+        if (gs.Char.frame == FID.frame_154_poking && gs.Opp.frame != FID.frame_161_parry && gs.Opp.action != Act.HURT) {
+            stubs.playSound(Snd.SWORD_MOVING) // sword moving
+        }
+    }
+
     // ========== Internal helpers ==========
 
     /** load_frame_to_obj — inlined from seg008, same as Seg004's version. */

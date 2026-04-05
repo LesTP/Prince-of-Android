@@ -2,6 +2,22 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-05 — Phase 11c Step 1: Sword combat functions (4 functions)
+
+**Mode:** Code | **Outcome:** ✓ All tests pass (26 new)
+
+Translated 4 sword combat functions from seg002.c → Seg002.kt:
+- `hurtBySword` (seg002:0BE5): HP deduction, death/knockback branching, gate positioning with `fixOffscreenGuardsDisappearing`, pushed-off-ledge path, skeleton immunity
+- `checkSwordHurt` (seg002:0CD4): Routes Guard.action/Kid.action==99 through loadshad/loadkid + hurtBySword + save, sets refrac timer
+- `checkSwordHurting` (seg002:0D1A): Skips if Kid on stairs (frames 219-228), checks both sides via loadshadAndOpp/loadkidAndOpp
+- `checkHurting` (seg002:0D56): Distance + frame checks, parry detection (frames 150/161), min_hurt_range (8 unarmed, 12 armed), sword moving sound
+
+Extracted `hurtBySwordKnockback` as private helper to eliminate C `goto loc_4276` — shared by not-drawn (instant death) and drawn+dead paths.
+
+Key translation detail: C `(distance = distance_to_edge_weight()) < 4` assigns in condition and reuses in else. Kotlin version pre-computes `distance` with short-circuit to match C semantics (only call when `getTileBehindChar() == 0`).
+
+Test fix: parry tests initially failed because `charOppDist()` returned out-of-range values. Fixed by positioning characters closer (Opp.x = 90, Char.x = 100 → base distance 10 + 13 facing offset = 23, within [0, 29) range).
+
 ### 2026-04-05 — Phase 11b Review & Complete
 
 **Mode:** Review | **Outcome:** ✓ Clean — no issues found
