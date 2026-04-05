@@ -2,7 +2,24 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-05 — Phase 11a Step 1: Move helpers, guard init/state, room transitions, special events
+
+**Mode:** Code | **Outcome:** ✓ All 356 tests pass (49 new)
+
+Translated 19 functions from seg002.c → Seg002.kt:
+- **Move helpers** (10): `move_0_nothing` through `move_7`, `move_up_back`, `move_down_back`, `move_down_forw`
+- **Guard init/state** (5): `do_init_shad`, `get_guard_hp`, `check_shadow`, `enter_guard`, `check_guard_fallout`, `leave_guard`
+- **Room transitions** (4): `follow_guard`, `exit_room`, `goto_other_room`, `leave_room`
+- **Special events** (5): `jaffar_exit`, `level3_set_chkp`, `sword_disappears`, `meet_Jaffar`, `play_mirr_mus`
+- **Internal helpers** (2): `load_frame_to_obj` (inlined from seg008), `prandom` (from seg009)
+
+Wired `ExternalStubs.leaveGuard` → `Seg002.leaveGuard()`.
+
+Bug found during testing: `leaveGuard` must mask `currSeq` to byte when writing to `guardsSeqLo`/`guardsSeqHi` — C implicitly truncates byte array stores, Kotlin `IntArray` does not.
+
 ### 2026-04-05 — Phase plan for Module 11
+
+<!-- Modules 6-10 complete. Archive entries below this line to DEVLOG_archive.md when DEVLOG exceeds ~500 lines. -->
 
 **Scope:** 1,237 lines C, 52 functions → Seg002.kt. Three phases:
 - **11a** — Guard init, room management, special events, move helpers (~29 functions, ~590 lines)

@@ -35,7 +35,7 @@ object ExternalStubs {
     var autocontrolOpponent: () -> Unit = { throw NotImplementedError("autocontrol_opponent (seg002)") }
 
     // --- seg002 (guard AI) ---
-    var leaveGuard: () -> Unit = { throw NotImplementedError("leave_guard (seg002)") }
+    var leaveGuard: () -> Unit = { Seg002.leaveGuard() }
 
     // --- seg003 (game loop helpers) ---
     var doFall: () -> Unit = { Seg005.doFall() }

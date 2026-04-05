@@ -27,12 +27,15 @@
 - **Line endings:** Source files from Windows have CRLF. Run `dos2unix *.c *.h` in SDLPoP/src/ after any file transfer. Grep/ripgrep fail silently on CRLF files.
 - **C unsigned word comparisons:** `(word)x < (word)y` in C casts to unsigned 16-bit. Translate as `(x and 0xFFFF) < (y and 0xFFFF)`. Common in distance checks (seg005 `controlStanding`, `controlWithSword`). Getting this wrong produces subtle distance-check bugs.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
+- **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
+- **Trace generation:** From `/tmp/sdlpop/`: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345` → outputs `state_trace.bin` (310 bytes/frame).
 
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
-**Phase:** 11a — Guard init, room management, special events (planned, not started)
+**Phase:** 11a — Guard init, room management, special events (step 1 done: 19 functions translated, 49 tests, 356 total pass)
+**Next:** Phase 11b — Guard AI & autocontrol (~18 functions)
 **Blocked/Broken:** None.
 
 ## Phase Summary
