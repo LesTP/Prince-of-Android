@@ -47,7 +47,8 @@ Observations from running the autonomous development loop on the Prince of Persi
 - **One-step-per-iteration for planning:** AUTOMATION.md says "one step per loop iteration" but the agent interpreted planning as its own iteration. This means Module 7 needed 4 iterations (plan + 3 steps) when 3 would suffice if planning were folded into the first coding step. Trade-off: more iterations = more auditability.
 - **DEVLOG not always written:** Iteration 1 hit budget cap before writing DEVLOG. The commit succeeded but the audit trail was incomplete until manually fixed.
 - **Phase scoping is approximate:** Phase 8a was planned for ~32 functions but the agent translated 45 (absorbing work from 8b). Phase plans are useful for ordering work, but the agent will naturally adjust scope based on what's logically coherent. Not necessarily bad — just means phase boundaries are soft.
-- **Grep/Glob tools unreliable with spaces in paths:** Persistent across all iterations. The agent always recovers via bash, but it wastes 2-5 turns per iteration on failed tool calls before falling back. No fix possible without renaming the project directory.
+- **Grep/Glob tools unreliable with spaces in paths:** Persistent across iterations 1-12. The agent always recovers via bash, but it wastes 2-5 turns per iteration on failed tool calls before falling back. Fixed by renaming directory to PoP_port (no spaces).
+- **Orchestrator session implemented code directly (Modules 9-10):** Without a workspace-level CLAUDE.md, the orchestrator read the project's CLAUDE.md and followed its iteration protocol — implementing code instead of dispatching loops. Burned context 5-10x faster, lost per-iteration cost tracking and log auditability. Fixed by creating /home/claude/workspace/CLAUDE.md with explicit orchestrator role definition.
 
 ### Surprises
 - **Module 6 done in one iteration:** Agent collapsed all 4 phases (types, enums, globals, tests) into a single iteration — 1,218 lines of Kotlin, 18 tests, $2.99. Much faster than expected.
@@ -72,6 +73,27 @@ Observations from running the autonomous development loop on the Prince of Persi
 - Iter 9: FrameType constructor parameter order wrong in test (passed THIN flag to `sword` field instead of `flags` field), tile setup location wrong (`currRoomTiles` vs `level.fg` — `getRoomAddress` reloads from level data)
 - Both are cases where the test didn't match the data structure, not where the translation was wrong.
 
+### Module 9-10 Specific Learnings (orchestrator anti-pattern)
+
+**Modules 9-10 implemented directly by orchestrator — anti-pattern discovered.** The Telegram orchestrator session implemented seg004 (26 functions) and seg005 (38 functions) directly instead of dispatching via `run-iteration.sh`. This burned orchestrator context rapidly — the session hit context limits after ~2 modules, requiring compaction. The orchestrator's job is to dispatch loops, analyze logs, and report — not to write Kotlin.
+
+**Root cause:** User said "do one loop" and the orchestrator interpreted this as "implement the next step" rather than "run `./run-iteration.sh`". The CLAUDE.md in the project directory (which the orchestrator reads) has iteration protocol instructions that look actionable, so the orchestrator followed them directly.
+
+**Fix:** Created `/home/claude/workspace/CLAUDE.md` (parent directory) defining the orchestrator role explicitly. The orchestrator session launches from `/home/claude/workspace/`, reads this CLAUDE.md, and knows to dispatch — not implement. The project's own `PoP_port/CLAUDE.md` is for inner loop sessions only.
+
+**Impact:** Modules 9-10 translation quality was fine (zero test failures in final code, 117 new tests all pass), but cost/auditability was lost:
+- No per-iteration cost tracking (orchestrator session doesn't log costs per step)
+- No iteration transcripts in `logs/loop/`
+- Context burned 5-10x faster than dispatched iterations
+- Orchestrator couldn't handle other requests (status checks, log reviews) while implementing
+
+**New learnings from Modules 9-10 translation:**
+- **CharType fields are all `Int`** — no `.toByte()` needed (unlike GameState Short fields). Caused multiple compile errors in seg005 Phase 10a. Added to DEVPLAN gotchas.
+- **C goto refactoring patterns:** `land()` gotos → helper methods, `controlStanding` goto → fall-through. Clean patterns, no semantic issues.
+- **C unsigned word comparisons:** `(word)x < (word)y` translates to `(x and 0xFFFF) < (y and 0xFFFF)`. Recurring in distance checks. Added to DEVPLAN gotchas.
+- **ExternalStubs wire-up works at scale:** 4 stubs wired in Phase 10c (control, drawSword, spiked, doFall). Pattern scales cleanly.
+- **`else if` chain correctness matters:** Two bugs from placing `if` where `else if` was needed in control dispatch chains. C source structure must be followed exactly for dispatch chains.
+
 **Compilation errors were type-system issues, not logic errors.** Iter 8: Short negation type mismatch. Iter 11: `companion object` in `object` (Kotlin-specific), SeqIds vs Seq import alias, Short vs Int for Char.x. All caught by the compiler, fixed in same iteration. The Kotlin type system is doing its job as a safety net.
 
 **Phase-complete not yet run.** Iteration 12 ran phase-review (8e) but not phase-complete. The next iteration (13) will run phase-complete to close Module 8 and update docs. This is a governance lifecycle detail — review and completion are separate steps by design.
@@ -95,6 +117,7 @@ Observations from running the autonomous development loop on the Prince of Persi
 | 10 | Code (phase 8c) | 8 | $3.89 | 79 | 623s | 13 functions, 29 tests |
 | 11 | Code (phase 8d) | 8 | $3.87 | 87 | 611s | Final 7 functions, 24 tests. Compilation errors self-fixed. |
 | 12 | Review (phase 8e) | 8 | $1.58 | 40 | 171s | Zero issues found |
+| 13 | Complete | 10 | $0.80 | 21 | 162s | Phase-complete via loop — first iteration after Modules 9-10 done by orchestrator |
 
 ### Per module
 | Module | Iterations | Total Cost | Lines of Kotlin | Tests | Cost/Line |
@@ -102,6 +125,11 @@ Observations from running the autonomous development loop on the Prince of Persi
 | 6 (State Model) | 2 | ~$4.00 | ~987 | 27 | ~$0.004 |
 | 7 (Sequence Table) | 4 | ~$8.23 | ~1,500+ | 50 | ~$0.005 |
 | 8 (seg006) | 6 | ~$19.74 | ~1,993 | 113 | ~$0.010 |
+| 9 (seg004) | 0* | N/A | ~350 | 42 | N/A |
+| 10 (seg005) | 1** | ~$0.80 | ~600 | 75 | N/A |
+
+\* Module 9 implemented directly by orchestrator session (anti-pattern — see below).
+\*\* Module 10 phases 10a-10c implemented by orchestrator; only phase-complete ran via loop (iter 13).
 
 ### By activity type (updated through iter 12)
 | Activity | Avg Cost | Avg Turns | Avg Duration |
@@ -123,7 +151,7 @@ Estimated overhead per iteration: ~$0.40-0.70 in tool failures + subagent waste.
 - All costs are Pro subscription (claude.ai login), not API billing. Cost metric tracks internal token usage, actual billing is subscription-based.
 - Cache reads reduce cold-start cost on subsequent iterations within the 5-minute cache window.
 - Most expensive single iteration: $6.30 (Phase 8a — 45 functions, first coding pass on seg006).
-- Total project cost through Module 8: ~$32.00 across 12 iterations.
+- Total loop cost through Module 10: ~$32.80 across 13 iterations. Modules 9-10 code cost not tracked (orchestrator session).
 
 ## Human Interventions
 
@@ -137,6 +165,8 @@ Estimated overhead per iteration: ~$0.40-0.70 in tool failures + subagent waste.
 | 6 | 6 | Fixed slash command invocation pattern | Agent used Skill() instead of reading .md file | Yes — clarified in CLAUDE.md. Verify next iteration. |
 | 7 | — | Log review and analysis after each batch | Orchestrator role: read logs, analyze patterns, report via TG | Partially — could be scripted, but human judgment on "is this good work?" adds value. |
 | 8 | 7-12 | None required | Module 8 completed with zero human interventions during execution | N/A — validates that CLAUDE.md fixes from Module 7 were effective. |
+| 9 | — | Orchestrator implemented Modules 9-10 directly | No workspace-level CLAUDE.md to define orchestrator role | Yes — created /home/claude/workspace/CLAUDE.md with orchestrator role. See anti-pattern writeup above. |
+| 10 | 13 | None required | Phase-complete ran cleanly via loop | N/A — first iteration after orchestrator fix. |
 
 ## Efficiency Analysis (after iteration 12)
 
@@ -159,10 +189,11 @@ Total estimated waste: ~$0.40-0.70 per iteration, ~15-20% of module cost.
 | Verbose TG analysis messages | ~1K per batch | Acceptable — human value outweighs token cost. |
 
 ### Implemented fixes
-- [ ] Rename directory: "PoP port" → "PoP_port" (eliminates Grep/Glob failures)
-- [ ] CLAUDE.md hints for loop efficiency (no Agent(Explore), bash for spaces, read-before-edit)
+- [x] Rename directory: "PoP port" → "PoP_port" (eliminates Grep/Glob failures) — done 2026-04-04
+- [x] CLAUDE.md hints for loop efficiency (no Agent(Explore), bash for spaces, read-before-edit) — done 2026-04-04
 - [ ] Log digest script (tools/digest_logs.py)
+- [x] Workspace-level CLAUDE.md defining orchestrator role — done 2026-04-05. Prevents orchestrator from implementing code directly.
 
 ---
 
-*Last updated: 2026-04-04, after iteration 12 (Module 8 complete).*
+*Last updated: 2026-04-05, after iteration 13 (Module 10 complete).*
