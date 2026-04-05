@@ -2,6 +2,19 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-05 — Phase 11b Review & Complete
+
+**Mode:** Review | **Outcome:** ✓ Clean — no issues found
+
+Reviewed all 16 Phase 11b functions against C originals. All translations correct:
+- Unsigned word comparisons in `autocontrolGuardInactive` use `and 0xFFFF` correctly
+- `guardFollowsKidDown` tile row increment matches C `++tile_row` side effect
+- `autocontrolShadow` uses `if` (not `else if`) matching C source
+- Combat probability functions use correct array indexing via `gs.guardSkill`
+- No dead code, unused imports, or architecture drift
+
+No gotchas to promote — Phase 11b was clean (single-step, zero failures).
+
 ### 2026-04-05 — Phase 11b Step 1: Autocontrol & guard AI (16 functions)
 
 **Mode:** Code | **Outcome:** ✓ All 386 tests pass (30 new)
