@@ -34,8 +34,8 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
-**Phase:** 11b — Guard AI & autocontrol — **PLANNED** (step breakdown below)
-**Next:** Step 1 — Translate 16 autocontrol/guard AI functions + write tests
+**Phase:** 11b — Guard AI & autocontrol — **COMPLETE** (16 functions, 30 tests, 386 total)
+**Next:** Phase review for 11b, then Phase 11c (sword combat detection & shadow autocontrol)
 **Blocked/Broken:** None.
 
 ## Phase Summary

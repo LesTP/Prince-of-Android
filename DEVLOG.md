@@ -2,6 +2,26 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-05 — Phase 11b Step 1: Autocontrol & guard AI (16 functions)
+
+**Mode:** Code | **Outcome:** ✓ All 386 tests pass (30 new)
+
+Translated 16 autocontrol/guard AI functions from seg002.c → Seg002.kt:
+- **Main dispatch** (1): `autocontrol_opponent` — decrements counters, routes by charid
+- **Character-specific dispatchers** (5): `autocontrol_mouse`, `autocontrol_shadow`, `autocontrol_skeleton`, `autocontrol_Jaffar`, `autocontrol_kid`
+- **Guard AI core** (4): `autocontrol_guard`, `autocontrol_guard_inactive`, `autocontrol_guard_active`, `autocontrol_guard_kid_far`
+- **Combat AI** (4): `autocontrol_guard_kid_in_sight`, `autocontrol_guard_kid_armed`, `guard_advance`, `guard_block`, `guard_strike`
+- **Movement** (1): `guard_follows_kid_down`
+- **Shadow stubs** (4): `autocontrol_shadow_level4/5/6/12` — empty placeholders for Phase 11c
+
+Key translation details:
+- `autocontrol_guard_inactive`: unsigned word comparisons `(word)distance < (word)-8` → `(distance and 0xFFFF) < ((-8) and 0xFFFF)`
+- `guard_follows_kid_down`: C `++tile_row` side effect → `gs.tileRow = (gs.tileRow + 1).toShort()` before `getTile` call
+- `tileIsFloor` returns `Int` (0/1), not Boolean — used `!= 0` / `== 0` throughout
+- `tileRow`/`tileCol`/`currRoom` are `Short` — `.toInt()` for function args, `.toShort()` for assignments
+
+Test fix: `autocontrolGuardActive_canSeeKid2_far_kidFar` initially failed — Opp was positioned behind the guard (distance negative), not in front. Fixed by swapping positions so `charOppDist()` returns positive distance ≥35.
+
 ### 2026-04-05 — Phase 11b Plan: Guard AI & autocontrol
 
 **Mode:** Discuss | **Outcome:** Phase planned

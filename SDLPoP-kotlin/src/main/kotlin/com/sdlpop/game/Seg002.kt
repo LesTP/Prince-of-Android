@@ -618,6 +618,280 @@ object Seg002 {
         }
     }
 
+    // ========== Autocontrol & Guard AI (Phase 11b) ==========
+
+    /** seg002:0776 — Main opponent autocontrol dispatch. Decrements counters, routes by charid. */
+    fun autocontrolOpponent() {
+        move0Nothing()
+        val charid = gs.Char.charid
+        if (charid == CID.KID) {
+            autocontrolKid()
+        } else {
+            if (gs.justblocked != 0) gs.justblocked--
+            if (gs.kidSwordStrike != 0) gs.kidSwordStrike--
+            if (gs.guardRefrac != 0) gs.guardRefrac--
+            if (charid == CID.MOUSE) {
+                autocontrolMouse()
+            } else if (charid == CID.SKELETON) {
+                autocontrolSkeleton()
+            } else if (charid == CID.SHADOW) {
+                autocontrolShadow()
+            } else if (gs.currentLevel == 13) {
+                autocontrolJaffar()
+            } else {
+                autocontrolGuard()
+            }
+        }
+    }
+
+    /** seg002:07EB — Mouse autocontrol: stand and clear at x>=200, or trigger seq at x<166. */
+    fun autocontrolMouse() {
+        if (gs.Char.direction == Dir.NONE) {
+            return
+        }
+        if (gs.Char.action == Act.STAND) {
+            if (gs.Char.x >= 200) {
+                seg006.clearChar()
+            }
+        } else {
+            if (gs.Char.x < 166) {
+                seg005.seqtblOffsetChar(Seq.seq_107_mouse_stand_up_and_go)
+                seg006.playSeq()
+            }
+        }
+    }
+
+    /** seg002:081D — Shadow autocontrol: dispatch to level-specific handlers. */
+    fun autocontrolShadow() {
+        if (gs.currentLevel == gs.custom.mirrorLevel) {
+            autocontrolShadowLevel4()
+        }
+        if (gs.currentLevel == gs.custom.shadowStealLevel) {
+            autocontrolShadowLevel5()
+        }
+        if (gs.currentLevel == gs.custom.shadowStepLevel) {
+            autocontrolShadowLevel6()
+        }
+        if (gs.currentLevel == 12) {
+            autocontrolShadowLevel12()
+        }
+    }
+
+    // Shadow level-specific stubs (Phase 11c will implement)
+    fun autocontrolShadowLevel4() { /* Phase 11c */ }
+    fun autocontrolShadowLevel5() { /* Phase 11c */ }
+    fun autocontrolShadowLevel6() { /* Phase 11c */ }
+    fun autocontrolShadowLevel12() { /* Phase 11c */ }
+
+    /** seg002:0850 — Skeleton autocontrol: set sword drawn, delegate to guard. */
+    fun autocontrolSkeleton() {
+        gs.Char.sword = Sword.DRAWN
+        autocontrolGuard()
+    }
+
+    /** seg002:085A — Jaffar autocontrol: delegate to guard. */
+    fun autocontrolJaffar() {
+        autocontrolGuard()
+    }
+
+    /** seg002:085F — Kid autocontrol (demo mode): delegate to guard. */
+    fun autocontrolKid() {
+        autocontrolGuard()
+    }
+
+    /** seg002:0864 — Guard autocontrol: dispatch to inactive or active based on sword state. */
+    fun autocontrolGuard() {
+        if (gs.Char.sword < Sword.DRAWN) {
+            autocontrolGuardInactive()
+        } else {
+            autocontrolGuardActive()
+        }
+    }
+
+    /** seg002:0876 — Inactive guard: detect Kid, turn to face, enter fighting pose. */
+    fun autocontrolGuardInactive() {
+        if (gs.Kid.alive >= 0) return
+        val distance = seg006.charOppDist()
+        if (gs.Opp.currRow != gs.Char.currRow || (distance and 0xFFFF) < ((-8) and 0xFFFF)) {
+            // If Kid made a sound...
+            if (gs.isGuardNotice != 0) {
+                gs.isGuardNotice = 0
+                if (distance < 0) {
+                    // ... and Kid is behind Guard, Guard turns around.
+                    if ((distance and 0xFFFF) < ((-4) and 0xFFFF)) {
+                        move4Down()
+                    }
+                    return
+                }
+            } else if (distance < 0) {
+                return
+            }
+        }
+        if (gs.canGuardSeeKid.toInt() != 0) {
+            // If Guard can see Kid, Guard moves to fighting pose.
+            if (gs.currentLevel != 13 || gs.guardNoticeTimer.toInt() == 0) {
+                moveDownForw()
+            }
+        }
+    }
+
+    /** seg002:08DC — Active guard AI: distance-based behavior tree. */
+    fun autocontrolGuardActive() {
+        val charFrame = gs.Char.frame
+        if (charFrame != FID.frame_166_stand_inactive && charFrame >= 150 && gs.canGuardSeeKid.toInt() != 1) {
+            if (gs.canGuardSeeKid.toInt() == 0) {
+                if (gs.droppedout != 0) {
+                    guardFollowsKidDown()
+                } else if (gs.Char.charid != CID.SKELETON) {
+                    moveDownBack()
+                }
+            } else { // can_guard_see_kid == 2
+                val oppFrame = gs.Opp.frame
+                val distance = seg006.charOppDist()
+                if (distance >= 12 &&
+                    oppFrame >= FID.frame_102_start_fall_1 && oppFrame < FID.frame_118_stand_up_from_crouch_9 &&
+                    gs.Opp.action == Act.BUMPED
+                ) {
+                    return
+                }
+                if (distance < 35) {
+                    if ((gs.Char.sword < Sword.DRAWN && distance < 8) || distance < 12) {
+                        if (gs.Char.direction == gs.Opp.direction) {
+                            // turn around
+                            move2Backward()
+                        } else {
+                            move1Forward()
+                        }
+                    } else {
+                        autocontrolGuardKidInSight(distance)
+                    }
+                } else {
+                    if (gs.guardRefrac != 0) return
+                    if (gs.Char.direction != gs.Opp.direction) {
+                        // frames 7..14: running
+                        if (oppFrame >= FID.frame_7_run && oppFrame < 15) {
+                            if (distance < 40) move6Shift()
+                            return
+                        } else if (oppFrame >= FID.frame_34_start_run_jump_1 && oppFrame < 44) {
+                            if (distance < 50) move6Shift()
+                            return
+                        }
+                    }
+                    autocontrolGuardKidFar()
+                }
+            }
+        }
+    }
+
+    /** seg002:09CB — Kid far: check floor ahead, advance or retreat. */
+    fun autocontrolGuardKidFar() {
+        if (seg006.tileIsFloor(seg006.getTileInfrontofChar()) != 0 ||
+            seg006.tileIsFloor(seg006.getTileInfrontof2Char()) != 0
+        ) {
+            move1Forward()
+        } else {
+            move2Backward()
+        }
+    }
+
+    /** seg002:09F8 — Follow Kid down: safety checks (wall/spike/loose/chasm). */
+    fun guardFollowsKidDown() {
+        val oppAction = gs.Opp.action
+        if (oppAction == Act.HANG_CLIMB || oppAction == Act.HANG_STRAIGHT) {
+            return
+        }
+        if (// there is wall in front of Guard
+            seg006.wallType(seg006.getTileInfrontofChar()) != 0 ||
+            (seg006.tileIsFloor(gs.currTile2) == 0 && (
+                run {
+                    gs.tileRow = (gs.tileRow + 1).toShort()
+                    seg006.getTile(gs.currRoom.toInt(), gs.tileCol.toInt(), gs.tileRow.toInt()) == T.SPIKE
+                } ||
+                gs.currTile2 == T.LOOSE ||
+                seg006.wallType(gs.currTile2) != 0 ||
+                seg006.tileIsFloor(gs.currTile2) == 0) ||
+                gs.Char.currRow + 1 != gs.Opp.currRow
+            )
+        ) {
+            // don't follow
+            gs.droppedout = 0
+            move2Backward()
+        } else {
+            // follow
+            move1Forward()
+        }
+    }
+
+    /** seg002:0A93 — Kid in sight: route to armed or advance/shift. */
+    fun autocontrolGuardKidInSight(distance: Int) {
+        if (gs.Opp.sword == Sword.DRAWN) {
+            autocontrolGuardKidArmed(distance)
+        } else if (gs.guardRefrac == 0) {
+            if (distance < 29) {
+                move6Shift()
+            } else {
+                move1Forward()
+            }
+        }
+    }
+
+    /** seg002:0AC1 — Kid armed: distance-based advance/block/strike. */
+    fun autocontrolGuardKidArmed(distance: Int) {
+        if (distance < 10 || distance >= 29) {
+            guardAdvance()
+        } else {
+            guardBlock()
+            if (gs.guardRefrac == 0) {
+                if (distance < 12 || distance >= 29) {
+                    guardAdvance()
+                } else {
+                    guardStrike()
+                }
+            }
+        }
+    }
+
+    /** seg002:0AF5 — Probabilistic advance (advprob[guard_skill]). */
+    fun guardAdvance() {
+        if (gs.guardSkill == 0 || gs.kidSwordStrike == 0) {
+            if (gs.custom.advprob[gs.guardSkill] > prandom(255)) {
+                move1Forward()
+            }
+        }
+    }
+
+    /** seg002:0B1D — Probabilistic block on opponent strike frames. */
+    fun guardBlock() {
+        val oppFrame = gs.Opp.frame
+        if (oppFrame == FID.frame_152_strike_2 || oppFrame == FID.frame_153_strike_3 || oppFrame == FID.frame_162_block_to_strike) {
+            if (gs.justblocked != 0) {
+                if (gs.custom.impblockprob[gs.guardSkill] > prandom(255)) {
+                    move3Up()
+                }
+            } else {
+                if (gs.custom.blockprob[gs.guardSkill] > prandom(255)) {
+                    move3Up()
+                }
+            }
+        }
+    }
+
+    /** seg002:0B73 — Probabilistic strike/restrike. */
+    fun guardStrike() {
+        val oppFrame = gs.Opp.frame
+        if (oppFrame == FID.frame_169_begin_block || oppFrame == FID.frame_151_strike_1) return
+        val charFrame = gs.Char.frame
+        if (charFrame == FID.frame_161_parry || charFrame == FID.frame_150_parry) {
+            if (gs.custom.restrikeprob[gs.guardSkill] > prandom(255)) {
+                move6Shift()
+            }
+        } else {
+            if (gs.custom.strikeprob[gs.guardSkill] > prandom(255)) {
+                move6Shift()
+            }
+        }
+    }
+
     // ========== Internal helpers ==========
 
     /** load_frame_to_obj — inlined from seg008, same as Seg004's version. */
