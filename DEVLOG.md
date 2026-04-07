@@ -2,6 +2,16 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-07 — Phase 11c Step 2: Skeleton wake + auto moves (2 functions)
+
+**Mode:** Code | **Outcome:** ✓ All tests pass (17 new, 429 total)
+
+Translated 2 functions from seg002.c → Seg002.kt:
+- `checkSkel` (seg002:0E7C): Skeleton wake event on level 3. Checks level/room/door/trigger conditions from custom options, erases skeleton tile (→floor), sets up Char as skeleton (charid=4, sword=drawn, 3HP, skill from custom), plays wake-up sequence and sound.
+- `doAutoMoves` (seg002:0F3F): Timed auto-move dispatcher for demo/shadow AI. Increments demoTime (capped at 0xFE), advances move index when time threshold met, dispatches via when-switch (moves 0-7 map to move helper functions, -1 = no-op).
+
+Test setup: `checkSkel` tests required placing skeleton tile in `gs.level.fg[]` (not `currRoomTiles[]` directly) because `getTile` calls `getRoomAddress` which reloads tiles from level data.
+
 ### 2026-04-05 — Phase 11c Step 1: Sword combat functions (4 functions)
 
 **Mode:** Code | **Outcome:** ✓ All tests pass (26 new)

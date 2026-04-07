@@ -1029,6 +1029,75 @@ object Seg002 {
         }
     }
 
+    // ========== Skeleton wake + auto moves (seg002:0E7C – seg002:0F7A) ==========
+
+    /** seg002:0E7C — check_skel: Special event — skeleton wakes up in skeleton_level. */
+    fun checkSkel() {
+        if (gs.currentLevel == gs.custom.skeletonLevel &&
+            gs.Guard.direction == Dir.NONE &&
+            gs.drawnRoom == gs.custom.skeletonRoom &&
+            (gs.leveldoorOpen != 0 || gs.custom.skeletonRequireOpenLevelDoor == 0) &&
+            (gs.Kid.currCol == gs.custom.skeletonTriggerColumn1 ||
+                gs.Kid.currCol == gs.custom.skeletonTriggerColumn2)
+        ) {
+            seg006.getTile(gs.drawnRoom, gs.custom.skeletonColumn, gs.custom.skeletonRow)
+            if (gs.currTile2 == T.SKELETON) {
+                // erase skeleton tile
+                gs.currRoomTiles[gs.currTilepos] = T.FLOOR
+                gs.redrawHeight = 24
+                stubs.setRedrawFull(gs.currTilepos, 1)
+                stubs.setWipe(gs.currTilepos, 1)
+                ++gs.currTilepos
+                stubs.setRedrawFull(gs.currTilepos, 1)
+                stubs.setWipe(gs.currTilepos, 1)
+                gs.Char.room = gs.drawnRoom
+                gs.Char.currRow = gs.custom.skeletonRow
+                gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+                gs.Char.currCol = gs.custom.skeletonColumn
+                gs.Char.x = gs.xBump[gs.Char.currCol + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_SIZEX
+                gs.Char.direction = Dir.LEFT
+                seg005.seqtblOffsetChar(Seq.seq_88_skel_wake_up)
+                seg006.playSeq()
+                stubs.playSound(Snd.SKEL_ALIVE)
+                gs.guardSkill = gs.custom.skeletonSkill
+                gs.Char.alive = -1
+                gs.guardhpCurr = 3
+                gs.guardhpMax = 3
+                gs.Char.fallX = 0
+                gs.Char.fallY = 0
+                gs.isGuardNotice = 0
+                gs.guardRefrac = 0
+                gs.Char.sword = Sword.DRAWN
+                gs.Char.charid = CID.SKELETON
+                seg006.saveshad()
+            }
+        }
+    }
+
+    /** seg002:0F3F — do_auto_moves: Execute timed auto-move sequences (demo/shadow AI). */
+    fun doAutoMoves(movesPtr: Array<AutoMoveType>) {
+        if (gs.demoTime >= 0xFE.toShort()) return
+        gs.demoTime++
+        var demoindex = gs.demoIndex
+        if (movesPtr[demoindex].time <= gs.demoTime) {
+            gs.demoIndex++
+        } else {
+            demoindex = gs.demoIndex - 1
+        }
+        val currMove = movesPtr[demoindex].move.toInt()
+        when (currMove) {
+            -1 -> { /* nothing */ }
+            0 -> move0Nothing()
+            1 -> move1Forward()
+            2 -> move2Backward()
+            3 -> move3Up()
+            4 -> move4Down()
+            5 -> { move3Up(); move1Forward() }
+            6 -> move6Shift()
+            7 -> move7()
+        }
+    }
+
     // ========== Internal helpers ==========
 
     /** load_frame_to_obj — inlined from seg008, same as Seg004's version. */

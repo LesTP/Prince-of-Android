@@ -1661,4 +1661,293 @@ class Seg002Test {
         // Opp not parrying, not hurt, Char frame 154 → sword moving sound
         assertEquals(Snd.SWORD_MOVING, lastSoundPlayed)
     }
+
+    // ========== checkSkel tests ==========
+
+    @Test
+    fun checkSkel_allConditionsMet_skeletonWakes() {
+        gs.currentLevel = gs.custom.skeletonLevel  // 3
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom  // 1
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1  // 2
+
+        // Place skeleton tile in level data at room 1, row 1, col 5 → fg index = (1-1)*30 + 10 + 5 = 15
+        val skelCol = gs.custom.skeletonColumn  // 5
+        val skelRow = gs.custom.skeletonRow      // 1
+        val tilepos = gs.tblLine[skelRow] + skelCol  // 10 + 5 = 15
+        gs.level.fg[tilepos] = T.SKELETON
+
+        seg002.checkSkel()
+
+        // Skeleton tile should be erased to floor
+        assertEquals(T.FLOOR, gs.currRoomTiles[15])
+        // Char should be set up as skeleton
+        assertEquals(CID.SKELETON, gs.Char.charid)
+        assertEquals(Sword.DRAWN, gs.Char.sword)
+        assertEquals(-1, gs.Char.alive)
+        assertEquals(3, gs.guardhpCurr)
+        assertEquals(3, gs.guardhpMax)
+        assertEquals(gs.custom.skeletonSkill, gs.guardSkill)
+        assertEquals(0, gs.isGuardNotice)
+        assertEquals(0, gs.guardRefrac)
+        assertEquals(0, gs.Char.fallX)
+        assertEquals(0, gs.Char.fallY)
+        assertEquals(Dir.LEFT, gs.Char.direction)
+        assertEquals(gs.drawnRoom, gs.Char.room)
+        assertEquals(skelRow, gs.Char.currRow)
+        assertEquals(Snd.SKEL_ALIVE, lastSoundPlayed)
+    }
+
+    @Test
+    fun checkSkel_wrongLevel_doesNotWake() {
+        gs.currentLevel = 5  // not skeleton_level (3)
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        // Skeleton tile should remain (wrong level)
+        assertEquals(-1, lastSoundPlayed)
+    }
+
+    @Test
+    fun checkSkel_guardAlreadyPresent_doesNotWake() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.LEFT  // not Dir.NONE — guard exists
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        assertEquals(0, gs.Char.charid)  // not set to skeleton
+    }
+
+    @Test
+    fun checkSkel_wrongRoom_doesNotWake() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = 5  // not skeleton_room (1)
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        assertEquals(0, gs.Char.charid)
+    }
+
+    @Test
+    fun checkSkel_doorClosedAndRequired_doesNotWake() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 0  // door not open
+        gs.custom.skeletonRequireOpenLevelDoor = 1  // door required
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        assertEquals(0, gs.Char.charid)
+    }
+
+    @Test
+    fun checkSkel_doorClosedButNotRequired_wakes() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 0
+        gs.custom.skeletonRequireOpenLevelDoor = 0  // door NOT required
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        assertEquals(T.FLOOR, gs.currRoomTiles[15])
+        assertEquals(CID.SKELETON, gs.Char.charid)
+    }
+
+    @Test
+    fun checkSkel_secondTriggerColumn_wakes() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn2  // column 3
+        gs.level.fg[15] = T.SKELETON
+
+        seg002.checkSkel()
+
+        assertEquals(T.FLOOR, gs.currRoomTiles[15])
+        assertEquals(CID.SKELETON, gs.Char.charid)
+    }
+
+    @Test
+    fun checkSkel_noSkeletonTile_doesNotWake() {
+        gs.currentLevel = gs.custom.skeletonLevel
+        gs.Guard.direction = Dir.NONE
+        gs.drawnRoom = gs.custom.skeletonRoom
+        gs.leveldoorOpen = 1
+        gs.Kid.currCol = gs.custom.skeletonTriggerColumn1
+        gs.level.fg[15] = T.FLOOR  // no skeleton tile
+
+        seg002.checkSkel()
+
+        assertEquals(-1, lastSoundPlayed)
+        assertEquals(0, gs.Char.charid)  // not set to skeleton
+    }
+
+    // ========== doAutoMoves tests ==========
+
+    @Test
+    fun doAutoMoves_basicForwardMove() {
+        val moves = arrayOf(
+            AutoMoveType(0, 1),   // time=0, move=forward
+            AutoMoveType(0xFF.toShort(), (-1).toShort())  // sentinel
+        )
+        gs.demoTime = -1  // will be incremented to 0
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(0, gs.demoTime.toInt())
+        assertEquals(Ctrl.HELD_FORWARD, gs.controlX)
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun doAutoMoves_demoTimeCappedAt0xFE() {
+        val moves = arrayOf(
+            AutoMoveType(0, 0),
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = 0xFE.toShort()  // at cap
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        // Should return immediately without incrementing
+        assertEquals(0xFE.toShort(), gs.demoTime)
+    }
+
+    @Test
+    fun doAutoMoves_advancesIndexWhenTimeMet() {
+        val moves = arrayOf(
+            AutoMoveType(0, 1),   // time=0, move=forward
+            AutoMoveType(5, 2),   // time=5, move=backward
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = 4  // will increment to 5, matching moves[1].time
+        gs.demoIndex = 1
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(5, gs.demoTime.toInt())
+        assertEquals(2, gs.demoIndex) // advanced
+        assertEquals(Ctrl.HELD, gs.controlBackward)  // move 2 = backward
+    }
+
+    @Test
+    fun doAutoMoves_usePreviousIndexWhenTimeNotMet() {
+        val moves = arrayOf(
+            AutoMoveType(0, 0),    // time=0, move=nothing
+            AutoMoveType(10, 1),   // time=10, move=forward
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = 2  // will increment to 3, NOT meeting moves[1].time=10
+        gs.demoIndex = 1
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(3, gs.demoTime.toInt())
+        assertEquals(1, gs.demoIndex) // NOT advanced
+        // uses demoindex-1 = 0 → move 0 (nothing)
+        assertEquals(Ctrl.RELEASED, gs.controlForward)
+    }
+
+    @Test
+    fun doAutoMoves_moveUpForward() {
+        val moves = arrayOf(
+            AutoMoveType(0, 5),   // time=0, move=5 (up+forward)
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = -1
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(Ctrl.HELD_UP, gs.controlY)
+        assertEquals(Ctrl.HELD, gs.controlUp)
+        assertEquals(Ctrl.HELD_FORWARD, gs.controlX)
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun doAutoMoves_moveShift() {
+        val moves = arrayOf(
+            AutoMoveType(0, 6),   // time=0, move=6 (shift)
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = -1
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(Ctrl.HELD, gs.controlShift)
+        assertEquals(Ctrl.HELD, gs.controlShift2)
+    }
+
+    @Test
+    fun doAutoMoves_moveDown() {
+        val moves = arrayOf(
+            AutoMoveType(0, 4),   // time=0, move=4 (down)
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = -1
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(Ctrl.HELD, gs.controlDown)
+        assertEquals(Ctrl.HELD_DOWN, gs.controlY)
+    }
+
+    @Test
+    fun doAutoMoves_moveNegativeOne_doesNothing() {
+        val moves = arrayOf(
+            AutoMoveType(0, (-1).toShort()),   // time=0, move=-1 (nothing/sentinel)
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = -1
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        // All controls should remain released (setUp default)
+        assertEquals(Ctrl.RELEASED, gs.controlX)
+        assertEquals(Ctrl.RELEASED, gs.controlY)
+        assertEquals(Ctrl.RELEASED, gs.controlShift)
+    }
+
+    @Test
+    fun doAutoMoves_move7_releasesShift() {
+        gs.controlShift = Ctrl.HELD  // pre-set
+
+        val moves = arrayOf(
+            AutoMoveType(0, 7),   // time=0, move=7
+            AutoMoveType(0xFF.toShort(), (-1).toShort())
+        )
+        gs.demoTime = -1
+        gs.demoIndex = 0
+
+        seg002.doAutoMoves(moves)
+
+        assertEquals(Ctrl.RELEASED, gs.controlShift)
+    }
 }
