@@ -35,7 +35,7 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
 **Phase:** 11c — Sword combat detection & shadow autocontrol — **IN PROGRESS**
-**Next:** Step 3 — shadow autocontrol functions (autocontrolShadowLevel4/5/6/12)
+**Next:** Step 4 — Wire-up + review (replace stubs, verify all tests pass)
 **Blocked/Broken:** None.
 
 ## Phase Summary

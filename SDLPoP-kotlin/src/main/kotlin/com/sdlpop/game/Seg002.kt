@@ -677,11 +677,105 @@ object Seg002 {
         }
     }
 
-    // Shadow level-specific stubs (Phase 11c will implement)
-    fun autocontrolShadowLevel4() { /* Phase 11c */ }
-    fun autocontrolShadowLevel5() { /* Phase 11c */ }
-    fun autocontrolShadowLevel6() { /* Phase 11c */ }
-    fun autocontrolShadowLevel12() { /* Phase 11c */ }
+    /** seg002:0FF0 — Shadow level 4 (mirror room): approach mirror, clear when x<80. */
+    fun autocontrolShadowLevel4() {
+        if (gs.Char.room == gs.custom.mirrorRoom) {
+            if (gs.Char.x < 80) {
+                seg006.clearChar()
+            } else {
+                move1Forward()
+            }
+        }
+    }
+
+    /** seg002:101A — Shadow level 5 (steal life): wait for door open, do drink moves, clear when x<15. */
+    fun autocontrolShadowLevel5() {
+        if (gs.Char.room == gs.custom.shadowStealRoom) {
+            if (gs.demoTime.toInt() == 0) {
+                seg006.getTile(gs.custom.shadowStealRoom, 1, 0)
+                // is the door open?
+                if (gs.currRoomModif[gs.currTilepos] < 80) return
+                gs.demoIndex = 0
+            }
+            doAutoMoves(gs.custom.shadDrinkMove)
+            if (gs.Char.x < 15) {
+                seg006.clearChar()
+            }
+        }
+    }
+
+    /** seg002:1064 — Shadow level 6 (step): shift+forward when Kid is in running jump frame. */
+    fun autocontrolShadowLevel6() {
+        if (gs.Char.room == gs.custom.shadowStepRoom &&
+            gs.Kid.frame == FID.frame_43_running_jump_4 &&
+            gs.Kid.x < 128
+        ) {
+            move6Shift()
+            move1Forward()
+        }
+    }
+
+    /** seg002:1082 — Shadow level 12 (final): init, sword combat, unite with Kid. */
+    fun autocontrolShadowLevel12() {
+        if (gs.Char.room == 15 && gs.shadowInitialized == 0) {
+            if (gs.Opp.x >= 150) {
+                doInitShad(gs.custom.initShad12, 7 /* fall */)
+                return
+            }
+            gs.shadowInitialized = 1
+        }
+        if (gs.Char.sword >= Sword.DRAWN) {
+            // if the Kid puts his sword away, the shadow does the same,
+            // but only if the shadow was already hurt
+            if (gs.offguard == 0 || gs.guardRefrac == 0) {
+                autocontrolGuardActive()
+            } else {
+                move4Down()
+            }
+            return
+        }
+        if (gs.Opp.sword >= Sword.DRAWN || gs.offguard == 0) {
+            var xdiff = 0x7000 // bugfix/workaround
+            // This behavior matches the DOS version but not the Apple II source.
+            if (gs.canGuardSeeKid.toInt() < 2 || run { xdiff = seg006.charOppDist(); xdiff } >= 90) {
+                if (xdiff < 0) {
+                    move2Backward()
+                }
+                return
+            }
+            // Shadow draws his sword
+            if (gs.Char.frame == FID.frame_15_stand) {
+                moveDownForw()
+            }
+            return
+        }
+        if (seg006.charOppDist() < 10) {
+            // unite with the shadow
+            gs.flashColor = 15 // color_15_brightwhite
+            gs.flashTime = 18
+            // get an extra HP for uniting the shadow
+            ExternalStubs.addLife()
+            // time of Kid-shadow flash
+            gs.unitedWithShadow = 42
+            // put the Kid where the shadow was
+            gs.Char.charid = CID.KID
+            seg006.savekid()
+            // remove the shadow
+            seg006.clearChar()
+            return
+        }
+        if (gs.canGuardSeeKid.toInt() == 2) {
+            // If Kid runs to shadow, shadow runs to Kid.
+            val oppFrame = gs.Opp.frame
+            // frames 1..14: running
+            // frames 121..132: stepping
+            if ((oppFrame >= FID.frame_3_start_run && oppFrame < FID.frame_15_stand) ||
+                (oppFrame >= FID.frame_127_stepping_7 && oppFrame < 133)
+            ) {
+                move1Forward()
+            }
+        }
+    }
 
     /** seg002:0850 — Skeleton autocontrol: set sword drawn, delegate to guard. */
     fun autocontrolSkeleton() {

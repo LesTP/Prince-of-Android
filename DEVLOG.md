@@ -2,6 +2,20 @@
 
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
 
+### 2026-04-09 — Phase 11c Step 3: Shadow autocontrol functions (4 functions)
+
+**Mode:** Code | **Outcome:** ✓ All tests pass (20 new, 449 total)
+
+Translated 4 shadow autocontrol functions from seg002.c → Seg002.kt:
+- `autocontrolShadowLevel4` (seg002:0FF0): Mirror room approach — shadow walks forward, cleared when x<80.
+- `autocontrolShadowLevel5` (seg002:101A): Steal life — waits for door open (modifier≥80), runs shadDrinkMove auto-moves, cleared when x<15.
+- `autocontrolShadowLevel6` (seg002:1064): Step level — shift+forward when Kid is in running jump frame 43 with x<128.
+- `autocontrolShadowLevel12` (seg002:1082): Final level — complex multi-phase: init shadow from custom data, sword combat (delegates to autocontrolGuardActive or move_down), sword draw approach (charOppDist-based), unite with Kid (flash+addLife+unitedWithShadow=42), follow running Kid.
+
+All level-specific logic uses `CustomOptionsType` fields for room/level configuration. Level 12 shadow uses `charOppDist` for distance-based behavior and `ExternalStubs.addLife` for the unite sequence.
+
+**Contract changes:** None — replaced stub bodies only, no new external deps beyond existing ExternalStubs.addLife.
+
 ### 2026-04-07 — Phase 11c Step 2: Skeleton wake + auto moves (2 functions)
 
 **Mode:** Code | **Outcome:** ✓ All tests pass (17 new, 429 total)

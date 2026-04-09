@@ -1950,4 +1950,306 @@ class Seg002Test {
 
         assertEquals(Ctrl.RELEASED, gs.controlShift)
     }
+
+    // ========== Phase 11c Step 3: Shadow autocontrol ==========
+
+    // --- autocontrolShadowLevel4 ---
+
+    @Test
+    fun shadowLevel4_inMirrorRoom_xBelow80_clearsChar() {
+        gs.Char.room = gs.custom.mirrorRoom
+        gs.Char.x = 79
+        gs.Char.charid = CID.SHADOW
+
+        seg002.autocontrolShadowLevel4()
+
+        // clearChar sets direction=NONE and alive=0
+        assertEquals(Dir.NONE, gs.Char.direction)
+        assertEquals(0, gs.Char.alive)
+    }
+
+    @Test
+    fun shadowLevel4_inMirrorRoom_xAbove80_movesForward() {
+        gs.Char.room = gs.custom.mirrorRoom
+        gs.Char.x = 100
+        gs.Char.direction = Dir.LEFT
+
+        seg002.autocontrolShadowLevel4()
+
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun shadowLevel4_wrongRoom_doesNothing() {
+        gs.Char.room = gs.custom.mirrorRoom + 1
+        gs.Char.x = 50
+        gs.Char.charid = CID.SHADOW
+
+        seg002.autocontrolShadowLevel4()
+
+        assertEquals(CID.SHADOW, gs.Char.charid)
+    }
+
+    // --- autocontrolShadowLevel5 ---
+
+    @Test
+    fun shadowLevel5_demoTimeNonZero_runsAutoMoves() {
+        gs.Char.room = gs.custom.shadowStealRoom
+        gs.demoTime = 5  // non-zero → skip door check
+        gs.demoIndex = 0
+        gs.Char.x = 100  // not < 15, won't clear
+
+        seg002.autocontrolShadowLevel5()
+
+        // doAutoMoves incremented demoTime from 5 to 6
+        assertEquals(6, gs.demoTime.toInt())
+    }
+
+    @Test
+    fun shadowLevel5_doorClosed_returns() {
+        gs.Char.room = gs.custom.shadowStealRoom
+        gs.demoTime = 0
+        gs.Char.x = 100
+        gs.Char.direction = Dir.LEFT
+        // Door closed: getTile(room, 1, 0) will resolve currTilepos.
+        // Since room links aren't set up, currRoom becomes 0 from findRoomOfTile,
+        // so currRoomModif defaults to 0 (< 80) → early return.
+
+        seg002.autocontrolShadowLevel5()
+
+        // Should return early — demoTime still 0 (doAutoMoves not called)
+        assertEquals(0, gs.demoTime.toInt())
+    }
+
+    @Test
+    fun shadowLevel5_xBelow15_clearsChar() {
+        gs.Char.room = gs.custom.shadowStealRoom
+        gs.demoTime = 1  // non-zero, skip door check
+        gs.demoIndex = 0
+        gs.Char.x = 10
+        gs.Char.charid = CID.SHADOW
+
+        // Set up auto moves to not crash (need a valid move array)
+        // demoTime=1, first move time=0 → will use move 0 (nothing)
+        seg002.autocontrolShadowLevel5()
+
+        assertEquals(Dir.NONE, gs.Char.direction)  // cleared
+    }
+
+    @Test
+    fun shadowLevel5_wrongRoom_doesNothing() {
+        gs.Char.room = gs.custom.shadowStealRoom + 1
+        gs.Char.x = 10
+        gs.Char.charid = CID.SHADOW
+
+        seg002.autocontrolShadowLevel5()
+
+        assertEquals(CID.SHADOW, gs.Char.charid)
+    }
+
+    // --- autocontrolShadowLevel6 ---
+
+    @Test
+    fun shadowLevel6_kidInJumpFrame_xBelow128_shiftsAndForward() {
+        gs.Char.room = gs.custom.shadowStepRoom
+        gs.Kid.frame = FID.frame_43_running_jump_4
+        gs.Kid.x = 100
+
+        seg002.autocontrolShadowLevel6()
+
+        assertEquals(Ctrl.HELD, gs.controlShift)
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun shadowLevel6_kidWrongFrame_doesNothing() {
+        gs.Char.room = gs.custom.shadowStepRoom
+        gs.Kid.frame = FID.frame_15_stand
+        gs.Kid.x = 100
+
+        seg002.autocontrolShadowLevel6()
+
+        assertEquals(Ctrl.RELEASED, gs.controlShift)
+    }
+
+    @Test
+    fun shadowLevel6_kidXAbove128_doesNothing() {
+        gs.Char.room = gs.custom.shadowStepRoom
+        gs.Kid.frame = FID.frame_43_running_jump_4
+        gs.Kid.x = 200
+
+        seg002.autocontrolShadowLevel6()
+
+        assertEquals(Ctrl.RELEASED, gs.controlShift)
+    }
+
+    @Test
+    fun shadowLevel6_wrongRoom_doesNothing() {
+        gs.Char.room = gs.custom.shadowStepRoom + 1
+        gs.Kid.frame = FID.frame_43_running_jump_4
+        gs.Kid.x = 100
+
+        seg002.autocontrolShadowLevel6()
+
+        assertEquals(Ctrl.RELEASED, gs.controlShift)
+    }
+
+    // --- autocontrolShadowLevel12 ---
+
+    @Test
+    fun shadowLevel12_room15_notInitialized_oppXAbove150_initsShad() {
+        gs.Char.room = 15
+        gs.shadowInitialized = 0
+        gs.Opp.x = 150
+        gs.Char.sword = 0  // not drawn
+
+        seg002.autocontrolShadowLevel12()
+
+        // doInitShad sets Char fields from initShad12
+        assertEquals(gs.custom.initShad12[0], gs.Char.frame)
+        assertEquals(gs.custom.initShad12[1], gs.Char.x)
+    }
+
+    @Test
+    fun shadowLevel12_room15_notInitialized_oppXBelow150_setsInitialized() {
+        gs.Char.room = 15
+        gs.shadowInitialized = 0
+        gs.Opp.x = 100
+        gs.Char.sword = 0
+
+        seg002.autocontrolShadowLevel12()
+
+        assertEquals(1, gs.shadowInitialized)
+    }
+
+    @Test
+    fun shadowLevel12_swordDrawn_offguardZero_callsGuardActive() {
+        gs.Char.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = Sword.DRAWN
+        gs.offguard = 0
+        gs.guardRefrac = 5
+        // Set frame so autocontrolGuardActive has something to work with
+        gs.Char.frame = FID.frame_166_stand_inactive
+        gs.canGuardSeeKid = 0
+
+        seg002.autocontrolShadowLevel12()
+
+        // If offguard==0, calls autocontrolGuardActive (not move4Down)
+        // We can verify move4Down was NOT called by checking controlDown
+        assertEquals(Ctrl.RELEASED, gs.controlDown)
+    }
+
+    @Test
+    fun shadowLevel12_swordDrawn_offguardNonZero_guardRefracZero_callsGuardActive() {
+        gs.Char.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = Sword.DRAWN
+        gs.offguard = 1
+        gs.guardRefrac = 0
+        gs.Char.frame = FID.frame_166_stand_inactive
+        gs.canGuardSeeKid = 0
+
+        seg002.autocontrolShadowLevel12()
+
+        assertEquals(Ctrl.RELEASED, gs.controlDown)
+    }
+
+    @Test
+    fun shadowLevel12_swordDrawn_offguardAndRefracNonZero_movesDown() {
+        gs.Char.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = Sword.DRAWN
+        gs.offguard = 1
+        gs.guardRefrac = 1
+
+        seg002.autocontrolShadowLevel12()
+
+        assertEquals(Ctrl.HELD, gs.controlDown)
+    }
+
+    @Test
+    fun shadowLevel12_oppSwordDrawn_canSeeKid2_closeDist_drawsSword() {
+        gs.Char.room = 15
+        gs.Opp.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = 0  // not drawn
+        gs.Opp.sword = Sword.DRAWN
+        gs.canGuardSeeKid = 2
+        // Set positions so charOppDist < 90
+        gs.Char.x = 100
+        gs.Char.direction = Dir.LEFT
+        gs.Opp.x = 120
+        gs.Char.frame = FID.frame_15_stand
+
+        seg002.autocontrolShadowLevel12()
+
+        // Should call moveDownForw (down+forward)
+        assertEquals(Ctrl.HELD, gs.controlDown)
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
+
+    @Test
+    fun shadowLevel12_oppSwordDrawn_canSeeKidLessThan2_farAway_returns() {
+        gs.Char.room = 15
+        gs.Opp.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = 0
+        gs.Opp.sword = Sword.DRAWN
+        gs.canGuardSeeKid = 1  // < 2
+        gs.Char.x = 100
+        gs.Char.direction = Dir.LEFT
+        gs.Opp.x = 120
+
+        seg002.autocontrolShadowLevel12()
+
+        // canGuardSeeKid < 2, so returns without action (xdiff default 0x7000 >= 0)
+        assertEquals(Ctrl.RELEASED, gs.controlForward)
+        assertEquals(Ctrl.RELEASED, gs.controlDown)
+    }
+
+    @Test
+    fun shadowLevel12_closeToKid_unitesWithShadow() {
+        gs.Char.room = 15
+        gs.Opp.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = 0
+        gs.Opp.sword = 0
+        gs.offguard = 1  // both conditions false → fall through to distance check
+        // Set positions so charOppDist < 10
+        gs.Char.x = 100
+        gs.Char.direction = Dir.LEFT
+        gs.Opp.x = 105
+
+        var addLifeCalled = false
+        ExternalStubs.addLife = { addLifeCalled = true }
+
+        seg002.autocontrolShadowLevel12()
+
+        assertTrue(addLifeCalled)
+        assertEquals(42, gs.unitedWithShadow.toInt())
+        assertEquals(15, gs.flashColor)
+        assertEquals(18, gs.flashTime)
+    }
+
+    @Test
+    fun shadowLevel12_kidRunning_canSee_movesForward() {
+        gs.Char.room = 15
+        gs.Opp.room = 15
+        gs.shadowInitialized = 1
+        gs.Char.sword = 0
+        gs.Opp.sword = 0
+        gs.offguard = 1
+        gs.canGuardSeeKid = 2
+        // Set positions so charOppDist >= 10 (Char faces right toward Opp)
+        gs.Char.x = 100
+        gs.Char.direction = Dir.RIGHT
+        gs.Opp.x = 150
+        gs.Opp.direction = Dir.LEFT  // facing each other, +13 added
+        gs.Opp.frame = FID.frame_3_start_run  // running frame
+
+        seg002.autocontrolShadowLevel12()
+
+        assertEquals(Ctrl.HELD, gs.controlForward)
+    }
 }
