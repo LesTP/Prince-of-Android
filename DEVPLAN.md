@@ -35,7 +35,7 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 11 — Layer 1: seg002 (Guard AI, room transitions) — **IN PROGRESS**
 **Phase:** 11c — Sword combat detection & shadow autocontrol — **IN PROGRESS**
-**Next:** Step 4 — Wire-up + review (replace stubs, verify all tests pass)
+**Next:** Phase Review — 11c output vs Layer 1 contract
 **Blocked/Broken:** None.
 
 ## Phase Summary
@@ -109,8 +109,8 @@ Implement `autocontrolShadowLevel4`, `autocontrolShadowLevel5`, `autocontrolShad
 - Level 12: Complex — init shadow, sword drawn combat (autocontrolGuardActive or down), sword draw approach, unite (flash+addLife+unitedWithShadow=42), follow Kid.
 Tests: ~12 covering each level's logic paths.
 
-**Step 4: Wire-up + review (~4 tests)**
-Replace ExternalStubs.doAutoMoves with real call. Add any new stubs needed for remaining seg002 external deps. Verify all 386+ tests still pass. Clean review pass.
+**Step 4: Wire-up + review (~4 tests) — COMPLETE**
+Replaced `ExternalStubs.autocontrolOpponent` and `ExternalStubs.doAutoMoves` with real `Seg002` calls. No new seg002 dependency stubs were needed.
 
 #### Wire-up
 

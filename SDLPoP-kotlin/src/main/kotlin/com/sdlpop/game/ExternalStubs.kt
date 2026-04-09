@@ -32,7 +32,7 @@ object ExternalStubs {
     var isSpikePowerful: () -> Int = { throw NotImplementedError("is_spike_harmful (seg007)") }
 
     // --- seg002 (guard AI) ---
-    var autocontrolOpponent: () -> Unit = { throw NotImplementedError("autocontrol_opponent (seg002)") }
+    var autocontrolOpponent: () -> Unit = { Seg002.autocontrolOpponent() }
 
     // --- seg002 (guard AI) ---
     var leaveGuard: () -> Unit = { Seg002.leaveGuard() }
@@ -82,7 +82,10 @@ object ExternalStubs {
     // --- replay ---
     var addReplayMove: () -> Unit = { /* replay stub */ }
     var doReplayMove: () -> Unit = { /* replay stub */ }
-    var doAutoMoves: (Array<AutoMoveType>?) -> Unit = { _ -> throw NotImplementedError("do_auto_moves") }
+    var doAutoMoves: (Array<AutoMoveType>?) -> Unit = { moves ->
+        requireNotNull(moves) { "do_auto_moves requires a non-null move table" }
+        Seg002.doAutoMoves(moves)
+    }
 
     // --- seg005 (potion effects) ---
     var addLife: () -> Unit = { throw NotImplementedError("add_life (seg005)") }
