@@ -1,6 +1,33 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
+
+### 2026-04-10 — Phase 12a Plan: Trob core, redraw helpers, trap/button animation
+
+**Mode:** Discuss | **Outcome:** Phase planned
+
+Planned Phase 12a around the seg007 slice that is both self-contained and immediately useful to the translated codebase: trob iteration, drawn-room coordinate helpers, redraw/wipe bookkeeping, basic animated-tile state machines, and button/gate trigger plumbing.
+
+Phase 12a is split into three steps:
+- **12a.1** Scaffold `Seg007.kt` with trob-loop helpers, room-position math, redraw array writes, and basic helper functions (`get_curr_tile`, `bubble_next_frame`, `get_torch_frame`).
+- **12a.2** Translate the first animated-tile tranche plus trob lifecycle (`animate_torch`, `animate_potion`, `animate_sword`, `animate_chomper`, `animate_spike`, `animate_button`, `add_trob`, `find_trob`, starters, `is_spike_harmful`) and wire completed seg007 stubs.
+- **12a.3** Translate doorlink/button trigger plumbing and gate animation (`trigger_gate`, `trigger_1`, `do_trigger_list`, `trigger_button`, `animate_door`, `gate_stop`, `play_door_sound_if_visible`, and `animate_leveldoor` if it fits the phase cleanly).
+
+Loose-floor removal, mob spawning/movement, and mob drawing/object-table writes are intentionally deferred to later phases because they form a broader subsystem with heavier state coupling than the first trap/tile slice.
+
 ## Module 11: Layer 1 — seg002 (Guard AI, room transitions)
+
+### 2026-04-10 — Phase 11c Complete
+
+**Mode:** Complete | **Outcome:** Module 11 complete; documentation updated
+
+Completed Phase 11c and closed Module 11 after the prior review found no correctness or architecture issues. `Seg002.kt` now covers seg002 sword combat detection, skeleton wake logic, auto-move sequencing, shadow autocontrol, and the associated `ExternalStubs` wire-up needed by downstream modules.
+
+Phase-complete verification attempted a fresh targeted Gradle run with `gradle test --tests com.sdlpop.game.Seg002Test`, but the command failed before task execution in this container with `Failed to load native library 'libnative-platform.so' for Linux aarch64`. Acceptance therefore relies on the reviewed Phase 11c test artifacts already recorded in `DECISIONS.md` D-3.
+
+**Contract changes:** `DEVPLAN.md`, `ARCHITECTURE.md` — status propagation only; no interface or behavior contract changes
+
+Learning review: promote one Phase 11c test setup gotcha into `DEVPLAN.md` — functions that call `getTile()`/`getRoomAddress()` must seed `gs.level.fg[]`/`gs.level.bg[]` in tests, because room buffers are reloaded from level data.
 
 ### 2026-04-09 — Phase 11c Step 3: Shadow autocontrol functions (4 functions)
 
