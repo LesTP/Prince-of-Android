@@ -2,6 +2,21 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-11 — Phase 12a Complete
+
+**Mode:** Complete | **Outcome:** Phase 12a closed; Module 12 continues with Phase 12b
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md — status propagation only; no interface or behavior contract changes
+
+Phase 12a delivered trob pipeline infrastructure, animated-tile state machines (torch, potion, sword, chomper, spike, button, gate, level-door), trigger/doorlink plumbing, and 6 ExternalStubs wire-ups into `Seg007.kt`. Three steps across 4 iterations (25-28), zero escalations, 70 new tests (519 total pass).
+
+Learning review: promoted one gotcha — test `@BeforeTest` methods that globally zero shared arrays (like `soundInterruptible`) corrupt default values validated by other test suites. Fix: only reset entries modified by each test.
+
+Log review: iterations 25-28 show no anomalies — no repeated failures, no wasted turns, no tool issues.
+
+Contract scan: no contract changes across any Phase 12a step.
+
+Remaining seg007 work (loose-floor removal, mob simulation/movement/drawing, object-table writes) deferred to Phase 12b.
+
 ### 2026-04-11 — Phase 12a Review
 
 **Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings

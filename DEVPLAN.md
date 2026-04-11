@@ -28,6 +28,7 @@
 - **Line endings:** Source files from Windows have CRLF. Run `dos2unix *.c *.h` in SDLPoP/src/ after any file transfer. Grep/ripgrep fail silently on CRLF files.
 - **C unsigned word comparisons:** `(word)x < (word)y` in C casts to unsigned 16-bit. Translate as `(x and 0xFFFF) < (y and 0xFFFF)`. Common in distance checks (seg005 `controlStanding`, `controlWithSword`). Getting this wrong produces subtle distance-check bugs.
 - **`getTile()`-driven tests must seed level data, not room buffers:** `getTile()` calls `getRoomAddress()`, which reloads `currRoomTiles[]`/`currRoomModif[]` from `gs.level.fg[]`/`gs.level.bg[]`. In tests like `checkSkel`, write fixture tiles to `level` arrays or the setup will be overwritten.
+- **Test `@BeforeTest` must not zero shared arrays globally:** Resetting shared arrays like `soundInterruptible` by filling with zeros corrupts default values that other test suites (e.g., `TypesTest`) validate. Only reset the specific entries modified by each test.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 - **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
 - **Trace generation:** From `/tmp/sdlpop/`: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345` → outputs `state_trace.bin` (310 bytes/frame).
@@ -36,8 +37,8 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
-**Phase:** 12a — Trob core, redraw helpers, trap/button animation.
-**Next:** Phase 12a complete — review passed with no must-fix or should-fix findings.
+**Phase:** 12a complete. Next phase: 12b (loose-floor mobs, remaining seg007 functions) — needs planning.
+**Next:** Plan Phase 12b.
 **Blocked/Broken:** None. Fresh `gradle test` passed (519 tests, 0 failures) on 2026-04-11.
 
 ## Phase Summary
@@ -75,18 +76,6 @@ One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005
 One-line: Translated seg002.c → Seg002.kt across phases 11a-11c, including guard AI, room transitions, sword combat detection, skeleton/shadow logic, and stub wire-up; review clean. See DEVLOG §Module 11.
 
 ### Module 12: Layer 1 seg007 — IN PROGRESS
-One-line: Planned Phase 12a for trob bookkeeping, redraw helpers, and the first trap/button animation slice; later phases will cover gate/level-door edge cases and loose-floor mobs. See DEVLOG §Module 12.
 
-#### Phase 12a: Trob core, redraw helpers, trap/button animation — IN PROGRESS
-**Goal:** Stand up `Seg007.kt` with the shared trob pipeline and the seg007 entry points already consumed by other translated modules, while keeping the first slice focused on deterministic tile/trap logic rather than falling-mob/render-object code.
-
-**Scope:** `process_trobs()`/`animate_tile()` dispatch, drawn-room coordinate helpers, redraw/wipe helpers, tile animation starters, trob add/find lifecycle, button/doorlink trigger plumbing, and the seg006-facing trap hooks (`start_anim_spike`, `trigger_button`, `start_chompers`, `make_loose_fall`, `is_spike_harmful`) where they fall inside this slice.
-
-**Steps:**
-- [x] **12a.1** Create `Seg007.kt` scaffold and translate trob-loop infrastructure: `process_trobs`, `animate_tile`, drawn-room position helpers, redraw helpers (`set_redraw_*`, `set_wipe`, `clear_tile_wipes`), `get_curr_tile`, `bubble_next_frame`, `get_torch_frame`. Add focused tests for room-relative tile mapping and redraw-array writes.
-- [x] **12a.2** Translate basic animated-tile and trob lifecycle functions: torch/potion/sword/chomper/spike/button/empty animation, animation starters, `add_trob`, `find_trob`, `died_on_button`, `start_level_door`, `is_spike_harmful`, doorlink accessors, `trigger_gate`, `trigger_1`, `do_trigger_list`, `trigger_button`, `start_chompers`, `next_chomper_timing`, `make_loose_fall`, `loose_make_shake`, `do_knock`, `remove_loose`, `add_mob`. Wired 5 ExternalStubs entries (startChompers, triggerButton, makeLooseFall, startAnimSpike, isSpikePowerful, diedOnButton). 31 new tests, 482 total pass.
-- [x] **12a.3** Translate gate/leveldoor animation that completes the animate_tile dispatch: `animate_door`, `gate_stop`, `play_door_sound_if_visible`, `animate_leveldoor`. 39 new tests (70 total in Seg007Test), 519 total pass.
-
-**Exit criteria:** `Seg007.kt` exists, the phase 12a functions compile against current module boundaries, `ExternalStubs` no longer throws for the seg007 trap hooks completed in this phase, and targeted tests cover redraw indexing plus button/gate state transitions.
-
-**Deferred to later phases:** loose-floor removal/fall spawning, mob simulation/drawing/object-table writes, and any remaining level-door or loose-floor edge cases that make Phase 12a too broad.
+#### Phase 12a: Trob core, redraw helpers, trap/button animation — COMPLETE
+One-line: Translated trob pipeline, animated-tile state machines (torch/potion/sword/chomper/spike/button/gate/leveldoor), trigger plumbing, and 6 ExternalStubs wire-ups into Seg007.kt (3 steps, 70 tests, 519 total pass, zero escalations). See DEVLOG §Module 12.
