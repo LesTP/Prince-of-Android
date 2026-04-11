@@ -60,11 +60,11 @@ case $BACKEND in
   codex)  ADAPTER_FILE="CODEX.md" ;;
 esac
 
-PROMPT="You are a stateless worker in an autonomous software development loop.
+PROMPT="MANDATORY FIRST STEP: Read ${ADAPTER_FILE} now. It contains references to WORKER_SPEC.md and project documents — read all of them before doing anything else.
 
-Read ${ADAPTER_FILE} in the current directory. It will instruct you to read WORKER_SPEC.md and project documents. Follow those instructions.
+You are a stateless worker. You have no memory of previous iterations. Reconstruct all state from files.
 
-Determine current state from DEVPLAN.md. Execute exactly one action per the Worker Spec.
+After reading ${ADAPTER_FILE} and its references, determine current state from DEVPLAN.md. Execute exactly one action per the Worker Spec.
 
 Your final output MUST end with exactly these four lines — no text after:
 LOOP_SIGNAL: CONTINUE | ESCALATE
@@ -134,7 +134,7 @@ while [[ $ITER -le $END_ITER ]]; do
       fi
 
       # Generate human-readable transcript from JSONL
-      # Codex --json outputs JSONL events; extract assistant messages
+      # Codex uses nested item.completed events — normalize to same .txt format as Claude
       if [[ -f "$JSONL_FILE" ]]; then
         python3 -c "
 import sys, json
@@ -144,12 +144,32 @@ for line in sys.stdin:
     try:
         ev = json.loads(line)
         t = ev.get('type','')
-        if t == 'message' and ev.get('role') == 'assistant':
-            print('ASSISTANT:', ev.get('content',''))
-        elif t == 'tool_call':
-            print('TOOL CALL:', ev.get('name',''), ev.get('arguments',''))
-        elif t == 'tool_result':
-            print('  -> Result:', str(ev.get('output',''))[:200])
+        if t != 'item.completed': continue
+        item = ev.get('item', {})
+        itype = item.get('type','')
+        if itype == 'agent_message':
+            print('ASSISTANT:', item.get('text',''))
+        elif itype == 'command_execution':
+            cmd = item.get('command','')
+            status = item.get('status','')
+            exit_code = item.get('exit_code','')
+            output = item.get('aggregated_output','')
+            print(f'TOOL CALL: Bash({cmd[:120]})')
+            if status == 'failed' or (exit_code and exit_code != 0):
+                print(f'  -> Result (FAILED exit={exit_code}): {output[:200]}')
+            else:
+                print(f'  -> Result: {output[:200]}')
+        elif itype == 'file_read':
+            print(f'TOOL CALL: Read({item.get(\"path\",\"\")})')
+            content = item.get('content','') or ''
+            lines = content.count(chr(10))
+            print(f'  -> Read {item.get(\"path\",\"\")} ({lines} lines)')
+        elif itype == 'file_write':
+            print(f'TOOL CALL: Write({item.get(\"path\",\"\")})')
+            print(f'  -> File created successfully at: {item.get(\"path\",\"\")}')
+        elif itype == 'file_edit':
+            print(f'TOOL CALL: Edit({item.get(\"path\",\"\")})')
+            print(f'  -> Result: The file {item.get(\"path\",\"\")} has been updated successfully.')
     except: pass
 " < "$JSONL_FILE" > "$TXT_FILE"
       fi
