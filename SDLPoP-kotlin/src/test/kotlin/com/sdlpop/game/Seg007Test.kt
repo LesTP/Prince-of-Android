@@ -1,5 +1,5 @@
 /*
-SDLPoP-kotlin — Module 12 Phases 12a.1–12a.2: Seg007 tests.
+SDLPoP-kotlin — Module 12 Phases 12a.1–12a.3: Seg007 tests.
 Tests drawn-room trob coordinate mapping, redraw/wipe bookkeeping,
 animated-tile state machines, trob lifecycle, and trigger plumbing.
 */
@@ -17,6 +17,7 @@ class Seg007Test {
     private val seg007 = Seg007
 
     private var lastPlayedSound = -1
+    private var stopSoundsCalled = false
 
     @BeforeTest
     fun resetState() {
@@ -65,7 +66,13 @@ class Seg007Test {
         gs.mobs.forEach {
             it.xh = 0; it.y = 0; it.room = 0; it.speed = 0; it.type = 0; it.row = 0
         }
+        gs.leveldoorOpen = 0
+        gs.isFeatherFall = 0
+        gs.soundFlags = 0
+        // Reset only the entries that tests may modify (preserve initial defaults)
+        gs.soundInterruptible[SoundIds.LEVELDOOR_SLIDING] = 0
         lastPlayedSound = -1
+        stopSoundsCalled = false
         ExternalStubs.getRoomAddress = { room ->
             gs.loadedRoom = room
             if (room != 0) {
@@ -77,6 +84,7 @@ class Seg007Test {
             }
         }
         ExternalStubs.playSound = { id -> lastPlayedSound = id }
+        ExternalStubs.stopSounds = { stopSoundsCalled = true }
     }
 
     @Test
@@ -584,5 +592,339 @@ class Seg007Test {
         assertEquals(43, gs.currRoomModif[5])
         assertEquals(1, gs.trobsCount.toInt())
         assertEquals(3, gs.trobs[0].type)
+    }
+
+    // === Phase 12a.3 tests — animate_door, gate_stop, animate_leveldoor, play_door_sound_if_visible ===
+
+    @Test
+    fun animateDoorClosingDecrementsModifier() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0 // closing
+        gs.currModifier = 12 // partially open
+
+        seg007.animateDoor()
+        assertEquals(11, gs.currModifier) // decremented by doorDelta[0] = -1 → +(-1) = -1
+    }
+
+    @Test
+    fun animateDoorClosingPlaysGateClosingSoundWhenModAnd3Is3() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0 // closing
+        gs.currModifier = 4 // 4 - 1 = 3, and 3 & 3 == 3
+
+        seg007.animateDoor()
+        assertEquals(3, gs.currModifier)
+        assertEquals(SoundIds.GATE_CLOSING, lastPlayedSound)
+    }
+
+    @Test
+    fun animateDoorClosingToZeroCallsGateStop() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0 // closing
+        gs.currModifier = 1 // 1 + (-1) = 0 → gate_stop
+
+        seg007.animateDoor()
+        assertEquals(0, gs.currModifier)
+        assertEquals(-1, gs.trob.type) // gate_stop sets type=-1
+        assertEquals(SoundIds.GATE_STOP, lastPlayedSound)
+    }
+
+    @Test
+    fun animateDoorOpeningIncrementsByFour() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 1 // opening
+        gs.currModifier = 8
+
+        seg007.animateDoor()
+        assertEquals(12, gs.currModifier) // 8 + doorDelta[1]=4
+    }
+
+    @Test
+    fun animateDoorOpeningPlaysGateOpeningSoundWhenModAnd7Is0() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 1 // opening
+        gs.currModifier = 4 // 4 + 4 = 8, and 8 & 7 == 0
+
+        seg007.animateDoor()
+        assertEquals(8, gs.currModifier)
+        assertEquals(SoundIds.GATE_OPENING, lastPlayedSound)
+    }
+
+    @Test
+    fun animateDoorOpeningStopsAtMaxAndStartsClosing() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 1 // regular open
+        gs.currModifier = 187 // 187 + 4 = 191 >= 188 → stop
+
+        seg007.animateDoor()
+        assertEquals(238, gs.currModifier) // set to 238
+        assertEquals(0, gs.trob.type) // switch to closing
+        assertEquals(SoundIds.GATE_STOP, lastPlayedSound)
+    }
+
+    @Test
+    fun animateDoorPermanentOpenStopsAtMaxAndKeepsOpen() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 2 // permanent open
+        gs.currModifier = 185 // 185 + 4 = 189 >= 188 → stop (permanent)
+
+        seg007.animateDoor()
+        assertEquals(0xFF, gs.currModifier) // permanently open
+        assertEquals(-1, gs.trob.type) // gate_stop
+    }
+
+    @Test
+    fun animateDoorAlreadyPermanentOpenCallsGateStop() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 1
+        gs.currModifier = 0xFF // permanently open
+
+        seg007.animateDoor()
+        assertEquals(-1, gs.trob.type) // gate_stop
+    }
+
+    @Test
+    fun animateDoorFastClosingDecrementsBySpeed() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 3 // fast closing tier 3
+        gs.currModifier = 100
+
+        seg007.animateDoor()
+        // type 3 → incremented to 4, speed[4] = 40
+        assertEquals(60, gs.currModifier) // 100 - 40 = 60
+        assertEquals(4, gs.trob.type)
+    }
+
+    @Test
+    fun animateDoorFastClosingReachesZero() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 5 // fast closing tier 5
+        gs.currModifier = 30
+
+        seg007.animateDoor()
+        // type 5 → incremented to 6, speed[6] = 80; 30 - 80 = -50 < 0
+        assertEquals(0, gs.currModifier)
+        assertEquals(-1, gs.trob.type)
+        assertEquals(SoundIds.GATE_CLOSING_FAST, lastPlayedSound)
+    }
+
+    @Test
+    fun animateDoorFastClosingCapsTypeAt8() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 8 // max fast closing tier
+        gs.currModifier = 200
+
+        seg007.animateDoor()
+        // type already 8, not incremented
+        assertEquals(8, gs.trob.type) // stays at 8 (but about to become -1 if mod goes < 0)
+        assertEquals(80, gs.currModifier) // 200 - 120 = 80
+    }
+
+    @Test
+    fun animateDoorNegativeTypeDoesNotAnimate() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = -1
+        gs.currModifier = 50
+
+        seg007.animateDoor()
+        assertEquals(50, gs.currModifier) // unchanged (only drawTrob called)
+    }
+
+    @Test
+    fun gateStopSetsTypeMinusOneAndPlaysSound() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 1
+
+        seg007.gateStop()
+        assertEquals(-1, gs.trob.type)
+        assertEquals(SoundIds.GATE_STOP, lastPlayedSound)
+    }
+
+    @Test
+    fun animateLeveldoorOpeningIncrements() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0 // opening
+        gs.currModifier = 10
+
+        seg007.animateLeveldoor()
+        assertEquals(11, gs.currModifier)
+        assertEquals(SoundIds.LEVELDOOR_SLIDING, lastPlayedSound)
+        assertEquals(0, gs.soundInterruptible[SoundIds.LEVELDOOR_SLIDING]) // non-interruptible while opening
+    }
+
+    @Test
+    fun animateLeveldoorOpeningCompletesAtFortyThree() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0 // opening
+        gs.currModifier = 42
+
+        seg007.animateLeveldoor()
+        assertEquals(43, gs.currModifier) // 42+1=43
+        assertEquals(-1, gs.trob.type) // done
+        assertTrue(stopSoundsCalled)
+        assertEquals(1, gs.leveldoorOpen)
+    }
+
+    @Test
+    fun animateLeveldoorOpeningDoesNotStopSoundsWhenFixFeatherActive() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0
+        gs.currModifier = 42
+        gs.fixes.fixFeatherInterruptedByLeveldoor = 1
+        gs.isFeatherFall = 1
+
+        seg007.animateLeveldoor()
+        assertEquals(-1, gs.trob.type)
+        assertTrue(!stopSoundsCalled) // should NOT call stopSounds
+    }
+
+    @Test
+    fun animateLeveldoorOpeningPlacesMirrorOnMirrorLevel() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 0
+        gs.currModifier = 42
+        gs.currentLevel = 4 // mirror_level default
+        gs.leveldoorOpen = 0
+        // Set up level data for mirror room
+        val mirrorBase = (gs.custom.mirrorRoom - 1) * 30
+        val mirrorTilepos = gs.custom.mirrorRow * 10 + gs.custom.mirrorColumn // row 0, col 4 = 4
+        gs.level.fg[mirrorBase + mirrorTilepos] = Tiles.WALL // will be replaced
+
+        seg007.animateLeveldoor()
+        // After getRoomAddress loads the mirror room, currRoomTiles gets set
+        assertEquals(Tiles.MIRROR, gs.currRoomTiles[mirrorTilepos])
+    }
+
+    @Test
+    fun animateLeveldoorClosingDecrementsModifier() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 3 // closing speed tier
+        gs.currModifier = 40
+
+        seg007.animateLeveldoor()
+        // type incremented to 4, speed[4-3]=speed[1]=5; 40-5=35
+        assertEquals(35, gs.currModifier)
+        assertEquals(4, gs.trob.type)
+    }
+
+    @Test
+    fun animateLeveldoorClosingPlaysSlideAtType4WithDigi() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 3
+        gs.currModifier = 40
+        gs.soundFlags = SoundFlags.DIGI
+
+        seg007.animateLeveldoor()
+        assertEquals(4, gs.trob.type)
+        assertEquals(1, gs.soundInterruptible[SoundIds.LEVELDOOR_SLIDING])
+        assertEquals(SoundIds.LEVELDOOR_SLIDING, lastPlayedSound)
+    }
+
+    @Test
+    fun animateLeveldoorClosingReachesZero() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5
+        gs.trob.type = 4 // closing
+        gs.currModifier = 10
+        // type incremented to 5, speed[5-3]=speed[2]=17; 10-17=-7 → (sbyte) < 0
+
+        seg007.animateLeveldoor()
+        assertEquals(0, gs.currModifier)
+        assertEquals(-1, gs.trob.type)
+        assertEquals(SoundIds.LEVELDOOR_CLOSING, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisiblePlaysForDrawnRoom() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 5 // not column 9
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_STOP)
+        assertEquals(SoundIds.GATE_STOP, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisiblePlaysForRoomLColumn9() {
+        gs.trob.room = gs.roomL
+        gs.trob.tilepos = 9 // column 9
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_CLOSING)
+        assertEquals(SoundIds.GATE_CLOSING, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleSilentForRoomLNonColumn9() {
+        gs.trob.room = gs.roomL
+        gs.trob.tilepos = 5 // not column 9
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_CLOSING)
+        assertEquals(-1, lastPlayedSound) // no sound
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleSilentForDrawnRoomColumn9() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 9 // column 9 in drawn room → no sound (without fix)
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_CLOSING)
+        assertEquals(-1, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleFixedPlaysForDrawnRoomColumn9() {
+        gs.fixes.fixGateSounds = 1
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 9 // column 9 in drawn room — fix includes this case
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_CLOSING)
+        assertEquals(-1, lastPlayedSound) // still no sound: drawn_room && tilepos%10 != 9 is false
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleFixedPlaysForRoomLColumn9() {
+        gs.fixes.fixGateSounds = 1
+        gs.trob.room = gs.roomL
+        gs.trob.tilepos = 9
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_CLOSING)
+        assertEquals(SoundIds.GATE_CLOSING, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleSpecialLevel3Room2() {
+        gs.currentLevel = 3
+        gs.trob.room = 2
+        gs.trob.tilepos = 15 // any tilepos
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_STOP)
+        assertEquals(SoundIds.GATE_STOP, lastPlayedSound)
+    }
+
+    @Test
+    fun playDoorSoundIfVisibleSilentForOtherRoom() {
+        gs.trob.room = 99 // unrelated room
+        gs.trob.tilepos = 5
+
+        seg007.playDoorSoundIfVisible(SoundIds.GATE_STOP)
+        assertEquals(-1, lastPlayedSound)
     }
 }

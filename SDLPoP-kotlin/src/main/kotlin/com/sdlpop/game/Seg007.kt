@@ -10,6 +10,8 @@ and basic tile animation helper functions.
 Phase 12a.2: Animated-tile state machines (torch/potion/sword/chomper/spike/button/empty),
 animation starters, trob lifecycle (add/find), doorlink accessors, trigger plumbing,
 start_chompers, make_loose_fall, loose_make_shake, do_knock, is_spike_harmful.
+Phase 12a.3: Gate/leveldoor animation (animate_door, gate_stop, animate_leveldoor,
+play_door_sound_if_visible) — completes the animate_tile dispatch for gate and level door tiles.
 */
 
 package com.sdlpop.game
@@ -703,12 +705,159 @@ object Seg007 {
         gs.mobsCount++
     }
 
+    // data:27C0
+    private val doorDelta = intArrayOf(-1, 4, 4)
+    // data:27BC
+    private val gateCloseSpeeds = intArrayOf(0, 0, 0, 20, 40, 60, 80, 100, 120)
+    // data:27B8
+    private val leveldoorCloseSpeeds = intArrayOf(0, 5, 17, 99, 0)
+
+    // seg007:0522
     fun animateDoor() {
-        throw NotImplementedError("animate_door (seg007 Phase 12a.3)")
+        /*
+        Possible values of anim_type:
+        0: closing
+        1: open
+        2: permanent open
+        3,4,5,6,7,8: fast closing with speeds 20,40,60,80,100,120 /4 pixel/frame
+        */
+        var animType = gs.trob.type
+        if (animType >= 0) {
+            if (animType >= 3) {
+                // closing fast
+                if (animType < 8) {
+                    animType++
+                    gs.trob.type = animType
+                }
+                val newMod = gs.currModifier - gateCloseSpeeds[animType]
+                gs.currModifier = newMod
+                if (newMod < 0) {
+                    gs.currModifier = 0
+                    gs.trob.type = -1
+                    ext.playSound(Snd.GATE_CLOSING_FAST)
+                }
+            } else {
+                if (gs.currModifier != 0xFF) {
+                    // 0xFF means permanently open.
+                    gs.currModifier += doorDelta[animType]
+                    if (animType == 0) {
+                        // closing
+                        if (gs.currModifier != 0) {
+                            if (gs.currModifier < 188) {
+                                if ((gs.currModifier and 3) == 3) {
+                                    playDoorSoundIfVisible(Snd.GATE_CLOSING)
+                                }
+                            }
+                        } else {
+                            gateStop()
+                        }
+                    } else {
+                        // opening
+                        if (gs.currModifier < 188) {
+                            if ((gs.currModifier and 7) == 0) {
+                                ext.playSound(Snd.GATE_OPENING)
+                            }
+                        } else {
+                            // stop
+                            if (animType < 2) {
+                                // after regular open
+                                gs.currModifier = 238
+                                gs.trob.type = 0 // closing
+                                ext.playSound(Snd.GATE_STOP)
+                            } else {
+                                // after permanent open
+                                gs.currModifier = 0xFF // keep open
+                                gateStop()
+                            }
+                        }
+                    }
+                } else {
+                    gateStop()
+                }
+            }
+        }
+        drawTrob()
     }
 
+    // seg007:05E3
+    fun gateStop() {
+        gs.trob.type = -1
+        playDoorSoundIfVisible(Snd.GATE_STOP)
+    }
+
+    // seg007:05F1
     fun animateLeveldoor() {
-        throw NotImplementedError("animate_leveldoor (seg007 Phase 12a.3)")
+        /*
+        Possible values of trob_type:
+        0: open
+        1: open (with button)
+        2: open
+        3,4,5,6: fast closing with speeds 0,5,17,99 pixel/frame
+        */
+        val trobType = gs.trob.type
+        if (gs.trob.type >= 0) {
+            if (trobType >= 3) {
+                // closing
+                gs.trob.type++
+                gs.currModifier -= leveldoorCloseSpeeds[gs.trob.type - 3]
+                if (gs.currModifier.toByte().toInt() < 0) {
+                    gs.currModifier = 0
+                    gs.trob.type = -1
+                    ext.playSound(Snd.LEVELDOOR_CLOSING)
+                } else {
+                    if (gs.trob.type == 4 &&
+                        (gs.soundFlags and SF.DIGI) != 0
+                    ) {
+                        gs.soundInterruptible[Snd.LEVELDOOR_SLIDING] = 1
+                        ext.playSound(Snd.LEVELDOOR_SLIDING)
+                    }
+                }
+            } else {
+                // opening
+                gs.currModifier++
+                if (gs.currModifier >= 43) {
+                    gs.trob.type = -1
+                    if (!(gs.fixes.fixFeatherInterruptedByLeveldoor != 0 && gs.isFeatherFall != 0)) {
+                        ext.stopSounds()
+                    }
+                    if (gs.leveldoorOpen == 0 || gs.leveldoorOpen == 2) {
+                        gs.leveldoorOpen = 1
+                        if (gs.currentLevel == gs.custom.mirrorLevel) {
+                            // Special event: place mirror
+                            Seg006.getTile(gs.custom.mirrorRoom, gs.custom.mirrorColumn, gs.custom.mirrorRow)
+                            gs.currRoomTiles[gs.currTilepos] = gs.custom.mirrorTile
+                        }
+                    }
+                } else {
+                    gs.soundInterruptible[Snd.LEVELDOOR_SLIDING] = 0
+                    ext.playSound(Snd.LEVELDOOR_SLIDING)
+                }
+            }
+        }
+        setRedrawAnimRight()
+    }
+
+    // seg007:1669
+    fun playDoorSoundIfVisible(soundId: Int) {
+        val tilepos = gs.trob.tilepos
+        val gateRoom = gs.trob.room
+        var hasSound = 0
+
+        val hasSoundCondition = if (gs.fixes.fixGateSounds != 0) {
+            (gateRoom == gs.roomL && tilepos % 10 == 9) ||
+                    (gateRoom == gs.drawnRoom && tilepos % 10 != 9)
+        } else {
+            if (gateRoom == gs.roomL) tilepos % 10 == 9
+            else (gateRoom == gs.drawnRoom && tilepos % 10 != 9)
+        }
+
+        // Special event: sound of closing gates
+        if ((gs.currentLevel == 3 && gateRoom == 2) || hasSoundCondition) {
+            hasSound = 1
+        }
+        if (hasSound != 0) {
+            ext.playSound(soundId)
+        }
     }
 
     fun animateLoose() {
