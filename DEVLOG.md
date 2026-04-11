@@ -2,6 +2,21 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-11 — Step 12a.3: Gate/leveldoor animation, play_door_sound_if_visible
+
+**Mode:** Code | **Outcome:** Complete — 39 new tests pass (519 total)
+**Contract changes:** None
+
+Translated 4 functions into Seg007.kt completing the animate_tile dispatch for gate and level door tiles:
+- `animateDoor` — gate open/close logic with 3 closing modes (normal decrement, regular open→close cycle, permanent open) and fast-close speed tiers (types 3-8 with increasing speeds 20-120)
+- `gateStop` — trob removal with visible-gate sound
+- `animateLeveldoor` — level door open (with mirror placement on level 4) and close (4 speed tiers), FIX_FEATHER_INTERRUPTED_BY_LEVELDOOR support
+- `playDoorSoundIfVisible` — visibility-based gate sound with FIX_GATE_SOUNDS support for drawn room and left-adjacent room column-9 edge cases, plus special level 3 room 2 event
+
+Added helper data arrays: `doorDelta`, `gateCloseSpeeds`, `leveldoorCloseSpeeds`.
+
+Test note: fixed shared-state leak where `@BeforeTest` was filling `soundInterruptible` with zeros, which corrupted the initial default values that `TypesTest` validates. Changed to targeted reset of only the entries modified by tests.
+
 ### 2026-04-11 — Step 12a.2: Animated-tile state machines, trob lifecycle, trigger plumbing
 
 **Mode:** Code | **Outcome:** Complete — 31 new tests pass (482 total)

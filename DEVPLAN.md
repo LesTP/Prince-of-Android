@@ -37,8 +37,8 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
 **Phase:** 12a — Trob core, redraw helpers, trap/button animation.
-**Next:** Step 12a.3 — translate trigger/gate plumbing (animate_door, animate_leveldoor, gate_stop, play_door_sound_if_visible)
-**Blocked/Broken:** None. Fresh `gradle test` passed on 2026-04-11.
+**Next:** Phase 12a review — all 3 steps complete, ready for phase review.
+**Blocked/Broken:** None. Fresh `gradle test` passed (519 tests, 0 failures) on 2026-04-11.
 
 ## Phase Summary
 
@@ -85,7 +85,7 @@ One-line: Planned Phase 12a for trob bookkeeping, redraw helpers, and the first 
 **Steps:**
 - [x] **12a.1** Create `Seg007.kt` scaffold and translate trob-loop infrastructure: `process_trobs`, `animate_tile`, drawn-room position helpers, redraw helpers (`set_redraw_*`, `set_wipe`, `clear_tile_wipes`), `get_curr_tile`, `bubble_next_frame`, `get_torch_frame`. Add focused tests for room-relative tile mapping and redraw-array writes.
 - [x] **12a.2** Translate basic animated-tile and trob lifecycle functions: torch/potion/sword/chomper/spike/button/empty animation, animation starters, `add_trob`, `find_trob`, `died_on_button`, `start_level_door`, `is_spike_harmful`, doorlink accessors, `trigger_gate`, `trigger_1`, `do_trigger_list`, `trigger_button`, `start_chompers`, `next_chomper_timing`, `make_loose_fall`, `loose_make_shake`, `do_knock`, `remove_loose`, `add_mob`. Wired 5 ExternalStubs entries (startChompers, triggerButton, makeLooseFall, startAnimSpike, isSpikePowerful, diedOnButton). 31 new tests, 482 total pass.
-- [ ] **12a.3** Translate gate/leveldoor animation that completes the animate_tile dispatch: `animate_door`, `gate_stop`, `play_door_sound_if_visible`, `animate_leveldoor`. Add tests for opener/closer semantics, gate speed tiers, and visible-gate sound behavior.
+- [x] **12a.3** Translate gate/leveldoor animation that completes the animate_tile dispatch: `animate_door`, `gate_stop`, `play_door_sound_if_visible`, `animate_leveldoor`. 39 new tests (70 total in Seg007Test), 519 total pass.
 
 **Exit criteria:** `Seg007.kt` exists, the phase 12a functions compile against current module boundaries, `ExternalStubs` no longer throws for the seg007 trap hooks completed in this phase, and targeted tests cover redraw indexing plus button/gate state transitions.
 
