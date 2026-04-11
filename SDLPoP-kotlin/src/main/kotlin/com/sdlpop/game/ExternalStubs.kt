@@ -25,11 +25,11 @@ object ExternalStubs {
     }
 
     // --- seg007 (traps, triggers, animated tiles) ---
-    var startChompers: () -> Unit = { throw NotImplementedError("start_chompers (seg007)") }
-    var triggerButton: (Int, Int, Int) -> Unit = { _, _, _ -> throw NotImplementedError("trigger_button (seg007)") }
-    var makeLooseFall: (Int) -> Unit = { _ -> throw NotImplementedError("make_loose_fall (seg007)") }
-    var startAnimSpike: (Int, Int) -> Unit = { _, _ -> throw NotImplementedError("start_anim_spike (seg007)") }
-    var isSpikePowerful: () -> Int = { throw NotImplementedError("is_spike_harmful (seg007)") }
+    var startChompers: () -> Unit = { Seg007.startChompers() }
+    var triggerButton: (Int, Int, Int) -> Unit = { playsound, buttonType, modifier -> Seg007.triggerButton(playsound, buttonType, modifier) }
+    var makeLooseFall: (Int) -> Unit = { modifier -> Seg007.makeLooseFall(modifier) }
+    var startAnimSpike: (Int, Int) -> Unit = { room, tilepos -> Seg007.startAnimSpike(room, tilepos) }
+    var isSpikePowerful: () -> Int = { Seg007.isSpikeHarmful() }
 
     // --- seg002 (guard AI) ---
     var autocontrolOpponent: () -> Unit = { Seg002.autocontrolOpponent() }
@@ -77,7 +77,7 @@ object ExternalStubs {
     var loadGame: () -> Int = { throw NotImplementedError("load_game (seg000)") }
     var keyTestQuit: () -> Int = { 0 }
     var doPaused: () -> Int = { 0 }
-    var diedOnButton: () -> Unit = { throw NotImplementedError("died_on_button (seg003)") }
+    var diedOnButton: () -> Unit = { Seg007.diedOnButton() }
 
     // --- replay ---
     var addReplayMove: () -> Unit = { /* replay stub */ }

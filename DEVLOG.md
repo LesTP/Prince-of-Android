@@ -2,6 +2,26 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-11 — Step 12a.2: Animated-tile state machines, trob lifecycle, trigger plumbing
+
+**Mode:** Code | **Outcome:** Complete — 31 new tests pass (482 total)
+**Contract changes:** None
+
+Translated 30+ functions into Seg007.kt:
+- Animated-tile state machines: `animateTorch`, `animatePotion`, `animateSword`, `animateChomper`, `animateSpike`, `animateButton`, `animateEmpty`
+- Animation starters: `startAnimTorch`, `startAnimPotion`, `startAnimSword`, `startAnimChomper`, `startAnimSpike`
+- Trob lifecycle: `addTrob`, `findTrob`
+- Doorlink accessors: `getDoorlinkTimer`, `setDoorlinkTimer`, `getDoorlinkTile`, `getDoorlinkNext`, `getDoorlinkRoom`
+- Trigger plumbing: `triggerButton`, `trigger1`, `doTriggerList`, `triggerGate`, `diedOnButton`
+- Chomper timing: `startChompers`, `nextChomperTiming`
+- Loose floor helpers: `makeLooseFall`, `looseMakeShake`, `doKnock`, `removeLoose`
+- Mob lifecycle: `addMob`
+- Entry points: `startLevelDoor`, `isSpikeHarmful`
+
+Wired 6 ExternalStubs entries: `startChompers`, `triggerButton`, `makeLooseFall`, `startAnimSpike`, `isSpikePowerful` (→ `isSpikeHarmful`), `diedOnButton`.
+
+Scope note: doorlink accessors and trigger plumbing were pulled into 12a.2 (originally scoped for 12a.3) because they are tightly coupled with `animateButton` and `triggerButton`. Phase 12a.3 is now focused solely on `animateDoor`/`animateLeveldoor` gate animation.
+
 ### 2026-04-11 — Step 12a.1: Seg007 scaffold, trob loop, redraw helpers
 
 **Mode:** Code | **Outcome:** Complete — 10 new tests pass (461 total)
