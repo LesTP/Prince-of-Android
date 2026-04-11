@@ -37,8 +37,8 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
 **Phase:** 12a — Trob core, redraw helpers, trap/button animation.
-**Next:** Step 12a.1 — create `Seg007.kt` scaffold with trob loop, room-position helpers, redraw arrays, and basic helper functions
-**Blocked/Broken:** Fresh Gradle verification is blocked in this container by `Failed to load native library 'libnative-platform.so' for Linux aarch64`.
+**Next:** Step 12a.2 — translate basic animated-tile and trob lifecycle functions
+**Blocked/Broken:** None. Fresh `gradle test` passed on 2026-04-11.
 
 ## Phase Summary
 
@@ -83,7 +83,7 @@ One-line: Planned Phase 12a for trob bookkeeping, redraw helpers, and the first 
 **Scope:** `process_trobs()`/`animate_tile()` dispatch, drawn-room coordinate helpers, redraw/wipe helpers, tile animation starters, trob add/find lifecycle, button/doorlink trigger plumbing, and the seg006-facing trap hooks (`start_anim_spike`, `trigger_button`, `start_chompers`, `make_loose_fall`, `is_spike_harmful`) where they fall inside this slice.
 
 **Steps:**
-- [ ] **12a.1** Create `Seg007.kt` scaffold and translate trob-loop infrastructure: `process_trobs`, `animate_tile`, drawn-room position helpers, redraw helpers (`set_redraw_*`, `set_wipe`, `clear_tile_wipes`), `get_curr_tile`, `bubble_next_frame`, `get_torch_frame`. Add focused tests for room-relative tile mapping and redraw-array writes.
+- [x] **12a.1** Create `Seg007.kt` scaffold and translate trob-loop infrastructure: `process_trobs`, `animate_tile`, drawn-room position helpers, redraw helpers (`set_redraw_*`, `set_wipe`, `clear_tile_wipes`), `get_curr_tile`, `bubble_next_frame`, `get_torch_frame`. Add focused tests for room-relative tile mapping and redraw-array writes.
 - [ ] **12a.2** Translate basic animated-tile and trob lifecycle functions: torch/potion/sword/chomper/spike/button animation, animation starters, `add_trob`, `find_trob`, `died_on_button`, `start_level_door`, `is_spike_harmful`. Wire any completed seg007 entries in `ExternalStubs.kt`. Add tests for frame/modifier progression and trob de-duplication.
 - [ ] **12a.3** Translate trigger/gate plumbing that keeps trap/button flows coherent: doorlink accessors, `trigger_gate`, `trigger_1`, `do_trigger_list`, `trigger_button`, `animate_door`, `gate_stop`, `play_door_sound_if_visible`, and `animate_leveldoor` if it compiles cleanly against existing stubs. Add tests for opener/closer semantics, timer updates, and visible-gate sound behavior.
 

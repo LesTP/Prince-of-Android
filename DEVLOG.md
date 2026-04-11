@@ -2,6 +2,17 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-11 — Step 12a.1: Seg007 scaffold, trob loop, redraw helpers
+
+**Mode:** Code | **Outcome:** Complete — 10 new tests pass (461 total)
+**Contract changes:** None
+
+Created `Seg007.kt` with the Phase 12a.1 scaffold and direct translations for the shared trob-processing loop, `animate_tile` dispatch, drawn-room trob coordinate helpers, redraw/wipe array writers, `clear_tile_wipes`, `get_curr_tile`, `bubble_next_frame`, and `get_torch_frame`.
+
+Added `Seg007Test.kt` coverage for current/adjacent-room tile mapping, negative above-room redraw indexing, redraw/wipe bookkeeping, tile type masking, deletion of unsupported trob entries, and bubble frame wraparound. The animated-tile handlers that belong to later steps are present as explicit `NotImplementedError` placeholders, so the scaffold compiles while preserving the planned 12a.2/12a.3 boundaries.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg007Test` passed, then full `gradle test` passed.
+
 ### 2026-04-10 — Phase 12a Plan: Trob core, redraw helpers, trap/button animation
 
 **Mode:** Discuss | **Outcome:** Phase planned
