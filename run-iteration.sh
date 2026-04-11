@@ -3,13 +3,15 @@
 # Called by the orchestrator (TG bot session) or standalone.
 #
 # Usage:
-#   ./run-iteration.sh                  # single iteration, auto-numbering
-#   ./run-iteration.sh -n 5             # run up to 5 iterations (stops on ESCALATE)
-#   ./run-iteration.sh -n 5 --start 3   # start from iteration 3, run up to 5
+#   ./run-iteration.sh                       # single iteration, Claude backend
+#   ./run-iteration.sh --backend codex       # single iteration, Codex backend
+#   ./run-iteration.sh -n 5                  # run up to 5 iterations (stops on ESCALATE)
+#   ./run-iteration.sh -n 5 --start 3        # start from iteration 3
+#   ./run-iteration.sh --backend codex -n 3  # 3 Codex iterations
 #
 # Output:
-#   logs/loop/iteration_NNN.jsonl  — full stream-json transcript (tool calls, results, costs)
-#   logs/loop/iteration_NNN.txt    — human-readable summary extracted from jsonl
+#   logs/loop/iteration_NNN.jsonl  — full stream-json transcript (Claude) or JSONL (Codex)
+#   logs/loop/iteration_NNN.txt    — human-readable summary
 #   logs/loop/summary.log          — one line per iteration
 #
 # Exit: 0=all CONTINUE, 1=ESCALATE, 2=NO_SIGNAL/ERROR
@@ -25,14 +27,22 @@ SUMMARY_FILE="$LOG_DIR/summary.log"
 # Parse arguments
 MAX_ITERATIONS=1
 START_ITER=""
+BACKEND="claude"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -n|--iterations) MAX_ITERATIONS="$2"; shift 2 ;;
     --start)         START_ITER="$2"; shift 2 ;;
+    --backend)       BACKEND="$2"; shift 2 ;;
     *)               echo "Unknown option: $1"; exit 2 ;;
   esac
 done
+
+# Validate backend
+case $BACKEND in
+  claude|codex) ;;
+  *) echo "Unknown backend: $BACKEND (must be claude or codex)"; exit 2 ;;
+esac
 
 # Auto-determine start iteration from summary log
 if [[ -z "$START_ITER" ]]; then
@@ -44,9 +54,23 @@ if [[ -z "$START_ITER" ]]; then
   fi
 fi
 
-PROMPT='Read CLAUDE.md. Determine current state from the project documents. Execute one iteration of the autonomous loop defined in CLAUDE.md under Automation. Use the project slash commands (/phase-plan, /step-done, /phase-review, /phase-complete) as appropriate for the current loop state. Then exit. Your final output MUST end with exactly two lines:
+# Backend-neutral prompt — references the adapter file by backend name
+case $BACKEND in
+  claude) ADAPTER_FILE="CLAUDE.md" ;;
+  codex)  ADAPTER_FILE="CODEX.md" ;;
+esac
+
+PROMPT="You are a stateless worker in an autonomous software development loop.
+
+Read ${ADAPTER_FILE} in the current directory. It will instruct you to read WORKER_SPEC.md and project documents. Follow those instructions.
+
+Determine current state from DEVPLAN.md. Execute exactly one action per the Worker Spec.
+
+Your final output MUST end with exactly these four lines — no text after:
 LOOP_SIGNAL: CONTINUE | ESCALATE
-REASON: [one line — what was done or why stopping]'
+REASON: <one line — what was done or why stopping>
+ACTION_TYPE: PHASE_PLAN | STEP | REVIEW | COMPLETE
+ACTION_ID: <module.phase.step>"
 
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIR"
@@ -60,43 +84,94 @@ while [[ $ITER -le $END_ITER ]]; do
   JSONL_FILE="$LOG_DIR/iteration_${ITER_PAD}.jsonl"
   TXT_FILE="$LOG_DIR/iteration_${ITER_PAD}.txt"
   META_FILE="$LOG_DIR/.iteration_meta.tmp"
+  LAST_MSG_FILE="$LOG_DIR/.last_message.tmp"
 
-  echo "=== Iteration $ITER — $(date -Iseconds) ==="
+  echo "=== Iteration $ITER ($BACKEND) — $(date -Iseconds) ==="
 
-  # Run one iteration with full stream-json logging.
-  claude -p "$PROMPT" \
-    --dangerously-skip-permissions \
-    --model opus \
-    --max-budget-usd 10.00 \
-    --output-format stream-json \
-    --verbose \
-    2>&1 > "$JSONL_FILE"
+  case $BACKEND in
+    claude)
+      claude -p "$PROMPT" \
+        --dangerously-skip-permissions \
+        --model opus \
+        --max-budget-usd 10.00 \
+        --output-format stream-json \
+        --verbose \
+        2>&1 > "$JSONL_FILE"
+      EXIT_CODE=$?
 
-  EXIT_CODE=$?
+      # Parse jsonl: generate human-readable transcript + extract metadata
+      python3 "$PROJECT_DIR/tools/parse_jsonl.py" --meta "$META_FILE" < "$JSONL_FILE" > "$TXT_FILE"
 
-  # Parse jsonl: generate human-readable transcript + extract metadata
-  python3 "$PROJECT_DIR/tools/parse_jsonl.py" --meta "$META_FILE" < "$JSONL_FILE" > "$TXT_FILE"
+      # Read metadata
+      COST="" ; TURNS="" ; DURATION=""
+      if [[ -f "$META_FILE" ]]; then
+        COST=$(grep '^COST=' "$META_FILE" | cut -d= -f2)
+        TURNS=$(grep '^TURNS=' "$META_FILE" | cut -d= -f2)
+        DURATION=$(grep '^DURATION=' "$META_FILE" | cut -d= -f2)
+        RESULT_TEXT=$(grep '^RESULT_TEXT=' "$META_FILE" | cut -d= -f2- | python3 -c "import sys,json; print(json.loads(sys.stdin.read()))" 2>/dev/null || echo "")
+        rm -f "$META_FILE"
+      fi
+      ;;
 
-  # Read metadata
-  COST="" ; TURNS="" ; DURATION="" ; RESULT_TEXT=""
-  if [[ -f "$META_FILE" ]]; then
-    COST=$(grep '^COST=' "$META_FILE" | cut -d= -f2)
-    TURNS=$(grep '^TURNS=' "$META_FILE" | cut -d= -f2)
-    DURATION=$(grep '^DURATION=' "$META_FILE" | cut -d= -f2)
-    RESULT_TEXT=$(grep '^RESULT_TEXT=' "$META_FILE" | cut -d= -f2- | python3 -c "import sys,json; print(json.loads(sys.stdin.read()))" 2>/dev/null || echo "")
-    rm -f "$META_FILE"
-  fi
+    codex)
+      START_TIME=$(date +%s)
 
-  # Extract signal from result text
+      codex exec "$PROMPT" \
+        --dangerously-bypass-approvals-and-sandbox \
+        -o "$LAST_MSG_FILE" \
+        --json \
+        2>&1 > "$JSONL_FILE"
+      EXIT_CODE=$?
+
+      END_TIME=$(date +%s)
+      DURATION=$(( END_TIME - START_TIME ))s
+
+      # Extract last message as the result text
+      RESULT_TEXT=""
+      if [[ -f "$LAST_MSG_FILE" ]]; then
+        RESULT_TEXT=$(cat "$LAST_MSG_FILE")
+        rm -f "$LAST_MSG_FILE"
+      fi
+
+      # Generate human-readable transcript from JSONL
+      # Codex --json outputs JSONL events; extract assistant messages
+      if [[ -f "$JSONL_FILE" ]]; then
+        python3 -c "
+import sys, json
+for line in sys.stdin:
+    line = line.strip()
+    if not line: continue
+    try:
+        ev = json.loads(line)
+        t = ev.get('type','')
+        if t == 'message' and ev.get('role') == 'assistant':
+            print('ASSISTANT:', ev.get('content',''))
+        elif t == 'tool_call':
+            print('TOOL CALL:', ev.get('name',''), ev.get('arguments',''))
+        elif t == 'tool_result':
+            print('  -> Result:', str(ev.get('output',''))[:200])
+    except: pass
+" < "$JSONL_FILE" > "$TXT_FILE"
+      fi
+
+      COST="n/a"
+      TURNS=$(grep -c '"type":"item.completed"' "$JSONL_FILE" 2>/dev/null || echo "0")
+      ;;
+  esac
+
+  # Extract signal fields from result text (works for both backends)
   SIGNAL=$(echo "$RESULT_TEXT" | grep -oP 'LOOP_SIGNAL: \K\w+' || echo "")
   REASON=$(echo "$RESULT_TEXT" | grep -oP 'REASON: \K.+' || echo "")
+  ACTION_TYPE=$(echo "$RESULT_TEXT" | grep -oP 'ACTION_TYPE: \K\w+' || echo "")
+  ACTION_ID=$(echo "$RESULT_TEXT" | grep -oP 'ACTION_ID: \K\S+' || echo "")
 
   # Write summary line
   TIMESTAMP=$(date -Iseconds)
-  echo "$TIMESTAMP | iter=$ITER | signal=$SIGNAL | exit=$EXIT_CODE | cost=\$$COST | turns=$TURNS | duration=$DURATION | reason=$REASON" >> "$SUMMARY_FILE"
+  echo "$TIMESTAMP | iter=$ITER | backend=$BACKEND | signal=$SIGNAL | exit=$EXIT_CODE | cost=\$$COST | turns=$TURNS | duration=$DURATION | action=$ACTION_TYPE | id=$ACTION_ID | reason=$REASON" >> "$SUMMARY_FILE"
 
   # Print summary to stdout for orchestrator
-  echo "Signal=$SIGNAL | Cost=\$$COST | Turns=$TURNS | Duration=$DURATION"
+  echo "Backend=$BACKEND | Signal=$SIGNAL | Cost=\$$COST | Turns=$TURNS | Duration=$DURATION"
+  echo "Action: $ACTION_TYPE ($ACTION_ID)"
   echo "Reason: $REASON"
 
   # Decide whether to continue
@@ -114,5 +189,6 @@ while [[ $ITER -le $END_ITER ]]; do
   ITER=$(( ITER + 1 ))
 done
 
-echo "=== Stopped after iteration $ITER ==="
+LAST_ITER=$(( ITER - 1 ))
+echo "=== Stopped after iteration $LAST_ITER ==="
 exit $FINAL_EXIT
