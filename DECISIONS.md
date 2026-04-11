@@ -27,3 +27,10 @@ Priority: Important
 Decision: Start Module 12 with a phase centered on trob bookkeeping, redraw helpers, and the trap/button entry points already referenced by translated modules (`start_anim_spike`, `trigger_button`, `make_loose_fall`, `start_chompers`, `is_spike_harmful`). Defer loose-floor mob simulation and object-table/drawing code to later phases.
 Rationale: `seg007.c` mixes three concerns: animated tile state machines, trigger/gate plumbing, and falling-object simulation. Front-loading the shared trob pipeline and seg006-facing trap hooks reduces active `ExternalStubs` early and creates a tighter first validation slice. The deferred mob code touches room transitions, object tables, and rendering-oriented redraw paths, which is a broader surface better handled after the tile/trigger core is in place.
 Revisit if: Translating `animate_leveldoor` or trigger plumbing proves inseparable from the deferred loose-floor/mob functions, or if replay integration shows the trap hooks must land atomically with mob behavior.
+
+D-5: Phase 12a review outcome for Module 12 seg007
+Date: 2026-04-11 | Status: Closed
+Priority: Important
+Decision: Accept Phase 12a (trob core, redraw helpers, trap/button animation, gate animation, and level-door animation) as meeting the Layer 1 contract and phase acceptance criteria. No must-fix or should-fix findings were identified.
+Rationale: Review compared the translated Kotlin slice against `SDLPoP/src/seg007.c`, confirmed the completed functions remain deterministic game logic with no platform or I/O coupling, and verified that completed seg007 trap hooks in `ExternalStubs` delegate to real `Seg007` implementations. A fresh `gradle test` run passed with 519 tests and 0 failures on 2026-04-11.
+Revisit if: Later seg007 loose-floor/mob phases or Module 13 replay integration expose a behavioral divergence in the Phase 12a paths.

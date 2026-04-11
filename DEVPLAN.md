@@ -37,7 +37,7 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
 **Phase:** 12a — Trob core, redraw helpers, trap/button animation.
-**Next:** Phase 12a review — all 3 steps complete, ready for phase review.
+**Next:** Phase 12a complete — review passed with no must-fix or should-fix findings.
 **Blocked/Broken:** None. Fresh `gradle test` passed (519 tests, 0 failures) on 2026-04-11.
 
 ## Phase Summary

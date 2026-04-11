@@ -2,6 +2,20 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-11 — Phase 12a Review
+
+**Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings
+**Contract changes:** None
+
+Reviewed the Phase 12a `Seg007.kt` implementation against the Layer 1 contract and the corresponding `seg007.c` source slice. The translated trob loop, redraw helpers, animated tile state machines, doorlink/button trigger plumbing, seg006-facing trap hooks, gate animation, and level-door animation remain pure game logic with no platform, I/O, or Android coupling. `ExternalStubs` now delegates the completed seg007 trap hooks to real implementations as intended.
+
+Review findings:
+- Must fix: none
+- Should fix: none
+- Optional: none applied
+
+Verification: fresh `gradle test` passed in `SDLPoP-kotlin` (519 tests, 0 failures).
+
 ### 2026-04-11 — Step 12a.3: Gate/leveldoor animation, play_door_sound_if_visible
 
 **Mode:** Code | **Outcome:** Complete — 39 new tests pass (519 total)
