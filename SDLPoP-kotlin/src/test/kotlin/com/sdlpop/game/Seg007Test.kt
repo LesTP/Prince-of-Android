@@ -97,6 +97,8 @@ class Seg007Test {
         gs.soundFlags = 0
         gs.lastLooseSound = 0
         gs.seedWasInit = 1
+        gs.replaying = 0
+        gs.gDeprecationNumber = 2
         // Reset only the entries that tests may modify (preserve initial defaults)
         gs.soundInterruptible[SoundIds.LEVELDOOR_SLIDING] = 0
         lastPlayedSound = -1
@@ -118,6 +120,8 @@ class Seg007Test {
     @AfterTest
     fun restoreGlobalDefaults() {
         gs.seedWasInit = 0
+        gs.replaying = 0
+        gs.gDeprecationNumber = 0
     }
 
     @Test
@@ -126,6 +130,40 @@ class Seg007Test {
         gs.trob.tilepos = 14
 
         assertEquals(14, seg007.getTrobPosInDrawnRoom())
+    }
+
+    @Test
+    fun looseShake_oldReplaySkipsCompatibilityRngCycle() {
+        gs.currModifier = 1
+        gs.randomSeed = 12345
+        gs.replaying = 1
+        gs.gDeprecationNumber = 1
+
+        seg007.looseShake(0)
+
+        assertEquals(seedAfterCalls(12345, 1), gs.randomSeed)
+        assertTrue(lastPlayedSound in SoundIds.LOOSE_SHAKE_1..SoundIds.LOOSE_SHAKE_3)
+    }
+
+    @Test
+    fun looseShake_currentReplayConsumesCompatibilityRngCycle() {
+        gs.currModifier = 1
+        gs.randomSeed = 12345
+        gs.replaying = 1
+        gs.gDeprecationNumber = 2
+
+        seg007.looseShake(0)
+
+        assertEquals(seedAfterCalls(12345, 2), gs.randomSeed)
+        assertTrue(lastPlayedSound in SoundIds.LOOSE_SHAKE_1..SoundIds.LOOSE_SHAKE_3)
+    }
+
+    private fun seedAfterCalls(seed: Long, calls: Int): Long {
+        var result = seed
+        repeat(calls) {
+            result = (result * 214013 + 2531011) and 0xFFFFFFFFL
+        }
+        return result
     }
 
     @Test

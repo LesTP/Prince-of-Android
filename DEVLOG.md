@@ -2,6 +2,17 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14a.2: Replay input hooks
+
+**Mode:** Code | **Outcome:** Complete — replay move consumption and compatibility behavior covered by tests
+**Contract changes:** `ExternalStubs.doReplayMove` can now be wired to a replay byte consumer; `ReplayRunner.initializeReplayState()` now seeds `savedRandomSeed` as the C replay loader does
+
+Translated the narrow `do_replay_move()` behavior needed by Track A into `ReplayRunner`: an installed replay move hook decodes each packed `.P1R` move byte into signed x/y controls, shift state, and special move bits, applies validate-mode seek/skipping state on tick 0, restores the saved RNG seed, advances `currTick` only while `currentLevel == nextLevel`, handles restart/effect-end special moves, and marks replay completion at the tick limit.
+
+Fixed the seg007 loose-floor RNG compatibility branch for old replay files: when replaying with `gDeprecationNumber < 2`, `looseShake()` now skips the extra DOS-compatibility RNG cycle, matching the C `g_deprecation_number` guard. Added focused tests for move decoding, `ExternalStubs.doReplayMove` tick advancement, validate-mode seek state, end-of-replay handling, shift suppression while dead, and both old/current replay RNG paths.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin`.
+
 ### 2026-04-15 — Step 14a.1: Replay manifest and initialization
 
 **Mode:** Code | **Outcome:** Complete — replay source resolution and metadata initialization covered by tests

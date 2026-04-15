@@ -1200,7 +1200,9 @@ object Seg007 {
                 soundId = Seg002.prandom(2) + Snd.LOOSE_SHAKE_1
             } while (soundId == gs.lastLooseSound)
 
-            Seg002.prandom(2) // DOS compatibility: waste one RNG cycle.
+            if (!(gs.replaying != 0 && gs.gDeprecationNumber < 2)) {
+                Seg002.prandom(2) // DOS compatibility: waste one RNG cycle.
+            }
 
             if ((gs.soundFlags and SF.DIGI) != 0) {
                 gs.lastLooseSound = soundId
