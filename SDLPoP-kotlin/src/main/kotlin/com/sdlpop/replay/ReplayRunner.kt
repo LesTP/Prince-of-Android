@@ -155,6 +155,8 @@ object ReplayRunner {
         state: GameState = GameState,
     ): Path {
         val input = loadManifestReplay(manifestEntry, replayRoot)
+        resetTraceRunState(state)
+        ExternalStubs.preserveRoomBufferMutations = true
         initializeReplayState(input.replay, state)
         restoreSavestate(input.replay, state)
         installReplayMoveHook(input.replay, state)
@@ -169,6 +171,90 @@ object ReplayRunner {
             }
         }
         return outputPath
+    }
+
+    fun resetTraceRunState(state: GameState = GameState) {
+        state.Kid = CharType()
+        state.Guard = CharType()
+        state.Char = CharType()
+        state.Opp = CharType()
+
+        state.currentLevel = -1
+        state.drawnRoom = 0
+        state.loadedRoom = 0
+        state.nextRoom = 0
+        state.nextLevel = 0
+        state.currRoom = 0
+        state.differentRoom = 0
+        state.roomL = 0
+        state.roomR = 0
+        state.roomA = 0
+        state.roomB = 0
+        state.roomBR = 0
+        state.roomBL = 0
+        state.roomAR = 0
+        state.roomAL = 0
+        state.currRoomTiles.fill(0)
+        state.currRoomModif.fill(0)
+
+        state.hitpCurr = 0
+        state.hitpMax = 0
+        state.hitpDelta = 0
+        state.guardhpCurr = 0
+        state.guardhpMax = 0
+        state.guardhpDelta = 0
+        state.remMin = 0
+        state.remTick = 0
+        state.canGuardSeeKid = 0
+        state.isGuardNotice = 0
+        state.guardNoticeTimer = 0
+        state.knock = 0
+        state.justblocked = 0
+        state.offguard = 0
+        state.currentSound = 0
+        state.nextSound = 0
+        state.roomleaveResult = 0
+        state.exitRoomTimer = 0
+        state.isRestartLevel = 0
+        state.isShowTime = 0
+        state.textTimeRemaining = 0
+        state.textTimeTotal = 0
+        state.needLevel1Music = 0
+        state.isFeatherFall = 0
+        state.resurrectTime = 0
+        state.seamless = 0
+        state.seedWasInit = 0
+        state.randomSeed = 0
+        state.savedRandomSeed = 0
+        state.preservedSeed = 0
+        state.keepLastSeed = 0
+        state.recording = 0
+        state.replaying = 0
+        state.numReplayTicks = 0
+        state.specialMove = 0
+        state.skippingReplay = 0
+        state.replaySeekTarget = 0
+        state.isValidateMode = 0
+        state.currTick = 0
+
+        state.currRowCollRoom.fill(0)
+        state.currRowCollFlags.fill(0)
+        state.belowRowCollRoom.fill(0)
+        state.belowRowCollFlags.fill(0)
+        state.aboveRowCollRoom.fill(0)
+        state.aboveRowCollFlags.fill(0)
+        state.prevCollRoom.fill(0)
+        state.prevCollFlags.fill(0)
+        state.prevCollisionRow = 0
+        state.wipeFrames.fill(0)
+        state.wipeHeights.fill(0)
+        state.redrawFramesAnim.fill(0)
+        state.redrawFrames2.fill(0)
+        state.redrawFramesFloorOverlay.fill(0)
+        state.redrawFramesFull.fill(0)
+        state.redrawFramesFore.fill(0)
+        state.tileObjectRedraw.fill(0)
+        state.redrawFramesAbove.fill(0)
     }
 
     fun doReplayMove(state: GameState = GameState) {

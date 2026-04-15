@@ -2,6 +2,26 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14b.3: Real-trace regression closure
+
+**Mode:** Code | **Outcome:** Escalated — two targeted fixes applied, replay regression still blocked at the Module 15 boundary
+**Contract changes:** None.
+
+Reran `gradle test layer1ReplayRegression --rerun-tasks --no-daemon` against the real Kotlin trace producer. Applied the two targeted fixes allowed by Phase 14b: the trace runner now resets singleton lifecycle state before each manifest replay, and replay trace production enables a C-like current-room buffer mode where in-frame `curr_room_tiles[]`/`curr_room_modif[]` mutations are preserved across same-room `getRoomAddress()` calls and synced back to `level.fg[]`/`level.bg[]` on room changes. The room-buffer behavior is gated to replay production so focused unit tests keep their existing fixture reload semantics.
+
+Focused verification passed with `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`. The full command runs the ordinary Kotlin suite successfully, then fails in the dedicated `layer1ReplayRegression` task. The fixes eliminated the systematic stale `drawn_room=16` first-frame contamination and produced one exact replay match (`original_level12_xpos_glitch`), but the 13-trace workflow still does not close:
+
+- `basic_movement`: frame 270, field `random_seed`, expected `1431214705`, actual `2786909894`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/basic_movement.trace`.
+- `demo_suave_prince_level11`: frame 29, field `Kid.frame`, expected `16`, actual `1`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/demo_suave_prince_level11.trace`.
+- `falling`: frame 26, field `random_seed`, expected `2017826505`, actual `2448654334`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/falling.trace`.
+- `falling_through_floor_pr274`: frame 0, field `curr_room_modif[17]`, expected `6`, actual `4`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/falling_through_floor_pr274.trace`.
+- `grab_bug_pr288`: frame 11, field `curr_room_tiles[2]`, expected `0`, actual `47`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/grab_bug_pr288.trace`.
+- `grab_bug_pr289`: frame 16, field `Kid.frame`, expected `91`, actual `102`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/grab_bug_pr289.trace`.
+- `original_level2_falling_into_wall`: frame 67, field `guardhp_curr`, expected `0`, actual `3`, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/original_level2_falling_into_wall.trace`.
+- `original_level5_shadow_into_wall`: frames 0-47 match, then trace generation throws `NotImplementedError: do_pickup (seg003)` while producing frame 48; expected frame count is 175 and actual partial frame count is 48, actual trace `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/original_level5_shadow_into_wall.trace`.
+
+Per Phase 14b acceptance, no third targeted fix was attempted. The current stop condition is the unimplemented `seg003::do_pickup` path plus remaining lifecycle/game-loop divergences, which likely belongs to the Module 15 game-loop/seg003 boundary rather than more Module 14 replay plumbing.
+
 ### 2026-04-15 — Step 14b.2: Minimal lifecycle shim
 
 **Mode:** Code | **Outcome:** Complete — headless non-rendering frame lifecycle shim implemented

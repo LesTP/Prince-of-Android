@@ -15,6 +15,8 @@ package com.sdlpop.game
  * Each is a `var` so the real implementation can be wired in when its module is translated.
  */
 object ExternalStubs {
+    var preserveRoomBufferMutations: Boolean = false
+
     // --- seg005 (player control) ---
     var control: () -> Unit = { Seg005.control() }
     var seqtblOffsetChar: (Int) -> Unit = { seqIndex ->
@@ -46,18 +48,7 @@ object ExternalStubs {
     var spiked: () -> Unit = { Seg005.spiked() }
 
     // --- seg008 (rendering) ---
-    var getRoomAddress: (Int) -> Unit = { room ->
-        // Inline implementation — same as C's get_room_address
-        val gs = GameState
-        gs.loadedRoom = room
-        if (room != 0) {
-            val base = (room - 1) * 30
-            for (i in 0 until 30) {
-                gs.currRoomTiles[i] = gs.level.fg[base + i]
-                gs.currRoomModif[i] = gs.level.bg[base + i]
-            }
-        }
-    }
+    var getRoomAddress: (Int) -> Unit = { room -> loadRoomAddress(room) }
     var setWipe: (Int, Int) -> Unit = { _, _ -> /* rendering stub — no-op for game logic tests */ }
     var setRedrawFull: (Int, Int) -> Unit = { _, _ -> /* rendering stub — no-op for game logic tests */ }
     var drawGuardHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
@@ -91,4 +82,31 @@ object ExternalStubs {
     var addLife: () -> Unit = { throw NotImplementedError("add_life (seg005)") }
     var featherFall: () -> Unit = { throw NotImplementedError("feather_fall (seg005)") }
     var toggleUpside: () -> Unit = { throw NotImplementedError("toggle_upside (seg005)") }
+
+    fun loadRoomAddress(room: Int) {
+        val gs = GameState
+        if (preserveRoomBufferMutations && gs.loadedRoom == room) return
+
+        if (preserveRoomBufferMutations) syncLoadedRoom()
+        gs.loadedRoom = room
+        if (room != 0) {
+            val base = (room - 1) * 30
+            for (i in 0 until 30) {
+                gs.currRoomTiles[i] = gs.level.fg[base + i]
+                gs.currRoomModif[i] = gs.level.bg[base + i]
+            }
+        }
+    }
+
+    fun syncLoadedRoom() {
+        val gs = GameState
+        val room = gs.loadedRoom
+        if (room != 0) {
+            val base = (room - 1) * 30
+            for (i in 0 until 30) {
+                gs.level.fg[base + i] = gs.currRoomTiles[i] and 0xFF
+                gs.level.bg[base + i] = gs.currRoomModif[i] and 0xFF
+            }
+        }
+    }
 }

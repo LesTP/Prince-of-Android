@@ -61,16 +61,20 @@ class ReplayRunnerTest {
         GameState.textTimeRemaining = 0
         GameState.textTimeTotal = 0
         stopSoundsCount = 0
+        ExternalStubs.preserveRoomBufferMutations = false
         ExternalStubs.control = { Seg005.control() }
         ExternalStubs.stopSounds = { stopSoundsCount += 1 }
         ExternalStubs.doReplayMove = { }
+        ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
     }
 
     @AfterTest
     fun restoreStubs() {
         ExternalStubs.control = { Seg005.control() }
+        ExternalStubs.preserveRoomBufferMutations = false
         ExternalStubs.stopSounds = { }
         ExternalStubs.doReplayMove = { }
+        ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
         GameState.Kid = CharType()
         GameState.Guard = CharType()
         GameState.Char = CharType()
@@ -154,6 +158,66 @@ class ReplayRunnerTest {
         assertEquals(replay.formatClass, GameState.replayFormatClass)
         assertEquals(replay.versionNumber, GameState.replayVersionNumber)
         assertEquals(replay.deprecationNumber, GameState.gDeprecationNumber)
+    }
+
+    @Test
+    fun `resetTraceRunState clears singleton lifecycle state before each manifest replay`() {
+        GameState.drawnRoom = 16
+        GameState.loadedRoom = 16
+        GameState.nextRoom = 16
+        GameState.differentRoom = 1
+        GameState.currRoomTiles[0] = 4
+        GameState.currRoomModif[0] = 7
+        GameState.Kid = CharType(room = 16, frame = 99)
+        GameState.Guard = CharType(room = 16, direction = Directions.LEFT)
+        GameState.currTick = 42
+        GameState.replaying = 1
+        GameState.canGuardSeeKid = 2
+        GameState.hitpDelta = 1
+        GameState.guardhpDelta = (-1).toShort()
+        GameState.textTimeRemaining = 24
+
+        ReplayRunner.resetTraceRunState()
+
+        assertEquals(0, GameState.drawnRoom)
+        assertEquals(0, GameState.loadedRoom)
+        assertEquals(0, GameState.nextRoom)
+        assertEquals(0, GameState.differentRoom)
+        assertEquals(0, GameState.currRoomTiles[0])
+        assertEquals(0, GameState.currRoomModif[0])
+        assertEquals(0, GameState.Kid.room)
+        assertEquals(0, GameState.Guard.direction)
+        assertEquals(0, GameState.currTick)
+        assertEquals(0, GameState.replaying)
+        assertEquals(0, GameState.canGuardSeeKid.toInt())
+        assertEquals(0, GameState.hitpDelta.toInt())
+        assertEquals(0, GameState.guardhpDelta.toInt())
+        assertEquals(0, GameState.textTimeRemaining)
+    }
+
+    @Test
+    fun `default getRoomAddress preserves in-frame room mutations across same-room reloads`() {
+        GameState.level.fg[0] = 1
+        GameState.level.bg[0] = 2
+        GameState.level.fg[30] = 3
+        GameState.level.bg[30] = 4
+        ExternalStubs.preserveRoomBufferMutations = true
+
+        ExternalStubs.getRoomAddress(1)
+        GameState.currRoomTiles[0] = 5
+        GameState.currRoomModif[0] = 6
+
+        ExternalStubs.getRoomAddress(1)
+
+        assertEquals(5, GameState.currRoomTiles[0])
+        assertEquals(6, GameState.currRoomModif[0])
+
+        ExternalStubs.getRoomAddress(2)
+
+        assertEquals(5, GameState.level.fg[0])
+        assertEquals(6, GameState.level.bg[0])
+        assertEquals(3, GameState.currRoomTiles[0])
+        assertEquals(4, GameState.currRoomModif[0])
     }
 
     @Test

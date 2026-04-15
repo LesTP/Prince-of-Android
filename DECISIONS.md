@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-15: Phase 14b escalation boundary
+Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Escalate Phase 14b after the two allowed targeted replay fixes instead of translating additional `seg003` behavior or applying a third divergence fix inside Module 14.
+Rationale: Step 14b.3 improved the real trace workflow by resetting singleton state between manifest replays and adding replay-only current-room buffer preservation, but `layer1ReplayRegression` still fails. The clearest hard blocker is `original_level5_shadow_into_wall`, where frames 0-47 match and frame 48 enters `ExternalStubs.doPickup`, an unimplemented `seg003`/Layer 2 path. Additional failures remain in RNG, Kid animation, tile mutation, and guard HP fields. Continuing would expand Module 14 beyond replay plumbing and the pinned non-rendering shim into broader Module 15 game-loop/seg003 behavior.
+Revisit if: Human/orchestrator authorizes continuing Module 14 past the two-fix limit, or if Module 15 explicitly absorbs the remaining `seg003` lifecycle and pickup boundary.
+
 D-14: Phase 14b headless lifecycle boundary
 Date: 2026-04-15 | Status: Open
 Priority: Important
