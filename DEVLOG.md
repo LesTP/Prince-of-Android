@@ -2,6 +2,17 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14b.2: Minimal lifecycle shim
+
+**Mode:** Code | **Outcome:** Complete — headless non-rendering frame lifecycle shim implemented
+**Contract changes:** None.
+
+Extended the Kotlin replay frame-driver boundary to include the deterministic non-rendering lifecycle calls pinned in Step 14b.1: `check_can_guard_see_kid`, `bump_into_opponent`, `check_knock`, `check_sword_vs_sword`, `do_delta_hp`, `check_the_end`, and `show_time`. The Guard subframe now saves through `saveshad()` to match C `play_guard_frame()` rather than the broader `saveshad_and_opp()` helper.
+
+Added `HeadlessFrameLifecycle` in the replay package for the minimal `seg000`/`seg003`/`seg008` behavior needed before trace serialization, including room-link refresh, animated-tile startup for room transitions, loose-floor room-entry handling, HP delta application, guard visibility, bump/knock handling, and timer decrement/text-state semantics. The shim remains headless and does not import SDL, rendering surfaces, audio playback, menus, Android, or full game-loop ownership.
+
+Focused replay tests now pin the expanded call order, Kid subframe bump/knock boundaries, C-equivalent Guard save behavior, and `show_time()` timer decrement/rollover effects. Verification: `gradle test --no-daemon` passed. The exploratory full command `gradle test layer1ReplayRegression --rerun-tasks --no-daemon` still fails and leaves closure to Step 14b.3; remaining divergences are triage-ready, including `basic_movement` frame 0 `curr_room_modif[10]` expected `3` actual `2`, most traces at frame 0 `drawn_room` expected replay-specific rooms but actual `16`, `original_level5_shadow_into_wall` frame 0 `Guard.frame` expected `15` actual `166`, and `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`.
+
 ### 2026-04-15 — Step 14b.1: Lifecycle audit and contract pinning
 
 **Mode:** Docs | **Outcome:** Complete — minimum headless frame lifecycle contract pinned

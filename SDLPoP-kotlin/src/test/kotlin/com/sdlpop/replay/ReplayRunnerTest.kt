@@ -52,6 +52,14 @@ class ReplayRunnerTest {
         GameState.isRestartLevel = 0
         GameState.needLevel1Music = 0
         GameState.isFeatherFall = 0
+        GameState.remTick = 0
+        GameState.hitpDelta = 0
+        GameState.guardhpDelta = 0
+        GameState.canGuardSeeKid = 0
+        GameState.knock = 0
+        GameState.isShowTime = 0
+        GameState.textTimeRemaining = 0
+        GameState.textTimeTotal = 0
         stopSoundsCount = 0
         ExternalStubs.control = { Seg005.control() }
         ExternalStubs.stopSounds = { stopSoundsCount += 1 }
@@ -86,6 +94,14 @@ class ReplayRunnerTest {
         GameState.controlShift = 0
         GameState.startLevel = (-1).toShort()
         GameState.seedWasInit = 0
+        GameState.remTick = 0
+        GameState.hitpDelta = 0
+        GameState.guardhpDelta = 0
+        GameState.canGuardSeeKid = 0
+        GameState.knock = 0
+        GameState.isShowTime = 0
+        GameState.textTimeRemaining = 0
+        GameState.textTimeTotal = 0
     }
 
     @Test
@@ -236,6 +252,7 @@ class ReplayRunnerTest {
                 "doMobs",
                 "processTrobs",
                 "checkSkel",
+                "checkCanGuardSeeKid",
                 "loadKidAndOpp",
                 "loadFramDetCol",
                 "checkKilledShadow",
@@ -243,8 +260,12 @@ class ReplayRunnerTest {
                 "saveKid",
                 "checkSwordHurting",
                 "checkSwordHurt",
+                "checkSwordVsSword",
+                "doDeltaHp",
                 "exitRoom",
+                "checkTheEnd",
                 "checkGuardFallout",
+                "showTime",
             ),
             calls,
         )
@@ -275,6 +296,7 @@ class ReplayRunnerTest {
                 "loadFrameToObj",
                 "loadFramDetCol",
                 "setCharCollision",
+                "bumpIntoOpponent",
                 "checkCollisions",
                 "checkBumped",
                 "checkGatePush",
@@ -283,10 +305,59 @@ class ReplayRunnerTest {
                 "checkSpikeBelow",
                 "checkSpiked",
                 "checkChompedKid",
+                "checkKnock",
                 "saveKid",
             ),
             calls,
         )
+    }
+
+    @Test
+    fun `Layer1FrameDriver guard frame saves shadow without overwriting Opp`() {
+        val calls = mutableListOf<String>()
+        val hooks = recordingHooks(calls).copy(
+            playGuard = {
+                calls += "playGuard"
+                GameState.Char.room = 0
+            },
+        )
+        GameState.Guard.direction = Directions.LEFT
+
+        Layer1FrameDriver.playGuardFrame(hooks = hooks)
+
+        assertTrue("saveShad" in calls)
+        assertTrue("saveShadAndOpp" !in calls)
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle showTime decrements before trace serialization`() {
+        GameState.Kid.alive = -1
+        GameState.currentLevel = 1
+        GameState.nextLevel = 1
+        GameState.remMin = 60
+        GameState.remTick = 719
+
+        HeadlessFrameLifecycle.showTime()
+
+        assertEquals(60, GameState.remMin.toInt())
+        assertEquals(718, GameState.remTick)
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle showTime rolls minute and schedules timer text`() {
+        GameState.Kid.alive = -1
+        GameState.currentLevel = 1
+        GameState.nextLevel = 1
+        GameState.remMin = 6
+        GameState.remTick = 1
+
+        HeadlessFrameLifecycle.showTime()
+
+        assertEquals(5, GameState.remMin.toInt())
+        assertEquals(719, GameState.remTick)
+        assertEquals(24, GameState.textTimeRemaining)
+        assertEquals(24, GameState.textTimeTotal)
+        assertEquals(0, GameState.isShowTime)
     }
 
     @Test
@@ -345,9 +416,11 @@ class ReplayRunnerTest {
             doMobs = { calls += "doMobs" },
             processTrobs = { calls += "processTrobs" },
             checkSkel = { calls += "checkSkel" },
+            checkCanGuardSeeKid = { calls += "checkCanGuardSeeKid" },
             loadKidAndOpp = { calls += "loadKidAndOpp" },
             loadShadAndOpp = { calls += "loadShadAndOpp" },
             saveKid = { calls += "saveKid" },
+            saveShad = { calls += "saveShad" },
             saveShadAndOpp = { calls += "saveShadAndOpp" },
             loadFramDetCol = { calls += "loadFramDetCol" },
             checkKilledShadow = { calls += "checkKilledShadow" },
@@ -358,6 +431,7 @@ class ReplayRunnerTest {
             fallSpeed = { calls += "fallSpeed" },
             loadFrameToObj = { calls += "loadFrameToObj" },
             setCharCollision = { calls += "setCharCollision" },
+            bumpIntoOpponent = { calls += "bumpIntoOpponent" },
             checkCollisions = { calls += "checkCollisions" },
             checkBumped = { calls += "checkBumped" },
             checkGatePush = { calls += "checkGatePush" },
@@ -366,11 +440,16 @@ class ReplayRunnerTest {
             checkSpikeBelow = { calls += "checkSpikeBelow" },
             checkSpiked = { calls += "checkSpiked" },
             checkChompedKid = { calls += "checkChompedKid" },
+            checkKnock = { calls += "checkKnock" },
             checkGuardBumped = { calls += "checkGuardBumped" },
             checkChompedGuard = { calls += "checkChompedGuard" },
             checkSwordHurting = { calls += "checkSwordHurting" },
             checkSwordHurt = { calls += "checkSwordHurt" },
+            checkSwordVsSword = { calls += "checkSwordVsSword" },
+            doDeltaHp = { calls += "doDeltaHp" },
             exitRoom = { calls += "exitRoom" },
+            checkTheEnd = { calls += "checkTheEnd" },
             checkGuardFallout = { calls += "checkGuardFallout" },
+            showTime = { calls += "showTime" },
         )
 }
