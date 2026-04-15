@@ -1,4 +1,8 @@
-# Prince of Persia Android Port
+# Claude Worker Adapter — Prince of Persia Android Port
+
+> **Contract:** Follow `WORKER_SPEC.md` for iteration lifecycle, allowed actions,
+> one-action rule, escalation conditions, and output contract. This file covers
+> Claude-specific mechanics only.
 
 ## Framework
 This project follows the From Idea to Code governance framework.
@@ -8,6 +12,7 @@ This project follows the From Idea to Code governance framework.
 - @ARCHITECTURE.md — component map, layer contracts, implementation sequence
 - @GOVERNANCE.md — development process reference
 - @DEVPLAN.md — current status, cold start summary, gotchas
+- @WORKER_SPEC.md — backend-agnostic worker contract
 
 ## Load for Current Module
 Determine the active track and module from DEVPLAN's Current Status section.
@@ -35,65 +40,28 @@ For layer contracts and module dependencies, see ARCHITECTURE.md.
 - Secondary goal: working, playable Android game
 - Test oracle: replay-based deterministic state comparison (13 reference traces, validated Phase 1+3)
 
-## Environment (Raspberry Pi 5)
-- **Host:** Raspberry Pi 5 (16GB), Incus container `claude-code` (Debian 12 arm64, 12GB RAM, 3 CPUs)
-- **Project path:** `/home/claude/workspace/PoP_port/`
-- **Storage:** Project on USB drive (NTFS, 466GB, mounted at /home/claude/workspace). OS on SD card (29GB).
-- **Shell:** Full bash access — no Sandboxie restrictions. Can run `gradle`, `make`, `python3`, `git` directly.
-
-### NTFS Workaround
-The USB drive (NTFS) does not support execute permissions. To run compiled binaries:
-1. Copy binary to `/tmp/sdlpop/`: `cp SDLPoP/prince /tmp/sdlpop/prince && chmod +x /tmp/sdlpop/prince`
-2. Symlinks for data: `data/`, `replays/`, `doc/`, `SDLPoP.ini` → original locations
-3. Run from `/tmp/sdlpop/`: `cd /tmp/sdlpop && SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345`
-
-### Trace Generation
-```bash
-cd /tmp/sdlpop
-SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345
-# Output: state_trace.bin (310 bytes/frame)
-```
-Requires instrumented build: `make CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` in SDLPoP/src/
-
-### Build Commands
-- **C (SDLPoP):** `cd SDLPoP/src && make -j3` (or with CPPFLAGS above for instrumented build)
-- **Kotlin:** `cd SDLPoP-kotlin && gradle build` / `gradle test`
-- **Trace comparison:** `python3 tools/compare_traces.py ref.trace test.trace`
-
-## Automation
-Running at Continuous autonomy. One step per loop iteration.
-Decide and log — do not wait for human approval.
-
-**Runner:** `run-iteration.sh` — runs `claude -p` per iteration, logs to `logs/loop/`.
-**Orchestrator:** TG bot session invokes the runner, analyzes output, reports via Telegram.
-**Slash commands:** Project commands in `.claude/commands/` — these are NOT Skill-tool skills. To use them, read the `.md` file and follow its instructions. Do NOT call them via the Skill tool. Adapted for autonomous execution (human-wait gates removed).
-
-### Tool Efficiency Rules
-- **File discovery:** Use `bash find` or `bash ls` for listing files. Do NOT spawn Agent(Explore) subagents for simple file discovery — they waste turns and budget.
+## Claude-Specific Tool Rules
+- **File discovery:** Use `bash find` or `bash ls` for listing files. Do NOT spawn Agent(Explore) subagents for simple file discovery.
 - **Search in this project:** Use `bash grep` instead of the Grep tool, and `bash find` instead of the Glob tool. The built-in tools have issues with this project's directory paths.
-- **Edit tool requires fresh reads:** Before editing any file (especially DEVPLAN.md), read it immediately before the edit — not at the start of the iteration. The Edit tool rejects edits if other files were read in between.
+- **Edit tool requires fresh reads:** Before editing any file (especially DEVPLAN.md), read it immediately before the edit — not at the start of the iteration.
 
-### Each Iteration
-1. Read this file and follow `@` references to load project documents
-2. Read DEVPLAN's Current Status to determine the active track and module
-3. Read ARCHITECTURE.md's layer contract for the active module
-4. Execute the next action — exactly one of:
-   - **No active phase:** Read `.claude/commands/phase-plan.md` and follow it. Update DEVPLAN with step breakdown. Commit. Exit.
-   - **Phase in progress:** Pick the next step from DEVPLAN. Do all
-     file read/write work. Run shell commands directly (builds, git, tests). Read `.claude/commands/step-done.md` and follow it. Exit.
-   - **All steps complete:** Read `.claude/commands/phase-review.md` and follow it. Log decisions to DECISIONS.md. Exit.
-   - **Review fixes done:** Read `.claude/commands/phase-complete.md` and follow it. Full doc update, contract propagation,
-     DEVPLAN cleanup. Update ARCHITECTURE.md Implementation Sequence table status. Commit. Exit.
-5. Output exit signal as the final two lines:
-   ```
-   LOOP_SIGNAL: CONTINUE
-   REASON: [one line — what was done]
-   ```
+## Claude-Specific Runner Info
+**Runner:** `run-iteration.sh` — runs `claude -p` per iteration, logs to `logs/loop/`.
 
-### Hard Stops (exit with ESCALATE)
-- 3 consecutive failures on the same problem
-- Work regime shifts to Refine or Explore
-- Scope needs to expand beyond the defined phase
-- Contract change would affect other modules
-- Phase completion (human audits before next phase)
-- All modules complete
+**Slash commands:** Project commands in `.claude/commands/` — these are NOT
+Skill-tool skills. To use them, read the `.md` file and follow its instructions.
+Do NOT call them via the Skill tool.
+
+| Action (from WORKER_SPEC) | Claude command file |
+|---------------------------|---------------------|
+| Phase Plan | `.claude/commands/phase-plan.md` |
+| Step Execution | `.claude/commands/step-done.md` (after completing the step) |
+| Phase Review | `.claude/commands/phase-review.md` |
+| Phase Complete | `.claude/commands/phase-complete.md` |
+
+## Autonomy
+This project supports autonomous execution. When invoked with
+`autonomous: true` in the prompt, commands auto-proceed and the agent follows
+`WORKER_SPEC.md`. Otherwise, commands pause for human approval.
+
+See WORKER_SPEC.md §8 for mode definitions (autonomous vs. supervised).

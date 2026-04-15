@@ -58,7 +58,8 @@ def main():
 
         elif t == "result":
             result_text = obj.get("result", "")
-            cost = str(obj.get("total_cost_usd", ""))
+            raw_cost = obj.get("total_cost_usd", "")
+            cost = f"{float(raw_cost):.2f}" if raw_cost != "" else ""
             turns = str(obj.get("num_turns", ""))
             dur_ms = obj.get("duration_ms", 0)
             duration = f"{int(dur_ms / 1000)}s" if dur_ms else ""
