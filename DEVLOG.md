@@ -2,6 +2,17 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Step 12b.2: Falling loose-floor mobs and Kid collision
+
+**Mode:** Code | **Outcome:** Complete — 9 new tests pass (533 total)
+**Contract changes:** None
+
+Translated the loose-floor mob simulation tranche into `Seg007.kt`: `doMobs`, `moveMob`, `moveLoose`, `looseLand`, `looseFall`, `redrawAtCurMob`, `mobDownARow`, `checkLooseFallOnKid`, and `fellOnYourHead`. The implementation preserves signed `speed` wrapping and unsigned byte-like `y` wrapping for `mob_type`, handles row and room transitions, keeps chained loose-floor falls in the active mob list, and applies Kid damage/death sequences when a falling floor lands on him.
+
+Added focused `Seg007Test` coverage for mob compaction, room-zero stopping, bottom-row room transitions, landing on buttons/floors/torches, chained loose-floor spawning, redraw markers, and nonfatal/fatal Kid collision behavior. The seg007 tile-write helpers now mirror loose-floor/debris mutations into `level.fg/bg` when a room is known, because `getTile()` reloads room buffers from level data in the Kotlin port.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin` (533 tests, 0 failures).
+
 ### 2026-04-15 — Step 12b.1: Loose-floor animation entry point
 
 **Mode:** Code | **Outcome:** Complete — 5 new tests pass (524 total)

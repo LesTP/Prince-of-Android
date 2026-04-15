@@ -21,6 +21,8 @@ import com.sdlpop.game.Tiles as T
 import com.sdlpop.game.SoundIds as Snd
 import com.sdlpop.game.SoundFlags as SF
 import com.sdlpop.game.FrameIds as FID
+import com.sdlpop.game.Actions as Act
+import com.sdlpop.game.SeqIds as Seq
 
 /**
  * seg007 — traps, triggers, animated tiles, and loose-floor mobs.
@@ -31,6 +33,8 @@ import com.sdlpop.game.FrameIds as FID
 object Seg007 {
     private val gs = GameState
     private val ext = ExternalStubs
+    private var curmobIndex = 0
+    private var currTileTemp = 0
 
     // seg007:0000
     fun processTrobs() {
@@ -688,8 +692,22 @@ object Seg007 {
 
     // seg007:0EB8
     fun removeLoose(room: Int, tilepos: Int): Int {
-        gs.currRoomTiles[tilepos] = T.EMPTY
+        writeRoomTile(room, tilepos, T.EMPTY)
         return gs.custom.tblLevelType[gs.currentLevel]
+    }
+
+    private fun writeRoomTile(room: Int, tilepos: Int, tile: Int) {
+        gs.currRoomTiles[tilepos] = tile
+        if (room > 0) {
+            gs.level.fg[(room - 1) * 30 + tilepos] = tile
+        }
+    }
+
+    private fun writeRoomModifier(room: Int, tilepos: Int, modifier: Int) {
+        gs.currRoomModif[tilepos] = modifier
+        if (room > 0) {
+            gs.level.bg[(room - 1) * 30 + tilepos] = modifier
+        }
     }
 
     // seg007:1010
@@ -697,14 +715,200 @@ object Seg007 {
         if (gs.mobsCount >= 14) {
             return
         }
-        val mob = gs.mobs[gs.mobsCount.toInt()]
-        mob.xh = gs.curmob.xh
-        mob.y = gs.curmob.y
-        mob.room = gs.curmob.room
-        mob.speed = gs.curmob.speed
-        mob.type = gs.curmob.type
-        mob.row = gs.curmob.row
+        copyMob(gs.mobs[gs.mobsCount.toInt()], gs.curmob)
         gs.mobsCount++
+    }
+
+    private fun copyMob(dst: MobType, src: MobType) {
+        dst.xh = src.xh
+        dst.y = src.y
+        dst.room = src.room
+        dst.speed = src.speed
+        dst.type = src.type
+        dst.row = src.row
+    }
+
+    // seg007:1063
+    fun doMobs() {
+        val nMobs = gs.mobsCount.toInt()
+        curmobIndex = 0
+        while (curmobIndex < nMobs) {
+            copyMob(gs.curmob, gs.mobs[curmobIndex])
+            moveMob()
+            checkLooseFallOnKid()
+            copyMob(gs.mobs[curmobIndex], gs.curmob)
+            curmobIndex++
+        }
+
+        var newIndex = 0
+        for (index in 0 until gs.mobsCount.toInt()) {
+            if (gs.mobs[index].speed != -1) {
+                copyMob(gs.mobs[newIndex], gs.mobs[index])
+                newIndex++
+            }
+        }
+        gs.mobsCount = newIndex.toShort()
+    }
+
+    // seg007:110F
+    fun moveMob() {
+        if (gs.curmob.type == 0) {
+            moveLoose()
+        }
+        if (gs.curmob.speed <= 0) {
+            gs.curmob.speed = (gs.curmob.speed + 1).toByte().toInt()
+        }
+    }
+
+    // data:227A
+    private val ySomething = intArrayOf(-1, 62, 125, 188, 25)
+
+    // seg007:1126
+    fun moveLoose() {
+        if (gs.curmob.speed < 0) return
+        if (gs.curmob.speed < 29) {
+            gs.curmob.speed = (gs.curmob.speed + 3).toByte().toInt()
+        }
+        gs.curmob.y = (gs.curmob.y + gs.curmob.speed) and 0xFF
+        if (gs.curmob.room == 0) {
+            if (gs.curmob.y < 210) {
+                return
+            } else {
+                gs.curmob.speed = -2
+                return
+            }
+        }
+        if (gs.curmob.y < 226 && ySomething[gs.curmob.row + 1] <= gs.curmob.y) {
+            currTileTemp = Seg006.getTile(gs.curmob.room, gs.curmob.xh shr 2, gs.curmob.row)
+            if (currTileTemp == T.LOOSE) {
+                looseFall()
+            }
+            if (currTileTemp == T.EMPTY || currTileTemp == T.LOOSE) {
+                mobDownARow()
+                return
+            }
+            ext.playSound(Snd.TILE_CRASHING)
+            doKnock(gs.curmob.room, gs.curmob.row)
+            gs.curmob.y = ySomething[gs.curmob.row + 1] and 0xFF
+            gs.curmob.speed = -2
+            looseLand()
+        }
+    }
+
+    // seg007:11E8
+    fun looseLand() {
+        var buttonType = 0
+        var tiletype = Seg006.getTile(gs.curmob.room, gs.curmob.xh shr 2, gs.curmob.row)
+        when (tiletype) {
+            T.OPENER -> {
+                writeRoomTile(gs.currRoom.toInt(), gs.currTilepos, T.DEBRIS)
+                buttonType = T.DEBRIS
+                triggerButton(1, buttonType, -1)
+                tiletype = Seg006.getTile(gs.curmob.room, gs.curmob.xh shr 2, gs.curmob.row)
+                landLooseOnTile(tiletype)
+            }
+            T.CLOSER -> {
+                triggerButton(1, buttonType, -1)
+                tiletype = Seg006.getTile(gs.curmob.room, gs.curmob.xh shr 2, gs.curmob.row)
+                landLooseOnTile(tiletype)
+            }
+            else -> landLooseOnTile(tiletype)
+        }
+    }
+
+    private fun landLooseOnTile(tiletype: Int) {
+        when (tiletype) {
+            T.FLOOR, T.SPIKE, T.POTION, T.TORCH, T.TORCH_WITH_DEBRIS -> {
+                val debrisTile = if (tiletype == T.TORCH || tiletype == T.TORCH_WITH_DEBRIS) {
+                    T.TORCH_WITH_DEBRIS
+                } else {
+                    T.DEBRIS
+                }
+                writeRoomTile(gs.currRoom.toInt(), gs.currTilepos, debrisTile)
+                redrawAtCurMob()
+                if (gs.tileCol.toInt() != 0) {
+                    setRedrawFull(gs.currTilepos - 1, 1)
+                }
+            }
+        }
+    }
+
+    // seg007:12CB
+    fun looseFall() {
+        writeRoomModifier(gs.currRoom.toInt(), gs.currTilepos, removeLoose(gs.currRoom.toInt(), gs.currTilepos))
+        gs.curmob.speed = (gs.curmob.speed shr 1).toByte().toInt()
+        copyMob(gs.mobs[curmobIndex], gs.curmob)
+        gs.curmob.y = (gs.curmob.y + 6) and 0xFF
+        mobDownARow()
+        addMob()
+        copyMob(gs.curmob, gs.mobs[curmobIndex])
+        redrawAtCurMob()
+    }
+
+    // seg007:132C
+    fun redrawAtCurMob() {
+        if (gs.curmob.room == gs.drawnRoom) {
+            gs.redrawHeight = 0x20
+            setRedrawFull(gs.currTilepos, 1)
+            setWipe(gs.currTilepos, 1)
+            if ((gs.currTilepos % 10) + 1 < 10) {
+                setRedrawFull(gs.currTilepos + 1, 1)
+                setWipe(gs.currTilepos + 1, 1)
+            }
+        }
+    }
+
+    // seg007:1387
+    fun mobDownARow() {
+        gs.curmob.row++
+        if (gs.curmob.row >= 3) {
+            gs.curmob.y = (gs.curmob.y - 192) and 0xFF
+            gs.curmob.row = 0
+            gs.curmob.room = if (gs.curmob.room != 0) {
+                gs.level.roomlinks[gs.curmob.room - 1].down
+            } else {
+                0
+            }
+        }
+    }
+
+    // seg007:1591
+    fun checkLooseFallOnKid() {
+        Seg006.loadkid()
+        if (
+            gs.Char.room == gs.curmob.room &&
+            gs.Char.currCol == (gs.curmob.xh shr 2) &&
+            gs.curmob.y < gs.Char.y &&
+            gs.Char.y - 30 < gs.curmob.y
+        ) {
+            fellOnYourHead()
+            Seg006.savekid()
+        }
+    }
+
+    // seg007:15D3
+    fun fellOnYourHead() {
+        val frame = gs.Char.frame
+        val action = gs.Char.action
+        if (
+            (gs.currentLevel == gs.custom.looseTilesLevel || (frame < FID.frame_5_start_run || frame >= 15)) &&
+            (action < Act.HANG_CLIMB || action == Act.TURN)
+        ) {
+            gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
+            if (Seg006.takeHp(1) != 0) {
+                Seg005.seqtblOffsetChar(Seq.seq_22_crushed)
+                if (frame == FID.frame_177_spiked) {
+                    gs.Char.x = Seg006.charDxForward(-12)
+                }
+            } else {
+                if (frame != FID.frame_109_crouch) {
+                    if (Seg006.getTileBehindChar() == 0) {
+                        gs.Char.x = Seg006.charDxForward(-2)
+                    }
+                    Seg005.seqtblOffsetChar(Seq.seq_52_loose_floor_fell_on_kid)
+                }
+            }
+        }
     }
 
     // data:2284

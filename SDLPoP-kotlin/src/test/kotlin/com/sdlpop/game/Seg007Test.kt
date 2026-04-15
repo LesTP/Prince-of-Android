@@ -8,6 +8,7 @@ Phase 12b.1 adds loose-floor animation entry-point coverage.
 package com.sdlpop.game
 
 import com.sdlpop.game.FrameIds as FID
+import com.sdlpop.game.SeqIds as Seq
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -37,7 +38,11 @@ class Seg007Test {
         gs.currModifier = 0
         gs.currTilepos = 0
         gs.currRoom = 0
+        gs.tileCol = 0
+        gs.tileRow = 0
         gs.currentLevel = -1
+        gs.hitpCurr = 0
+        gs.hitpDelta = 0
         gs.redrawHeight = 0
         gs.trobsCount = 0
         gs.trob.tilepos = 0
@@ -69,6 +74,13 @@ class Seg007Test {
         gs.mobs.forEach {
             it.xh = 0; it.y = 0; it.room = 0; it.speed = 0; it.type = 0; it.row = 0
         }
+        gs.curmob.xh = 0
+        gs.curmob.y = 0
+        gs.curmob.room = 0
+        gs.curmob.speed = 0
+        gs.curmob.type = 0
+        gs.curmob.row = 0
+        gs.tableCounts.fill(0)
         gs.leveldoorOpen = 0
         gs.isFeatherFall = 0
         gs.soundFlags = 0
@@ -1037,5 +1049,208 @@ class Seg007Test {
         assertEquals(0, gs.trob.type)
         assertEquals(0, gs.mobsCount.toInt())
         assertEquals(1, gs.redrawFramesFull[24])
+    }
+
+    // === Phase 12b.2 tests — falling loose-floor mobs ===
+
+    @Test
+    fun doMobsCompactsStoppedMobsAfterMovingActiveOnes() {
+        gs.mobsCount = 3
+        gs.mobs[0].type = 1
+        gs.mobs[0].speed = -2
+        gs.mobs[0].xh = 4
+        gs.mobs[1].type = 1
+        gs.mobs[1].speed = 0
+        gs.mobs[1].xh = 12
+        gs.mobs[2].type = 1
+        gs.mobs[2].speed = -3
+        gs.mobs[2].xh = 20
+
+        seg007.doMobs()
+
+        assertEquals(2, gs.mobsCount.toInt())
+        assertEquals(12, gs.mobs[0].xh)
+        assertEquals(1, gs.mobs[0].speed)
+        assertEquals(20, gs.mobs[1].xh)
+        assertEquals(-2, gs.mobs[1].speed)
+    }
+
+    @Test
+    fun moveLooseDropsIntoNextRoomAfterBottomRow() {
+        gs.level.roomlinks[0].down = 7
+        gs.curmob.room = 1
+        gs.curmob.row = 2
+        gs.curmob.y = 186
+        gs.curmob.speed = 0
+        gs.curmob.xh = 8
+        seedTile(room = 1, tilepos = 22, tile = Tiles.EMPTY)
+
+        seg007.moveLoose()
+
+        assertEquals(7, gs.curmob.room)
+        assertEquals(0, gs.curmob.row)
+        assertEquals(253, gs.curmob.y)
+        assertEquals(3, gs.curmob.speed)
+    }
+
+    @Test
+    fun moveLooseInRoomZeroStopsAfterFallingOffscreen() {
+        gs.curmob.room = 0
+        gs.curmob.row = 0
+        gs.curmob.y = 208
+        gs.curmob.speed = 0
+
+        seg007.moveLoose()
+
+        assertEquals(211, gs.curmob.y)
+        assertEquals(-2, gs.curmob.speed)
+    }
+
+    @Test
+    fun moveLooseLandsOnFloorAsDebrisAndKnocksLooseTiles() {
+        gs.drawnRoom = 1
+        gs.currentLevel = 1
+        gs.curmob.room = 1
+        gs.curmob.row = 1
+        gs.curmob.y = 122
+        gs.curmob.speed = 0
+        gs.curmob.xh = 8
+        seedTile(room = 1, tilepos = 12, tile = Tiles.FLOOR)
+        seedTile(room = 1, tilepos = 10, tile = Tiles.LOOSE)
+
+        seg007.moveLoose()
+
+        assertEquals(Tiles.DEBRIS, gs.currRoomTiles[12])
+        assertEquals(125, gs.curmob.y)
+        assertEquals(-2, gs.curmob.speed)
+        assertEquals(SoundIds.TILE_CRASHING, lastPlayedSound)
+        assertEquals(1, gs.trobsCount.toInt())
+        assertEquals(10, gs.trobs[0].tilepos)
+        assertEquals(1, gs.redrawFramesFull[12])
+        assertEquals(1, gs.redrawFramesFull[13])
+        assertEquals(1, gs.redrawFramesFull[11])
+    }
+
+    @Test
+    fun looseLandKeepsTorchAsTorchWithDebris() {
+        gs.drawnRoom = 1
+        gs.curmob.room = 1
+        gs.curmob.row = 1
+        gs.curmob.xh = 8
+        seedTile(room = 1, tilepos = 12, tile = Tiles.TORCH)
+
+        seg007.looseLand()
+
+        assertEquals(Tiles.TORCH_WITH_DEBRIS, gs.currRoomTiles[12])
+        assertEquals(1, gs.redrawFramesFull[12])
+    }
+
+    @Test
+    fun looseLandOnOpenerLeavesDebrisAndTriggersButton() {
+        gs.drawnRoom = 1
+        gs.curmob.room = 1
+        gs.curmob.row = 1
+        gs.curmob.xh = 8
+        gs.level.doorlinks1[0] = 0x80
+        seedTile(room = 1, tilepos = 12, tile = Tiles.OPENER, modifier = 0)
+
+        seg007.looseLand()
+
+        assertEquals(Tiles.DEBRIS, gs.currRoomTiles[12])
+        assertEquals(Tiles.DEBRIS, gs.level.fg[12])
+        assertEquals(1, gs.isGuardNotice)
+        assertEquals(SoundIds.BUTTON_PRESSED, lastPlayedSound)
+        assertEquals(1, gs.trobsCount.toInt())
+        assertEquals(12, gs.trobs[0].tilepos)
+    }
+
+    @Test
+    fun looseFallRemovesChainedLooseTileAndSpawnsFollowingMob() {
+        gs.drawnRoom = 1
+        gs.currentLevel = 1
+        gs.mobsCount = 1
+        gs.mobs[0].xh = 8
+        gs.mobs[0].y = 122
+        gs.mobs[0].room = 1
+        gs.mobs[0].speed = 0
+        gs.mobs[0].type = 0
+        gs.mobs[0].row = 1
+        seedTile(room = 1, tilepos = 12, tile = Tiles.LOOSE, modifier = 5)
+
+        seg007.doMobs()
+
+        assertEquals(2, gs.mobsCount.toInt())
+        assertEquals(Tiles.EMPTY, gs.currRoomTiles[12])
+        assertEquals(gs.custom.tblLevelType[1], gs.currRoomModif[12])
+        assertEquals(1, gs.mobs[0].speed)
+        assertEquals(2, gs.mobs[0].row)
+        assertEquals(1, gs.mobs[0].room)
+        assertEquals(1, gs.mobs[1].room)
+        assertEquals(2, gs.mobs[1].row)
+        assertEquals(131, gs.mobs[1].y)
+        assertEquals(1, gs.redrawFramesFull[12])
+    }
+
+    @Test
+    fun checkLooseFallOnKidDamagesAndOffsetsNonFatalSequence() {
+        gs.currentLevel = 1
+        gs.hitpCurr = 3
+        gs.Kid = CharType(
+            frame = FID.frame_15_stand,
+            x = 70,
+            y = 140,
+            direction = 0,
+            currCol = 2,
+            currRow = 1,
+            action = Actions.STAND,
+            room = 1,
+            charid = CharIds.KID
+        )
+        gs.curmob.room = 1
+        gs.curmob.xh = 8
+        gs.curmob.y = 120
+        seedTile(room = 1, tilepos = 11, tile = Tiles.EMPTY)
+
+        seg007.checkLooseFallOnKid()
+
+        assertEquals(-1, gs.hitpDelta.toInt())
+        assertEquals(68, gs.Kid.x)
+        assertEquals(gs.yLand[2].toInt(), gs.Kid.y)
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_52_loose_floor_fell_on_kid], gs.Kid.currSeq)
+    }
+
+    @Test
+    fun checkLooseFallOnKidUsesCrushedSequenceWhenFatal() {
+        gs.currentLevel = 1
+        gs.hitpCurr = 1
+        gs.Kid = CharType(
+            frame = FID.frame_15_stand,
+            x = 70,
+            y = 140,
+            direction = 0,
+            currCol = 2,
+            currRow = 1,
+            action = Actions.STAND,
+            room = 1,
+            charid = CharIds.KID
+        )
+        gs.curmob.room = 1
+        gs.curmob.xh = 8
+        gs.curmob.y = 120
+
+        seg007.checkLooseFallOnKid()
+
+        assertEquals(-1, gs.hitpDelta.toInt())
+        assertEquals(SequenceTable.seqtblOffsets[Seq.seq_22_crushed], gs.Kid.currSeq)
+    }
+
+    private fun seedTile(room: Int, tilepos: Int, tile: Int, modifier: Int = 0) {
+        val base = (room - 1) * 30 + tilepos
+        gs.level.fg[base] = tile
+        gs.level.bg[base] = modifier
+        if (room == gs.loadedRoom || room == gs.drawnRoom) {
+            gs.currRoomTiles[tilepos] = tile
+            gs.currRoomModif[tilepos] = modifier
+        }
     }
 }
