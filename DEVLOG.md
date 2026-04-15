@@ -2,6 +2,17 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Step 13a.3: Regression harness workflow
+
+**Mode:** Code | **Outcome:** Complete — Layer 1 workflow task passes (550 total tests; 1 tagged workflow test)
+**Contract changes:** None
+
+Added the manifest-driven Layer 1 replay-regression harness in `com.sdlpop.oracle`. `Layer1RegressionManifest` enumerates all 13 C reference traces, verifies the manifest matches the trace directory, and `Layer1RegressionHarness` writes Kotlin trace artifacts under a caller-provided build-output directory before comparing them with the existing 310-byte state trace oracle. Divergence output now includes replay id, frame index, frame number, field name, byte offset, expected value, actual value, and both trace paths for triage.
+
+Added the `layer1ReplayRegression` Gradle task with `layer1-regression` tagged test coverage. The workflow test currently uses a producer hook that copies the reference trace, proving manifest enumeration, build-output artifact placement, parser/comparator wiring, and match reporting without pretending Module 14 exists. Documented the boundary in `SDLPoP-kotlin/README.md`: Module 14 owns feeding `.P1R` inputs through the translated game loop and replacing the hook with real Kotlin trace output.
+
+Verification: `gradle test layer1ReplayRegression` passed in `SDLPoP-kotlin` (550 tests in the main suite, plus the tagged workflow task).
+
 ### 2026-04-15 — Step 13a.2: State snapshot writer
 
 **Mode:** Code | **Outcome:** Complete — 2 new oracle tests pass (546 total)

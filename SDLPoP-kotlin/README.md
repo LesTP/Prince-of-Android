@@ -32,8 +32,21 @@ src/test/kotlin/com/sdlpop/
 ./gradlew test
 ```
 
+The Layer 1 replay-regression harness has a dedicated workflow:
+
+```bash
+./gradlew layer1ReplayRegression
+```
+
+It reads the 13 C reference traces from `../SDLPoP/traces/reference`, writes
+Kotlin trace artifacts under `build/oracle/layer1-regression`, compares traces
+with the 310-byte state format, and reports the first divergent frame, field,
+expected value, and actual value. Until Module 14 adds the Kotlin replay runner,
+the workflow uses a producer hook; Module 14 owns feeding `.P1R` inputs through
+the translated game loop and replacing that hook with real Kotlin trace output.
+
 ## Current Status
 
-Phase 3, Step 4: Initial project structure created. Game logic porting has not yet begun.
+Module 13: Layer 1 replay-regression harness in progress.
 
 See `../DEVPLAN.md` for the full implementation plan.

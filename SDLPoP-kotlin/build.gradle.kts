@@ -26,4 +26,17 @@ application {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("../SDLPoP/traces/reference").absolutePath)
+    systemProperty("sdlpop.kotlinTraceOutput", layout.buildDirectory.dir("oracle/layer1-regression/test").get().asFile.absolutePath)
+}
+
+tasks.register<Test>("layer1ReplayRegression") {
+    description = "Runs the Layer 1 replay-regression oracle workflow against the reference trace manifest."
+    group = "verification"
+    useJUnitPlatform {
+        includeTags("layer1-regression")
+    }
+    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("../SDLPoP/traces/reference").absolutePath)
+    systemProperty("sdlpop.kotlinTraceOutput", layout.buildDirectory.dir("oracle/layer1-regression/workflow").get().asFile.absolutePath)
+    shouldRunAfter(tasks.test)
 }
