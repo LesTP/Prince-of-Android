@@ -57,6 +57,11 @@ layer contract and module dependencies.
   read it immediately before the edit — not at the start of the iteration.
 - **Shell usage.** Use CLI tools directly for builds, tests, git operations,
   file discovery, and search.
+- **Search tool availability.** This loop environment may not have `rg`
+  installed. Before using `rg`, check availability with `command -v rg`. If it
+  is absent, use portable fallbacks instead: `find` for file discovery,
+  `grep -RIn` for text search, and `sed -n` for bounded file reads. Do not
+  repeatedly attempt `rg` after it has failed in the same iteration.
 
 ## Action Instructions
 

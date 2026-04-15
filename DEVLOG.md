@@ -2,6 +2,13 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Phase 13a Approval
+
+**Mode:** Review | **Outcome:** Reviewed and approved
+**Contract changes:** DEVPLAN.md, DECISIONS.md — approval status only; no interface or behavior contract changes
+
+Human approval recorded for Phase 13a after the completed review and applied should-fix. Module 13 remains closed, and Module 14 remains the next pending phase-plan target for Kotlin replay playback through the translated game loop.
+
 ### 2026-04-15 — Phase 13a Complete
 
 **Mode:** Complete | **Outcome:** Phase 13a closed; Module 13 complete

@@ -89,7 +89,7 @@ One-line: Translated loose-floor fall initiation, falling-object simulation, Kid
 One-line: Built the Kotlin replay-regression harness around the translated Layer 1 game logic: 310-byte trace parsing/comparison, `GameState` snapshot serialization, all-13-trace manifest coverage, Gradle workflow, triage-ready divergence reports, and explicit Module 14 handoff for real replay playback. See DEVLOG §Module 13.
 
 #### Phase 13a: Layer 1 replay regression harness — COMPLETE
-One-line: Delivered the trace oracle foundation, state snapshot writer, and manifest-driven regression workflow; review accepted after one should-fix, and `gradle test layer1ReplayRegression --rerun-tasks` passed. See DEVLOG §Module 13.
+One-line: Delivered the trace oracle foundation, state snapshot writer, and manifest-driven regression workflow; review accepted after one should-fix, human approval recorded on 2026-04-15, and `gradle test layer1ReplayRegression --rerun-tasks` passed. See DEVLOG §Module 13.
 
 ### Module 14: Replay Runner — PENDING
 One-line: Build Kotlin replay playback through the translated game loop, produce real Kotlin state traces, and wire those traces into the Phase 13a regression harness.

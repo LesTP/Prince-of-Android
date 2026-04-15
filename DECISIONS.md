@@ -69,3 +69,10 @@ Priority: Important
 Decision: Accept Phase 13a as meeting the trace-oracle and regression-harness contract after applying a review fix that normalizes build-output path checks and makes the manifest-copy workflow rerunnable with replacement of generated trace files.
 Rationale: Review confirmed `StateTrace.kt` follows the 310-byte `TRACE_FORMAT.md` layout, little-endian multi-byte encoding, and nested `char_type`/`trob_type`/`mob_type` byte ordering; `Layer1RegressionManifest` enumerates all 13 reference traces; generated traces stay under build output; divergence reports include replay, frame, field, expected value, and actual value; and Module 14 remains responsible for real replay playback. A fresh forced verification run passed with `gradle test layer1ReplayRegression --rerun-tasks`.
 Revisit if: Module 14 replay playback needs a different trace producer contract than `(Layer1ReplayTrace, Path) -> Path`.
+
+D-11: Phase 13a human approval
+Date: 2026-04-15 | Status: Closed
+Priority: Important
+Decision: Mark Phase 13a as reviewed and human-approved. Module 13 stays complete, and Module 14 remains unblocked for phase planning.
+Rationale: The review outcome is closed, the one should-fix was applied, and the recorded forced verification passed with `gradle test layer1ReplayRegression --rerun-tasks`.
+Revisit if: Module 14 replay playback discovers that the Phase 13a harness contract must change before real Kotlin trace production can replace the copy producer.
