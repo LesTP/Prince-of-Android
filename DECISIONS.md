@@ -76,3 +76,10 @@ Priority: Important
 Decision: Mark Phase 13a as reviewed and human-approved. Module 13 stays complete, and Module 14 remains unblocked for phase planning.
 Rationale: The review outcome is closed, the one should-fix was applied, and the recorded forced verification passed with `gradle test layer1ReplayRegression --rerun-tasks`.
 Revisit if: Module 14 replay playback discovers that the Phase 13a harness contract must change before real Kotlin trace production can replace the copy producer.
+
+D-12: Phase 14a boundary for Kotlin replay runner
+Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Start Module 14 with one Build-regime phase that replaces the Phase 13a copy producer with real Kotlin trace generation from `.P1R` replay inputs. Keep the implementation narrowly scoped to replay manifest resolution, replay state initialization, replay move consumption, a minimal deterministic Layer 1 frame driver, and `StateTraceFormat` output.
+Rationale: The Module 13 harness already proves trace comparison and artifact workflow. Module 14 should now supply real Kotlin traces without prematurely translating all of Layer 2 or introducing platform/render/audio behavior. A four-step plan keeps replay file plumbing, input decoding, frame orchestration, and workflow replacement independently testable.
+Revisit if: Real replay playback cannot progress without translating broader `seg000`/`seg001`/`seg003` lifecycle code that belongs to Module 15, or if the Phase 13a harness producer contract needs to change.

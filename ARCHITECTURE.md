@@ -289,7 +289,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 11 | Layer 1: seg002 | Guard AI, room transitions | Build (autonomous) | seg005, seg006 | **Complete** |
 | 12 | Layer 1: seg007 | Traps, triggers, animated tiles | Build (autonomous) | seg006 | **Complete** |
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | **Complete** |
-| 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | Pending |
+| 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **In progress** |
 | 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | Pending |
 | 16 | Rendering | seg008 + lighting → Android | Build | Game Loop | Pending |
 | 17 | Platform | seg009 → Android APIs | Build | — | Pending |
@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Track A, Module 14 (Replay Runner)** is the immediate next step. Module 13's harness is complete, so the next worker iteration should phase-plan Kotlin replay playback through the translated game loop and replacement of the temporary trace-copy producer with real Kotlin trace output.
+**Track A, Module 14 (Replay Runner)** is in progress. Phase 14a is planned; the next worker iteration should execute Step 14a.1 to map Layer 1 regression manifest entries to `.P1R` files and initialize replay state from parsed replay metadata.
 
 ---
 

@@ -1,5 +1,22 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 14: Replay Runner
+
+### 2026-04-15 — Phase 14a Plan: Kotlin replay playback and trace producer
+
+**Mode:** Discuss | **Outcome:** Phase planned
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md, DECISIONS.md — status propagation and phase plan only; no interface or behavior contract changes
+
+Planned Phase 14a as the Build-regime path from the Phase 13a trace-copy harness to real Kotlin trace generation. The phase will resolve each manifest replay to its `.P1R` input, initialize replay state from `P1RParser`, translate replay move consumption into the existing `ExternalStubs.doReplayMove` hook, add a narrow deterministic Layer 1 frame driver, and plug the resulting producer into `Layer1RegressionHarness`.
+
+Phase 14a is split into four steps:
+- **14a.1** Map manifest ids to `.P1R` files, parse replay metadata, seed `GameState` replay fields, and test path/start-level/seed/tick initialization.
+- **14a.2** Translate replay input consumption for `doReplayMove`, including per-tick control decoding, replay tick advancement, end handling, skipping/seek state, and deprecation-sensitive behavior.
+- **14a.3** Add a minimal Layer 1 frame driver that invokes translated deterministic logic in SDLPoP order while keeping platform, rendering, audio, and broader Layer 2 lifecycle out of scope.
+- **14a.4** Replace the copy producer with real Kotlin trace output, update the regression workflow/README boundary, and verify with `gradle test layer1ReplayRegression --rerun-tasks`.
+
+Planning decision recorded in `DECISIONS.md` D-12. No source code changed in this iteration.
+
 ## Module 13: Layer 1 Integration Test
 
 ### 2026-04-15 — Phase 13a Approval
