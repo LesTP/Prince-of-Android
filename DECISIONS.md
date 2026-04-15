@@ -34,3 +34,10 @@ Priority: Important
 Decision: Accept Phase 12a (trob core, redraw helpers, trap/button animation, gate animation, and level-door animation) as meeting the Layer 1 contract and phase acceptance criteria. No must-fix or should-fix findings were identified.
 Rationale: Review compared the translated Kotlin slice against `SDLPoP/src/seg007.c`, confirmed the completed functions remain deterministic game logic with no platform or I/O coupling, and verified that completed seg007 trap hooks in `ExternalStubs` delegate to real `Seg007` implementations. A fresh `gradle test` run passed with 519 tests and 0 failures on 2026-04-11.
 Revisit if: Later seg007 loose-floor/mob phases or Module 13 replay integration expose a behavioral divergence in the Phase 12a paths.
+
+D-6: Phase 12b boundary for Module 12 seg007
+Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Finish Module 12 with a Build-regime phase centered on the deferred loose-floor and falling-object subsystem. Split the work into loose-floor fall initiation, mob physics/collision, and draw/object-table bookkeeping. Leave the unused SDL-only `sub_9A8E` helper unported unless a live reference appears.
+Rationale: The remaining `seg007.c` functions form one coupled subsystem around loose floor removal, falling mob state, Kid collision, redraw bookkeeping, and object-table writes. Keeping this as one phase avoids an artificial module split, while the three-step breakdown keeps each iteration testable and keeps rendering-adjacent object-table writes behind the core simulation behavior.
+Revisit if: `draw_mob`/`add_mob_to_objtable` require a rendering contract change beyond existing state/object-table bookkeeping, or Module 13 replay integration exposes a need to include the unused SDL blit helper.

@@ -2,6 +2,19 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Phase 12b Plan: Loose-floor mobs and remaining seg007 functions
+
+**Mode:** Discuss | **Outcome:** Phase planned
+
+Planned Phase 12b as the final seg007 translation slice: loose-floor fall initiation, falling-object simulation, Kid collision from falling floors, redraw bookkeeping, and mob object-table writes. The phase remains Build regime because behavior is deterministic game logic with focused unit-test coverage ahead of Module 13 replay integration.
+
+Phase 12b is split into three steps:
+- **12b.1** Translate `animate_loose` and local loose-floor fall data, covering shaking timers, level-13 auto-falling floors, delayed fall spawning, climbing loose-tile fix behavior, and redraw effects.
+- **12b.2** Translate the mob simulation/collision tranche: `do_mobs`, `move_mob`, `move_loose`, `loose_land`, `loose_fall`, `redraw_at_cur_mob`, `mob_down_a_row`, `check_loose_fall_on_kid`, and `fell_on_your_head`.
+- **12b.3** Translate mob draw/object-table bookkeeping: `draw_mobs`, `draw_mob`, and `add_mob_to_objtable`; leave unused SDL-only `sub_9A8E` unported unless a live reference appears.
+
+Planning decision recorded in `DECISIONS.md` D-6. No source code changed in this iteration.
+
 ### 2026-04-11 — Phase 12a Complete
 
 **Mode:** Complete | **Outcome:** Phase 12a closed; Module 12 continues with Phase 12b
