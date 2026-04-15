@@ -48,3 +48,10 @@ Priority: Important
 Decision: Accept Phase 12b (loose-floor fall initiation, falling-object simulation, Kid collision, redraw bookkeeping, and mob object-table writes) as meeting the Layer 1 contract and phase acceptance criteria. No must-fix or should-fix findings were identified.
 Rationale: Review compared the translated Kotlin slice against `SDLPoP/src/seg007.c`, confirmed the completed functions remain deterministic game logic with no platform or I/O coupling, and verified that the unused SDL-only `sub_9A8E` helper has no live Kotlin reference. A fresh `gradle test` run passed with 540 tests and 0 failures on 2026-04-15.
 Revisit if: Module 13 replay integration exposes a behavioral divergence in the Phase 12b loose-floor, mob, or object-table paths.
+
+D-8: Module 12 human approval and Module 13 start gate
+Date: 2026-04-15 | Status: Closed
+Priority: Important
+Decision: Accept Module 12 as human-approved and unblock Module 13 planning.
+Rationale: Module 12 has completed both planned phases, both reviews found no must-fix or should-fix issues, and the latest recorded fresh Kotlin verification passed with 540 tests and 0 failures. The previous loop escalation was solely the explicit human-audit gate before Module 13, which is now cleared.
+Revisit if: Module 13 phase planning finds a missing Layer 1 contract dependency that should have been completed in Module 12.

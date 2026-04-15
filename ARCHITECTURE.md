@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Track A, Module 6 (State Model)** is the immediate next step. It has no dependencies, works in the current environment, and is the foundation for all subsequent game logic translation.
+**Track A, Module 13 (Layer 1 integration test)** is the immediate next step. Module 12 is human-approved, so the next worker iteration should phase-plan the full replay regression suite before implementation begins.
 
 ---
 

@@ -1,5 +1,16 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 13: Layer 1 Integration Test
+
+### 2026-04-15 — Module 12 Human Approval; Module 13 Unblocked
+
+**Mode:** Governance | **Outcome:** Module 13 ready to plan
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md — status propagation only; no interface or behavior contract changes
+
+Human audit gate for Module 12 is approved. Phase 12a and Phase 12b review outcomes remain accepted with no must-fix or should-fix findings, and the last recorded fresh verification is `gradle test` passing in `SDLPoP-kotlin` with 540 tests and 0 failures on 2026-04-15.
+
+Next autonomous action: phase-plan Module 13. The worker should define the Layer 1 full-regression harness, replay trace generation path, comparison workflow, acceptance criteria, and failure-escalation policy before implementation begins.
+
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
 ### 2026-04-15 — Phase 12b Complete

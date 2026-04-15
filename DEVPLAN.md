@@ -37,9 +37,9 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **COMPLETE**
-**Phase:** 12b — loose-floor mobs and remaining seg007 functions — **COMPLETE**
-**Next:** Human audit Module 12 completion before Module 13 begins.
+**Module:** 13 — Layer 1 integration test (full regression suite) — **READY TO PLAN**
+**Phase:** 13a — integration/regression planning — **NEXT**
+**Next:** Autonomous worker should phase-plan Module 13: define the Kotlin full-regression harness, replay trace generation path, comparison workflow, acceptance criteria, and failure-escalation policy.
 **Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 (540 tests, 0 failures previously reported).
 
 ## Phase Summary
@@ -77,9 +77,13 @@ One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005
 One-line: Translated seg002.c → Seg002.kt across phases 11a-11c, including guard AI, room transitions, sword combat detection, skeleton/shadow logic, and stub wire-up; review clean. See DEVLOG §Module 11.
 
 ### Module 12: Layer 1 seg007 — COMPLETE
+Human audit approved on 2026-04-15; proceed to Module 13.
 
 #### Phase 12a: Trob core, redraw helpers, trap/button animation — COMPLETE
 One-line: Translated trob pipeline, animated-tile state machines (torch/potion/sword/chomper/spike/button/gate/leveldoor), trigger plumbing, and 6 ExternalStubs wire-ups into Seg007.kt (3 steps, 70 tests, 519 total pass, zero escalations). See DEVLOG §Module 12.
 
 #### Phase 12b: Loose-floor mobs and remaining seg007 functions — COMPLETE
 One-line: Translated loose-floor fall initiation, falling-object simulation, Kid collision/death handling, row/room transitions, redraw bookkeeping, and mob object-table writes into Seg007.kt (3 steps, 21 new tests, 540 total pass, zero escalations). See DEVLOG §Module 12.
+
+### Module 13: Layer 1 integration test — READY TO PLAN
+One-line: Build the full Layer 1 replay regression suite around the translated Kotlin game logic, using the SDLPoP reference traces as the oracle and escalating only after reproducible divergence triage.
