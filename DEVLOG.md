@@ -2,6 +2,17 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Step 13a.1: Trace oracle foundation
+
+**Mode:** Code | **Outcome:** Complete — 4 new oracle tests pass (544 total)
+**Contract changes:** None
+
+Implemented the Kotlin trace-oracle foundation in `com.sdlpop.oracle`: `StateTraceFormat` now defines the 310-byte frame size, leaf field metadata for every byte range in `TRACE_FORMAT.md`, parsers for byte arrays and trace files, and comparison helpers that report the first divergent frame, byte offset, field name, expected value, and actual value.
+
+The field metadata names nested character, trob, and mob values directly (`Kid.curr_seq`, `trobs[0].type`, `mobs[13].row`) so replay failures can point to a useful state field instead of a raw offset. Tests cover full-layout metadata coverage, little-endian multi-byte reads, signed byte/short interpretation, first-divergence reporting, and parsing the existing `basic_movement.trace` C reference trace.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin` (544 tests, 0 failures).
+
 ### 2026-04-15 — Phase 13a Plan: Layer 1 Replay Regression Harness
 
 **Mode:** Discuss | **Outcome:** Phase planned
