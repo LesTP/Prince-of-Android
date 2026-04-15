@@ -38,9 +38,9 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 14 — Replay Runner (Kotlin replay playback + trace writer) — **IN PROGRESS**
-**Phase:** 14a — Kotlin replay playback and trace producer — **IN PROGRESS**
-**Next:** Step 14a.4 escalation: real Kotlin trace generation is wired, but `gradle test layer1ReplayRegression --rerun-tasks` fails with deterministic first-frame trace divergence after two targeted fix attempts. Human/orchestrator decision needed on whether to expand the frame-driver scope into timer/game-loop behavior or adjust the Module 14 boundary.
-**Blocked/Broken:** Step 14a.4 blocked on replay regression divergence. Latest run on 2026-04-15: ordinary `test` task passed; `layer1ReplayRegression` failed for all 13 real Kotlin traces. Primary remaining pattern: frame 0 `rem_tick` expected one less than actual (`basic_movement` expected 657 actual 658); two traces first diverge earlier at `Guard.frame` (`falling_through_floor_pr274` expected 171 actual 166, `sword_and_level_transition` expected 163 actual 166). Actual traces are under `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`.
+**Phase:** 14b — Non-rendering frame lifecycle reconciliation — **IN PROGRESS**
+**Next:** Step 14b.2: implement the pinned non-rendering lifecycle shim in the Kotlin replay runner/frame-driver boundary, covering timer decrement timing and the missing early-frame `seg000`/`seg003` calls without SDL, rendering, audio, menu, or Android scope.
+**Blocked/Broken:** None. Phase 14a Step 14a.4 escalation was bypassed by human/orchestrator authorization on 2026-04-15 and converted into Phase 14b work. Step 14b.1 pinned the minimum lifecycle contract: C validate traces are dumped at the end of `play_frame()` after `show_time()` decrements `rem_tick`; the Kotlin runner currently serializes immediately after the Layer 1 driver, so frame 0 keeps the savestate timer. The remaining guard-frame divergences are plausibly tied to missing non-rendering `seg000`/`seg003` calls around `check_can_guard_see_kid`, `bump_into_opponent`, `check_knock`, `check_sword_vs_sword`, `do_delta_hp`, and `check_the_end`, plus C `play_guard_frame()` saving through `saveshad()` rather than the broader `saveshad_and_opp()` helper. The known regression target remains all 13 real Kotlin traces under `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`.
 
 ## Phase Summary
 
@@ -94,7 +94,7 @@ One-line: Delivered the trace oracle foundation, state snapshot writer, and mani
 ### Module 14: Replay Runner — IN PROGRESS
 One-line: Build Kotlin replay playback through the translated game loop, produce real Kotlin state traces, and wire those traces into the Phase 13a regression harness.
 
-#### Phase 14a: Kotlin replay playback and trace producer — IN PROGRESS
+#### Phase 14a: Kotlin replay playback and trace producer — ESCALATION BYPASSED
 One-line: Replace the Phase 13a copy-based producer with real Kotlin trace generation from `.P1R` replay inputs, a narrow Layer 1 frame driver, replay move hooks, and 310-byte state snapshot output.
 
 **Regime:** Build — deterministic replay I/O and state comparison are machine-verifiable.
@@ -105,6 +105,27 @@ One-line: Replace the Phase 13a copy-based producer with real Kotlin trace gener
 - **14a.1** Replay manifest and initialization — COMPLETE: mapped the 13 `Layer1RegressionManifest` ids to their `.P1R` files, parsed replay metadata through `P1RParser`, seeded `GameState` replay fields (`replaying`, `startLevel`, `randomSeed`, `numReplayTicks`, format/version/deprecation values), and tested path resolution plus initialization behavior.
 - **14a.2** Replay input hooks — COMPLETE: translated the replay move consumption needed by `ExternalStubs.doReplayMove`, decoded packed per-tick control bytes into `control_x`, `control_y`, `control_shift`, handled validate seek/skipping state and end-of-replay completion, restored saved replay RNG seed, and fixed/tested the old-version `g_deprecation_number` branch used by seg007 loose-floor RNG behavior.
 - **14a.3** Layer 1 frame driver — COMPLETE: added `Layer1FrameDriver` in `com.sdlpop.replay` with `playFrame`, `playKidFrame`, and `playGuardFrame` orchestration over translated Layer 1 entry points in SDLPoP order, plus focused tests for call order and deterministic replay input consumption without SDL, Android, file I/O, rendering, or audio dependencies in `com.sdlpop.game`.
-- **14a.4** Real trace producer workflow — ESCALATED: real `.P1R` trace production is wired into `Layer1RegressionHarness`, but the forced workflow fails after two targeted fix attempts with first-frame divergences. The ordinary unit suite passes; the dedicated regression task reports triage-ready replay/frame/field/expected/actual/actual-trace details.
+- **14a.4** Real trace producer workflow — ESCALATION BYPASSED: real `.P1R` trace production is wired into `Layer1RegressionHarness`, but the forced workflow fails after two targeted fix attempts with first-frame divergences. The ordinary unit suite passes; the dedicated regression task reports triage-ready replay/frame/field/expected/actual/actual-trace details. Human/orchestrator authorization on 2026-04-15 bypassed the escalation stop and directed continuation into Phase 14b.
 
 **Acceptance:** The dedicated Layer 1 regression workflow uses real Kotlin-produced traces under `build/oracle/layer1-regression`. Any trace divergence must report replay id, frame, field, expected value, actual value, and actual trace path. True game-logic divergences get no more than two targeted fix attempts before escalation with the replay/frame/field details.
+
+#### Phase 14b: Non-rendering frame lifecycle reconciliation — IN PROGRESS
+One-line: Resolve the Phase 14a replay-regression escalation by adding the smallest non-rendering game-loop/timer lifecycle slice needed for Kotlin replay traces to match the C validate runner.
+
+**Regime:** Build — expected behavior is machine-verifiable through the 13-trace replay regression workflow.
+
+**Scope:** Reconcile replay-runner frame lifecycle state that sits just outside the Phase 14a Layer 1 frame driver, especially timer decrement/order, per-frame sequencing, guard frame setup, and validate-mode trace timing. This phase may translate or model the minimal relevant `seg000`/`seg003` lifecycle behavior required for deterministic replay validation, but it must not expand into SDL/platform behavior, rendering, audio, menus, Android integration, or a general game-loop port.
+
+**Steps:**
+- **14b.1** Lifecycle audit and contract pinning — COMPLETE: C validate mode starts replay state, restores the savestate, resets `curr_tick`, then each `play_frame()` consumes replay input inside `play_kid()`/`control_kid()`, runs the non-rendering `seg000` frame sequence, calls `show_time()` before `dump_frame_state()`, and only then writes the 310-byte trace frame. The Kotlin runner restores the same savestate and replay input, but currently serializes immediately after a narrower Layer 1 driver. The minimum contract for 14b.2 is to add the deterministic headless lifecycle slice needed before trace serialization: timer decrement semantics from `show_time()`, the missing non-rendering `seg000`/`seg003` frame calls, and C-equivalent guard save behavior, without importing SDL/platform/render/audio/menu responsibilities.
+- **14b.2** Minimal lifecycle shim — PLANNED: implement the pinned non-rendering timer/frame lifecycle in the Kotlin replay runner or frame driver boundary, keeping it isolated from platform/render/audio concerns and covering the observed `rem_tick` and `Guard.frame` first-divergence cases with focused tests.
+- **14b.3** Real-trace regression closure — PLANNED: rerun `gradle test layer1ReplayRegression --rerun-tasks` against all 13 real Kotlin traces, apply no more than two targeted fixes for true lifecycle/game-logic divergences, and either close Module 14 with byte-identical traces or escalate with replay/frame/field/expected/actual details and suspected Module 15 boundary.
+
+**Lifecycle contract pinned by 14b.1:**
+- C trace timing: `dump_frame_state()` is called inside `seg000.c::play_frame()` after the game-logic sequence and after `show_time()`. Therefore frame 0 in the reference trace is not the raw replay savestate; it is the post-frame state after one timer update.
+- Timer scope: only the deterministic side effects of `seg008.c::show_time()` are in Phase 14b scope: blink-state toggle, conditional `rem_tick`/`rem_min` decrement, `is_show_time`, and text timer values that influence future timer display behavior. Drawing text, HP, surfaces, palettes, and sound playback remain out of scope.
+- Frame sequence scope: the Kotlin frame shim must align with C `seg000.c::play_frame()` for non-rendering state calls: `do_mobs`, `process_trobs`, `check_skel`, `check_can_guard_see_kid`, Kid frame, Guard frame, sword hurt checks, `check_sword_vs_sword`, `do_delta_hp`, `exit_room`, `check_the_end`, `check_guard_fallout`, and `show_time`.
+- Kid/Guard subframe scope: the existing Layer 1 driver is missing `bump_into_opponent()` and `check_knock()` in the Kid subframe, and its Guard save hook uses `saveshad_and_opp()` while C `play_guard_frame()` calls `saveshad()`. Step 14b.2 should either translate the needed `seg003` helpers or keep them as explicit no-op boundaries only if focused tests and traces prove they are not active.
+- Replay input scope: `do_replay_move()` remains consumed from `Seg006.controlKid()` during the Kid subframe. The replay runner should not consume moves before `play_frame()`, because C restores RNG/validate seek state at tick 0 from inside the first Kid control path.
+
+**Acceptance:** The ordinary Kotlin test suite remains green, and the dedicated Layer 1 replay regression workflow either passes with real Kotlin-produced traces for all 13 manifests or escalates after two targeted fixes with triage-ready divergence details. Any added lifecycle behavior must remain deterministic, headless, and free of SDL, rendering, audio, menu, or Android dependencies.

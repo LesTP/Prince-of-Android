@@ -1,11 +1,20 @@
 # DECISIONS — Prince of Persia Android Port
 
-D-13: Step 14a.4 escalation boundary
+D-14: Phase 14b headless lifecycle boundary
 Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Implement only the deterministic, non-rendering frame lifecycle needed for replay trace equivalence in Phase 14b: C-equivalent trace timing after `show_time()`, timer state updates, and the missing `seg000`/`seg003` frame calls that mutate game state before the trace snapshot.
+Rationale: Step 14b.1 found that the C reference writes `state_trace.bin` from `seg000.c::play_frame()` after `show_time()` runs, while the Kotlin runner currently serializes immediately after the narrower Layer 1 frame driver. This accounts for the systematic frame 0 `rem_tick` mismatch. The two guard-frame first divergences also sit in the gap between the current driver and C's non-rendering frame sequence: `check_can_guard_see_kid`, `bump_into_opponent`, `check_knock`, `check_sword_vs_sword`, `do_delta_hp`, `check_the_end`, and the narrower `saveshad()` guard save path.
+Out of scope: SDL event processing, rendering/drawing, audio playback, menus, cutscenes, Android integration, general `seg000`/`seg001`/`seg003` translation, and visual side effects from `show_time()`.
+Revisit if: The 13-trace regression still diverges after the pinned lifecycle shim and two targeted fixes, or if a required behavior cannot be isolated from platform/render/audio responsibilities.
+
+D-13: Step 14a.4 escalation boundary
+Date: 2026-04-15 | Status: Bypassed
 Priority: Important
 Decision: Escalate Step 14a.4 instead of attempting a third replay-divergence fix or expanding the frame driver into broader game-loop/timer lifecycle code.
 Rationale: Real Kotlin trace production is wired and produces triage-ready artifacts, but `layer1ReplayRegression` still fails after two targeted fixes. The remaining first-frame divergences are systematic timer/frame-lifecycle mismatches (`rem_tick` off by one for 11/13 traces, with two guard-frame divergences), which likely touch the Module 14/15 boundary around non-rendering `seg000`/`seg003` behavior. Phase 14a acceptance explicitly limits true divergence fixing to two targeted attempts before escalation.
-Revisit if: The human/orchestrator authorizes expanding Module 14 scope to include the missing timer/game-loop lifecycle slice, or reassigns the remaining divergence to Module 15.
+Bypass: Human/orchestrator authorization on 2026-04-15 accepted the escalation and directed the loop to continue into Phase 14b, where the missing non-rendering timer/game-loop lifecycle slice is explicitly in scope. The bypass does not close the divergence; it converts the escalation from a stop condition into the motivating input for Step 14b.1.
+Revisit if: Phase 14b expands beyond the minimal lifecycle slice, or if the remaining divergence needs reassignment to Module 15.
 
 D-1: External dependency handling for seg006
 Date: 2026-04-04 | Status: Open

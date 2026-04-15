@@ -2,6 +2,24 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14b.1: Lifecycle audit and contract pinning
+
+**Mode:** Docs | **Outcome:** Complete — minimum headless frame lifecycle contract pinned
+**Contract changes:** DEVPLAN.md, DECISIONS.md — Phase 14b implementation boundary now explicitly includes deterministic timer/frame lifecycle state and excludes SDL/render/audio/menu/Android behavior.
+
+Audited the C validate/replay path against the current Kotlin replay runner. In C, `start_replay()` loads replay data and resets `curr_tick`; replay input is consumed inside `seg006.c::control_kid()` during the Kid subframe; `seg000.c::play_frame()` then completes the non-rendering frame sequence, calls `show_time()`, and writes the trace through `dump_frame_state()`. The reference frame 0 therefore captures post-frame timer state, which explains the systematic one-tick `rem_tick` mismatch in the current Kotlin traces: `ReplayRunner.writeLayer1Trace()` serializes immediately after the narrower `Layer1FrameDriver` without the `show_time()` timer side effect.
+
+The audit also pinned the likely guard-frame surface for Step 14b.2. The current Kotlin driver omits C `check_can_guard_see_kid()` before Kid processing, `bump_into_opponent()` and `check_knock()` inside the Kid subframe, `check_sword_vs_sword()`, `do_delta_hp()`, and `check_the_end()` after sword hurt checks, and it saves the Guard with `saveshad_and_opp()` while C `play_guard_frame()` uses `saveshad()`. Those calls are deterministic lifecycle/game-state behavior from `seg000`/`seg003`, not platform/render/audio work.
+
+No source code was changed in this audit step. Verification was by source inspection only; no Gradle run was needed because the action pinned the contract for the next implementation step.
+
+### 2026-04-15 — Step 14a.4 escalation bypass
+
+**Mode:** Governance | **Outcome:** Bypassed — continue into Phase 14b
+**Contract changes:** None.
+
+Human/orchestrator authorization accepted the Step 14a.4 escalation as triage input rather than a stop condition. D-13 is now marked Bypassed, DEVPLAN no longer lists the escalation as an active blocker, and Phase 14b remains the authorized path for the minimal non-rendering timer/game-loop lifecycle reconciliation needed to address the known replay divergences.
+
 ### 2026-04-15 — Step 14a.4: Real trace producer workflow
 
 **Mode:** Code | **Outcome:** Escalated — real trace generation wired, regression still diverges after two targeted fix attempts
