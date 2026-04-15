@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
 import kotlin.io.path.createDirectories
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -44,12 +43,10 @@ class Layer1RegressionHarnessTest {
 
     @Test
     @Tag("layer1-regression")
-    fun `workflow writes Kotlin trace artifacts under build output and compares all manifest traces`() {
+    fun `workflow writes real Kotlin trace artifacts under build output and compares all manifest traces`() {
         val referenceRoot = referenceRoot()
-        val outputRoot = outputRoot().resolve("manifest-copy")
-        val harness = Layer1RegressionHarness(referenceRoot, outputRoot) { replay, outputPath ->
-            Files.copy(replay.referencePath(referenceRoot), outputPath, StandardCopyOption.REPLACE_EXISTING)
-        }
+        val outputRoot = outputRoot().resolve("real-kotlin")
+        val harness = Layer1RegressionHarness(referenceRoot, outputRoot)
 
         val results = harness.run(Layer1RegressionManifest.fromReferenceRoot(referenceRoot))
         val normalizedOutputRoot = outputRoot.toAbsolutePath().normalize()

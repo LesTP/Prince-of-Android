@@ -1,9 +1,15 @@
 package com.sdlpop.replay
 
-import com.sdlpop.game.GameState
+import com.sdlpop.game.CharType
 import com.sdlpop.game.Control
 import com.sdlpop.game.ExternalStubs
+import com.sdlpop.game.GameState
+import com.sdlpop.game.LevelType
+import com.sdlpop.game.MobType
+import com.sdlpop.game.TrobType
 import com.sdlpop.oracle.Layer1ReplayTrace
+import com.sdlpop.oracle.StateTraceFormat
+import java.nio.file.Files
 import java.nio.file.Path
 
 data class ReplayRunInput(
@@ -46,10 +52,123 @@ object ReplayRunner {
         state.gDeprecationNumber = replay.deprecationNumber
     }
 
+    fun restoreSavestate(replay: ReplayData, state: GameState = GameState) {
+        val reader = SavestateReader(replay.savestateBuffer)
+
+        readLevel(reader, state.level)
+        state.checkpoint = reader.u16()
+        state.upsideDown = reader.u16()
+        state.drawnRoom = reader.u16()
+        state.currentLevel = reader.u16()
+        state.nextLevel = reader.u16()
+        state.mobsCount = reader.s16()
+        repeat(state.mobs.size) { readMob(reader, state.mobs[it]) }
+        state.trobsCount = reader.s16()
+        repeat(state.trobs.size) { readTrob(reader, state.trobs[it]) }
+        state.leveldoorOpen = reader.u16()
+
+        readChar(reader, state.Kid)
+        state.hitpCurr = reader.u16()
+        state.hitpMax = reader.u16()
+        state.hitpBegLev = reader.u16()
+        state.grabTimer = reader.u16()
+        state.holdingSword = reader.u16()
+        state.unitedWithShadow = reader.s16()
+        state.haveSword = reader.u16()
+        state.kidSwordStrike = reader.u16()
+        state.pickupObjType = reader.s16()
+        state.offguard = reader.u16()
+
+        readChar(reader, state.Guard)
+        readChar(reader, state.Char)
+        readChar(reader, state.Opp)
+        state.guardhpCurr = reader.u16()
+        state.guardhpMax = reader.u16()
+        state.demoIndex = reader.u16()
+        state.demoTime = reader.s16()
+        state.currGuardColor = reader.u16()
+        state.guardNoticeTimer = reader.s16()
+        state.guardSkill = reader.u16()
+        state.shadowInitialized = reader.u16()
+        state.guardRefrac = reader.u16()
+        state.justblocked = reader.u16()
+        state.droppedout = reader.u16()
+
+        repeat(state.currRowCollRoom.size) { state.currRowCollRoom[it] = reader.s8() }
+        repeat(state.currRowCollFlags.size) { state.currRowCollFlags[it] = reader.u8() }
+        repeat(state.belowRowCollRoom.size) { state.belowRowCollRoom[it] = reader.s8() }
+        repeat(state.belowRowCollFlags.size) { state.belowRowCollFlags[it] = reader.u8() }
+        repeat(state.aboveRowCollRoom.size) { state.aboveRowCollRoom[it] = reader.s8() }
+        repeat(state.aboveRowCollFlags.size) { state.aboveRowCollFlags[it] = reader.u8() }
+        state.prevCollisionRow = reader.s8()
+
+        state.flashColor = reader.u16()
+        state.flashTime = reader.u16()
+        state.needLevel1Music = reader.u16()
+        state.isScreaming = reader.u16()
+        state.isFeatherFall = reader.u16()
+        state.lastLooseSound = reader.u16()
+        state.randomSeed = reader.u32()
+        state.remMin = reader.s16()
+        state.remTick = reader.u16()
+
+        state.controlX = reader.s8()
+        state.controlY = reader.s8()
+        state.controlShift = reader.s8()
+        state.controlForward = reader.s8()
+        state.controlBackward = reader.s8()
+        state.controlUp = reader.s8()
+        state.controlDown = reader.s8()
+        state.controlShift2 = reader.s8()
+        state.ctrl1Forward = reader.s8()
+        state.ctrl1Backward = reader.s8()
+        state.ctrl1Up = reader.s8()
+        state.ctrl1Down = reader.s8()
+        state.ctrl1Shift2 = reader.s8()
+        state.currTick = reader.u32()
+
+        reader.skip(750) // torch_colors[25][30], used only by rendering.
+        if (reader.hasRemaining()) state.superJumpFall = reader.u8()
+        if (reader.hasRemaining()) state.superJumpTimer = reader.u8()
+        if (reader.hasRemaining()) state.superJumpRoom = reader.u8()
+        if (reader.hasRemaining()) state.superJumpCol = reader.s8()
+        if (reader.hasRemaining()) state.superJumpRow = reader.s8()
+        if (reader.remaining() >= 2) state.isGuardNotice = reader.u16()
+        if (reader.remaining() >= 2) state.canGuardSeeKid = reader.s16()
+
+        ExternalStubs.getRoomAddress(state.drawnRoom)
+        state.currRoom = state.drawnRoom.toShort()
+        state.loadedRoom = state.drawnRoom
+        state.currTick = 0
+    }
+
     fun installReplayMoveHook(replay: ReplayData, state: GameState = GameState) {
         activeReplay = replay
         replayEnded = false
         ExternalStubs.doReplayMove = { doReplayMove(state) }
+    }
+
+    fun writeLayer1Trace(
+        manifestEntry: Layer1ReplayTrace,
+        replayRoot: Path,
+        outputPath: Path,
+        state: GameState = GameState,
+    ): Path {
+        val input = loadManifestReplay(manifestEntry, replayRoot)
+        initializeReplayState(input.replay, state)
+        restoreSavestate(input.replay, state)
+        installReplayMoveHook(input.replay, state)
+
+        Files.createDirectories(outputPath.parent)
+        Files.newOutputStream(outputPath).use { output ->
+            var frameNumber = 0L
+            while (!replayEnded && frameNumber < input.replay.numReplayTicks) {
+                Layer1FrameDriver.playFrame(state)
+                output.write(StateTraceFormat.serializeFrameBytes(frameNumber, state))
+                frameNumber += 1
+            }
+        }
+        return outputPath
     }
 
     fun doReplayMove(state: GameState = GameState) {
@@ -119,6 +238,68 @@ object ReplayRunner {
         state.replaying = 0
         state.skippingReplay = 0
     }
+
+    private fun readLevel(reader: SavestateReader, level: LevelType) {
+        repeat(level.fg.size) { level.fg[it] = reader.u8() }
+        repeat(level.bg.size) { level.bg[it] = reader.u8() }
+        repeat(level.doorlinks1.size) { level.doorlinks1[it] = reader.u8() }
+        repeat(level.doorlinks2.size) { level.doorlinks2[it] = reader.u8() }
+        repeat(level.roomlinks.size) {
+            level.roomlinks[it].left = reader.u8()
+            level.roomlinks[it].right = reader.u8()
+            level.roomlinks[it].up = reader.u8()
+            level.roomlinks[it].down = reader.u8()
+        }
+        level.usedRooms = reader.u8()
+        repeat(level.roomxs.size) { level.roomxs[it] = reader.u8() }
+        repeat(level.roomys.size) { level.roomys[it] = reader.u8() }
+        repeat(level.fill1.size) { level.fill1[it] = reader.u8() }
+        level.startRoom = reader.u8()
+        level.startPos = reader.u8()
+        level.startDir = reader.s8()
+        repeat(level.fill2.size) { level.fill2[it] = reader.u8() }
+        repeat(level.guardsTile.size) { level.guardsTile[it] = reader.u8() }
+        repeat(level.guardsDir.size) { level.guardsDir[it] = reader.u8() }
+        repeat(level.guardsX.size) { level.guardsX[it] = reader.u8() }
+        repeat(level.guardsSeqLo.size) { level.guardsSeqLo[it] = reader.u8() }
+        repeat(level.guardsSkill.size) { level.guardsSkill[it] = reader.u8() }
+        repeat(level.guardsSeqHi.size) { level.guardsSeqHi[it] = reader.u8() }
+        repeat(level.guardsColor.size) { level.guardsColor[it] = reader.u8() }
+        repeat(level.fill3.size) { level.fill3[it] = reader.u8() }
+    }
+
+    private fun readChar(reader: SavestateReader, char: CharType) {
+        char.frame = reader.u8()
+        char.x = reader.u8()
+        char.y = reader.u8()
+        char.direction = reader.s8()
+        char.currCol = reader.s8()
+        char.currRow = reader.s8()
+        char.action = reader.u8()
+        char.fallX = reader.s8()
+        char.fallY = reader.s8()
+        char.room = reader.u8()
+        char.repeat = reader.u8()
+        char.charid = reader.u8()
+        char.sword = reader.u8()
+        char.alive = reader.s8()
+        char.currSeq = reader.u16()
+    }
+
+    private fun readTrob(reader: SavestateReader, trob: TrobType) {
+        trob.tilepos = reader.u8()
+        trob.room = reader.u8()
+        trob.type = reader.s8()
+    }
+
+    private fun readMob(reader: SavestateReader, mob: MobType) {
+        mob.xh = reader.u8()
+        mob.y = reader.u8()
+        mob.room = reader.u8()
+        mob.speed = reader.s8()
+        mob.type = reader.u8()
+        mob.row = reader.u8()
+    }
 }
 
 data class ReplayMove(
@@ -127,3 +308,37 @@ data class ReplayMove(
     val shift: Int,
     val special: Int,
 )
+
+private class SavestateReader(private val bytes: ByteArray) {
+    private var offset: Int = 0
+
+    fun hasRemaining(): Boolean = offset < bytes.size
+
+    fun remaining(): Int = bytes.size - offset
+
+    fun u8(): Int = bytes[offset++].toInt() and 0xFF
+
+    fun s8(): Int = bytes[offset++].toInt().toByte().toInt()
+
+    fun u16(): Int {
+        val value = (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8)
+        offset += 2
+        return value
+    }
+
+    fun s16(): Short = u16().toShort()
+
+    fun u32(): Long {
+        val value = (bytes[offset].toLong() and 0xFF) or
+            ((bytes[offset + 1].toLong() and 0xFF) shl 8) or
+            ((bytes[offset + 2].toLong() and 0xFF) shl 16) or
+            ((bytes[offset + 3].toLong() and 0xFF) shl 24)
+        offset += 4
+        return value and 0xFFFFFFFFL
+    }
+
+    fun skip(count: Int) {
+        offset = minOf(bytes.size, offset + count)
+    }
+}

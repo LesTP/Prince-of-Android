@@ -1,7 +1,9 @@
 package com.sdlpop.oracle
 
+import com.sdlpop.replay.ReplayRunner
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.io.path.createDirectories
 
 data class Layer1ReplayTrace(
@@ -46,7 +48,13 @@ data class Layer1RegressionResult(
 class Layer1RegressionHarness(
     private val referenceRoot: Path,
     private val outputRoot: Path,
-    private val produceKotlinTrace: (Layer1ReplayTrace, Path) -> Path,
+    private val produceKotlinTrace: (Layer1ReplayTrace, Path) -> Path = { replay, outputPath ->
+        ReplayRunner.writeLayer1Trace(
+            replay,
+            Paths.get(System.getProperty("sdlpop.replayRoot", "../SDLPoP")),
+            outputPath,
+        )
+    },
 ) {
     fun run(replays: List<Layer1ReplayTrace> = Layer1RegressionManifest.replays): List<Layer1RegressionResult> {
         outputRoot.createDirectories()

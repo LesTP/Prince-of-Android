@@ -457,7 +457,7 @@ object Seg002 {
     fun gotoOtherRoom(direction: Int): Int {
         val oppositeDir: Int
         // FIX_ENTERING_GLITCHED_ROOMS
-        var otherRoom = if (gs.Char.room == 0 && gs.fixes.fixOffscreenGuardsDisappearing != 0) {
+        var otherRoom = if (gs.Char.room == 0) {
             0
         } else {
             val link = gs.level.roomlinks[gs.Char.room - 1]

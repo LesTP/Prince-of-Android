@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-13: Step 14a.4 escalation boundary
+Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Escalate Step 14a.4 instead of attempting a third replay-divergence fix or expanding the frame driver into broader game-loop/timer lifecycle code.
+Rationale: Real Kotlin trace production is wired and produces triage-ready artifacts, but `layer1ReplayRegression` still fails after two targeted fixes. The remaining first-frame divergences are systematic timer/frame-lifecycle mismatches (`rem_tick` off by one for 11/13 traces, with two guard-frame divergences), which likely touch the Module 14/15 boundary around non-rendering `seg000`/`seg003` behavior. Phase 14a acceptance explicitly limits true divergence fixing to two targeted attempts before escalation.
+Revisit if: The human/orchestrator authorizes expanding Module 14 scope to include the missing timer/game-loop lifecycle slice, or reassigns the remaining divergence to Module 15.
+
 D-1: External dependency handling for seg006
 Date: 2026-04-04 | Status: Open
 Priority: Important

@@ -41,12 +41,13 @@ The Layer 1 replay-regression harness has a dedicated workflow:
 It reads the 13 C reference traces from `../SDLPoP/traces/reference`, writes
 Kotlin trace artifacts under `build/oracle/layer1-regression`, compares traces
 with the 310-byte state format, and reports the first divergent frame, field,
-expected value, and actual value. Until Module 14 adds the Kotlin replay runner,
-the workflow uses a producer hook; Module 14 owns feeding `.P1R` inputs through
-the translated game loop and replacing that hook with real Kotlin trace output.
+expected value, actual value, and actual trace path. The workflow feeds the
+manifest `.P1R` inputs through the Kotlin replay runner, restores each replay's
+embedded savestate, drives the translated Layer 1 frame driver, and serializes
+each frame with `StateTraceFormat`.
 
 ## Current Status
 
-Module 13: Layer 1 replay-regression harness in progress.
+Module 14: Replay runner in progress.
 
 See `../DEVPLAN.md` for the full implementation plan.

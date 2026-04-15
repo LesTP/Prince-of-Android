@@ -2,6 +2,19 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14a.4: Real trace producer workflow
+
+**Mode:** Code | **Outcome:** Escalated — real trace generation wired, regression still diverges after two targeted fix attempts
+**Contract changes:** `Layer1RegressionHarness` now defaults to a real `.P1R` replay producer; `layer1ReplayRegression` writes real Kotlin traces under `build/oracle/layer1-regression/workflow/real-kotlin`; README updated to describe the real producer boundary
+
+Implemented replay savestate restoration from embedded `.P1R` quicksave data, including level data, characters, mobs, trobs, collision arrays, timer/control state, RNG state, and current-room buffer loading. Replaced the Phase 13a manifest-copy producer with `ReplayRunner.writeLayer1Trace()`, which restores each replay, installs the replay input hook, drives `Layer1FrameDriver`, and serializes frames with `StateTraceFormat.serializeFrameBytes()`.
+
+Two targeted fixes were applied during validation: `Seg002.gotoOtherRoom()` now guards `Char.room == 0` before Kotlin array indexing, matching the reference build's tolerated offscreen-room path, and savestate restore alignment was corrected by reading the duplicated `prev_collision_row` storage as it appears in the replay savestate. The ordinary unit suite passes under the requested command after isolating test classes from shared singleton state.
+
+The forced verification command `gradle test layer1ReplayRegression --rerun-tasks` still fails in the dedicated regression task. The remaining primary divergence is systematic at frame 0: `rem_tick` is one tick higher in Kotlin than the C reference for 11/13 traces, for example `basic_movement` expected `657` and actual `658`. Two traces first diverge at `Guard.frame`: `falling_through_floor_pr274` expected `171` actual `166`, and `sword_and_level_transition` expected `163` actual `166`. Actual trace artifacts were written to `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`.
+
+Per Phase 14a acceptance, no third targeted fix was attempted. Continuing likely requires a human/orchestrator decision on whether Module 14 may expand the narrow frame driver to include timer/game-loop lifecycle behavior from Layer 2 or whether the regression boundary should shift to Module 15.
+
 ### 2026-04-15 — Step 14a.3: Layer 1 frame driver
 
 **Mode:** Code | **Outcome:** Complete — translated Layer 1 frame orchestration covered by focused replay tests
