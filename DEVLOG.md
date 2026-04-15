@@ -2,6 +2,17 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Step 12b.3: Mob draw/object-table bookkeeping
+
+**Mode:** Code | **Outcome:** Complete — 7 new tests pass (540 total)
+**Contract changes:** None
+
+Translated the final Phase 12b seg007 draw bookkeeping slice into `Seg007.kt`: `drawMobs`, `drawMob`, and `addMobToObjtable`. The implementation preserves drawn/current, below-room, and above-room visibility rules, marks foreground/redraw slots for the falling loose-floor sprite footprint, and writes mob entries into the existing object table using environment chtab sprite id 10 with `obj_type | 0x80`.
+
+Left unused SDL-only helper `sub_9A8E` unported as planned because there is no live Kotlin reference and it only blits screen rectangles in the C renderer path. Added focused `Seg007Test` coverage for object-table fields, current-room rendering, offscreen skips, room-above/below edge mapping, redraw markers, and `drawMobs` dispatch without mutating stored mob entries.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin` (540 tests, 0 failures).
+
 ### 2026-04-15 — Step 12b.2: Falling loose-floor mobs and Kid collision
 
 **Mode:** Code | **Outcome:** Complete — 9 new tests pass (533 total)

@@ -13,6 +13,7 @@ start_chompers, make_loose_fall, loose_make_shake, do_knock, is_spike_harmful.
 Phase 12a.3: Gate/leveldoor animation (animate_door, gate_stop, animate_leveldoor,
 play_door_sound_if_visible) — completes the animate_tile dispatch for gate and level door tiles.
 Phase 12b.1: Loose-floor animation entry point (animate_loose, loose_shake).
+Phase 12b.3: Loose-floor mob draw/object-table bookkeeping.
 */
 
 package com.sdlpop.game
@@ -23,6 +24,7 @@ import com.sdlpop.game.SoundFlags as SF
 import com.sdlpop.game.FrameIds as FID
 import com.sdlpop.game.Actions as Act
 import com.sdlpop.game.SeqIds as Seq
+import com.sdlpop.game.Chtabs as Chtab
 
 /**
  * seg007 — traps, triggers, animated tiles, and loose-floor mobs.
@@ -869,6 +871,74 @@ object Seg007 {
             } else {
                 0
             }
+        }
+    }
+
+    // seg007:13AE
+    fun drawMobs() {
+        for (index in 0 until gs.mobsCount.toInt()) {
+            copyMob(gs.curmob, gs.mobs[index])
+            drawMob()
+        }
+    }
+
+    // seg007:13E5
+    fun drawMob() {
+        var ypos = gs.curmob.y
+        if (gs.curmob.room == gs.drawnRoom) {
+            if (gs.curmob.y >= 210) return
+        } else if (gs.curmob.room == gs.roomB) {
+            if (kotlin.math.abs(ypos.toByte().toInt()) >= 18) return
+            gs.curmob.y = (gs.curmob.y + 192) and 0xFF
+            ypos = gs.curmob.y
+        } else if (gs.curmob.room == gs.roomA) {
+            if (gs.curmob.y < 174) return
+            ypos = gs.curmob.y - 189
+        } else {
+            return
+        }
+
+        var tileCol = gs.curmob.xh shr 2
+        val tileRow = Seg006.yToRowMod4(ypos)
+        gs.objTilepos = Seg006.getTileposNominus(tileCol, tileRow)
+        tileCol++
+        var tilepos = Seg006.getTilepos(tileCol, tileRow)
+        setRedraw2(tilepos, 1)
+        setRedrawFore(tilepos, 1)
+
+        val topRow = Seg006.yToRowMod4(ypos - 18)
+        if (topRow != tileRow) {
+            tilepos = Seg006.getTilepos(tileCol, topRow)
+            setRedraw2(tilepos, 1)
+            setRedrawFore(tilepos, 1)
+        }
+
+        addMobToObjtable(ypos)
+    }
+
+    // seg007:14DE
+    fun addMobToObjtable(ypos: Int) {
+        val index = gs.tableCounts[4].toInt()
+        gs.tableCounts[4] = (index + 1).toShort()
+        if (index !in gs.objtable.indices) return
+
+        val currObj = gs.objtable[index]
+        currObj.objType = gs.curmob.type or 0x80
+        currObj.xh = gs.curmob.xh
+        currObj.xl = 0
+        currObj.y = ypos.toShort()
+        currObj.chtabId = Chtab.ENVIRONMENT
+        currObj.id = 10
+        currObj.clip.top = 0.toShort()
+        currObj.clip.left = 0.toShort()
+        currObj.clip.right = 40.toShort()
+        markObjTileRedraw(index)
+    }
+
+    private fun markObjTileRedraw(index: Int) {
+        gs.objtable[index].tilepos = gs.objTilepos
+        if (gs.objTilepos < 30) {
+            gs.tileObjectRedraw[gs.objTilepos] = 1
         }
     }
 

@@ -74,6 +74,17 @@ class Seg007Test {
         gs.mobs.forEach {
             it.xh = 0; it.y = 0; it.room = 0; it.speed = 0; it.type = 0; it.row = 0
         }
+        gs.objtable.forEach {
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.chtabId = 0
+            it.id = 0
+            it.direction = 0
+            it.objType = 0
+            it.clip = RectType()
+            it.tilepos = 0
+        }
         gs.curmob.xh = 0
         gs.curmob.y = 0
         gs.curmob.room = 0
@@ -1242,6 +1253,136 @@ class Seg007Test {
 
         assertEquals(-1, gs.hitpDelta.toInt())
         assertEquals(SequenceTable.seqtblOffsets[Seq.seq_22_crushed], gs.Kid.currSeq)
+    }
+
+    // === Phase 12b.3 tests — mob draw/object-table bookkeeping ===
+
+    @Test
+    fun addMobToObjtableWritesEnvironmentLooseFloorObject() {
+        gs.curmob.xh = 12
+        gs.curmob.type = 2
+        gs.objTilepos = 13
+
+        seg007.addMobToObjtable(125)
+
+        assertEquals(1, gs.tableCounts[4].toInt())
+        assertEquals(2 or 0x80, gs.objtable[0].objType)
+        assertEquals(12, gs.objtable[0].xh)
+        assertEquals(0, gs.objtable[0].xl)
+        assertEquals(125, gs.objtable[0].y.toInt())
+        assertEquals(Chtabs.ENVIRONMENT, gs.objtable[0].chtabId)
+        assertEquals(10, gs.objtable[0].id)
+        assertEquals(0, gs.objtable[0].clip.top.toInt())
+        assertEquals(0, gs.objtable[0].clip.left.toInt())
+        assertEquals(40, gs.objtable[0].clip.right.toInt())
+        assertEquals(13, gs.objtable[0].tilepos)
+        assertEquals(1, gs.tileObjectRedraw[13])
+    }
+
+    @Test
+    fun drawMobDrawnRoomAddsObjectAndMarksLowerAndUpperTiles() {
+        gs.drawnRoom = 1
+        gs.curmob.room = 1
+        gs.curmob.xh = 8
+        gs.curmob.y = 70
+        gs.curmob.type = 0
+
+        seg007.drawMob()
+
+        assertEquals(1, gs.tableCounts[4].toInt())
+        assertEquals(12, gs.objTilepos)
+        assertEquals(12, gs.objtable[0].tilepos)
+        assertEquals(70, gs.objtable[0].y.toInt())
+        assertEquals(1, gs.redrawFrames2[13])
+        assertEquals(1, gs.redrawFramesFore[13])
+        assertEquals(1, gs.redrawFrames2[3])
+        assertEquals(1, gs.redrawFramesFore[3])
+    }
+
+    @Test
+    fun drawMobSkipsOffscreenDrawnRoomMob() {
+        gs.drawnRoom = 1
+        gs.curmob.room = 1
+        gs.curmob.y = 210
+
+        seg007.drawMob()
+
+        assertEquals(0, gs.tableCounts[4].toInt())
+    }
+
+    @Test
+    fun drawMobBelowRoomMapsIntoDrawnRoomWhenCloseToTopEdge() {
+        gs.drawnRoom = 1
+        gs.roomB = 5
+        gs.curmob.room = 5
+        gs.curmob.xh = 8
+        gs.curmob.y = 0xF0
+
+        seg007.drawMob()
+
+        assertEquals(1, gs.tableCounts[4].toInt())
+        assertEquals(176, gs.curmob.y)
+        assertEquals(176, gs.objtable[0].y.toInt())
+        assertEquals(22, gs.objtable[0].tilepos)
+    }
+
+    @Test
+    fun drawMobAboveRoomMapsBottomEdgeWithNegativeYpos() {
+        gs.drawnRoom = 1
+        gs.roomA = 4
+        gs.curmob.room = 4
+        gs.curmob.xh = 8
+        gs.curmob.y = 180
+
+        seg007.drawMob()
+
+        assertEquals(1, gs.tableCounts[4].toInt())
+        assertEquals(-9, gs.objtable[0].y.toInt())
+        assertEquals(30, gs.objtable[0].tilepos)
+        assertEquals(1, gs.redrawFramesAbove[3])
+    }
+
+    @Test
+    fun drawMobSkipsInvisibleNeighborRooms() {
+        gs.roomB = 5
+        gs.curmob.room = 5
+        gs.curmob.y = 20
+        seg007.drawMob()
+        assertEquals(0, gs.tableCounts[4].toInt())
+
+        gs.roomA = 4
+        gs.curmob.room = 4
+        gs.curmob.y = 173
+        seg007.drawMob()
+        assertEquals(0, gs.tableCounts[4].toInt())
+
+        gs.curmob.room = 99
+        gs.curmob.y = 65
+        seg007.drawMob()
+        assertEquals(0, gs.tableCounts[4].toInt())
+    }
+
+    @Test
+    fun drawMobsDispatchesEveryVisibleMobWithoutMutatingStoredEntries() {
+        gs.drawnRoom = 1
+        gs.roomB = 5
+        gs.mobsCount = 3
+        gs.mobs[0].room = 1
+        gs.mobs[0].xh = 8
+        gs.mobs[0].y = 65
+        gs.mobs[1].room = 5
+        gs.mobs[1].xh = 12
+        gs.mobs[1].y = 0xF0
+        gs.mobs[2].room = 99
+        gs.mobs[2].xh = 16
+        gs.mobs[2].y = 65
+
+        seg007.drawMobs()
+
+        assertEquals(2, gs.tableCounts[4].toInt())
+        assertEquals(65, gs.objtable[0].y.toInt())
+        assertEquals(176, gs.objtable[1].y.toInt())
+        assertEquals(0xF0, gs.mobs[1].y)
     }
 
     private fun seedTile(room: Int, tilepos: Int, tile: Int, modifier: Int = 0) {
