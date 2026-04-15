@@ -1,8 +1,13 @@
 package com.sdlpop.replay
 
 import com.sdlpop.game.Control
+import com.sdlpop.game.CharIds
+import com.sdlpop.game.CharType
+import com.sdlpop.game.Directions
 import com.sdlpop.game.ExternalStubs
+import com.sdlpop.game.FrameIds
 import com.sdlpop.game.GameState
+import com.sdlpop.game.Seg005
 import com.sdlpop.oracle.Layer1RegressionManifest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -32,8 +37,13 @@ class ReplayRunnerTest {
         GameState.gDeprecationNumber = 0
         GameState.seedWasInit = 0
         GameState.isValidateMode = 0
-        GameState.currentLevel = 1
-        GameState.nextLevel = 1
+        GameState.currentLevel = -1
+        GameState.nextLevel = 0
+        GameState.drawnRoom = 0
+        GameState.Kid = CharType()
+        GameState.Guard = CharType(direction = Directions.NONE)
+        GameState.Char = CharType()
+        GameState.Opp = CharType()
         GameState.controlX = 0
         GameState.controlY = 0
         GameState.controlShift = 0
@@ -43,14 +53,38 @@ class ReplayRunnerTest {
         GameState.needLevel1Music = 0
         GameState.isFeatherFall = 0
         stopSoundsCount = 0
+        ExternalStubs.control = { Seg005.control() }
         ExternalStubs.stopSounds = { stopSoundsCount += 1 }
         ExternalStubs.doReplayMove = { }
     }
 
     @AfterTest
     fun restoreStubs() {
+        ExternalStubs.control = { Seg005.control() }
         ExternalStubs.stopSounds = { }
         ExternalStubs.doReplayMove = { }
+        GameState.Kid = CharType()
+        GameState.Guard = CharType()
+        GameState.Char = CharType()
+        GameState.Opp = CharType()
+        GameState.currentLevel = -1
+        GameState.drawnRoom = 0
+        GameState.loadedRoom = 0
+        GameState.nextRoom = 0
+        GameState.nextLevel = 0
+        GameState.currRoom = 0
+        GameState.currRoomTiles.fill(0)
+        GameState.currRoomModif.fill(0)
+        GameState.hitpCurr = 0
+        GameState.remMin = 0
+        GameState.recording = 0
+        GameState.replaying = 0
+        GameState.numReplayTicks = 0
+        GameState.currTick = 0
+        GameState.controlX = 0
+        GameState.controlY = 0
+        GameState.controlShift = 0
+        GameState.startLevel = (-1).toShort()
         GameState.seedWasInit = 0
     }
 
@@ -121,6 +155,8 @@ class ReplayRunnerTest {
         val replay = replayWithMoves(55.toByte(), 77.toByte())
         ReplayRunner.initializeReplayState(replay)
         ReplayRunner.installReplayMoveHook(replay)
+        GameState.currentLevel = 1
+        GameState.nextLevel = 1
 
         ExternalStubs.doReplayMove()
 
@@ -152,6 +188,8 @@ class ReplayRunnerTest {
         val replay = replayWithMoves(16.toByte())
         ReplayRunner.initializeReplayState(replay)
         ReplayRunner.installReplayMoveHook(replay)
+        GameState.currentLevel = 1
+        GameState.nextLevel = 1
         GameState.isValidateMode = 1
         GameState.remMin = 1
         GameState.Kid.alive = 7
@@ -181,6 +219,110 @@ class ReplayRunnerTest {
         assertEquals(replay.numReplayTicks, GameState.currTick)
     }
 
+    @Test
+    fun `Layer1FrameDriver calls translated frame entry points in SDLPoP order`() {
+        val calls = mutableListOf<String>()
+        val hooks = recordingHooks(calls).copy(
+            playKid = {
+                calls += "playKid"
+                GameState.Char.room = 0
+            },
+        )
+
+        Layer1FrameDriver.playFrame(hooks = hooks)
+
+        assertEquals(
+            listOf(
+                "doMobs",
+                "processTrobs",
+                "checkSkel",
+                "loadKidAndOpp",
+                "loadFramDetCol",
+                "checkKilledShadow",
+                "playKid",
+                "saveKid",
+                "checkSwordHurting",
+                "checkSwordHurt",
+                "exitRoom",
+                "checkGuardFallout",
+            ),
+            calls,
+        )
+    }
+
+    @Test
+    fun `Layer1FrameDriver kid frame runs translated room pipeline before saving Kid`() {
+        val calls = mutableListOf<String>()
+        val hooks = recordingHooks(calls).copy(
+            playKid = {
+                calls += "playKid"
+                GameState.Char.room = 1
+            },
+        )
+
+        val restarted = Layer1FrameDriver.playKidFrame(hooks = hooks)
+
+        assertEquals(false, restarted)
+        assertEquals(
+            listOf(
+                "loadKidAndOpp",
+                "loadFramDetCol",
+                "checkKilledShadow",
+                "playKid",
+                "playSeq",
+                "fallAccel",
+                "fallSpeed",
+                "loadFrameToObj",
+                "loadFramDetCol",
+                "setCharCollision",
+                "checkCollisions",
+                "checkBumped",
+                "checkGatePush",
+                "checkAction",
+                "checkPress",
+                "checkSpikeBelow",
+                "checkSpiked",
+                "checkChompedKid",
+                "saveKid",
+            ),
+            calls,
+        )
+    }
+
+    @Test
+    fun `Layer1FrameDriver consumes replay input deterministically on focused kid slice`() {
+        val replay = replayWithMoves(55.toByte(), 77.toByte())
+        ReplayRunner.initializeReplayState(replay)
+        ReplayRunner.installReplayMoveHook(replay)
+        GameState.currentLevel = 1
+        GameState.nextLevel = 1
+        GameState.Kid = CharType(
+            frame = FrameIds.frame_15_stand,
+            x = 100,
+            y = 140,
+            direction = Directions.RIGHT,
+            room = 0,
+            charid = CharIds.KID,
+            alive = -1,
+        )
+        GameState.Guard = CharType(direction = Directions.NONE)
+        GameState.hitpCurr = 1
+
+        Layer1FrameDriver.playKidFrame()
+
+        assertEquals(1, GameState.currTick)
+        assertEquals(-1, GameState.controlX)
+        assertEquals(1, GameState.controlY)
+        assertEquals(Control.HELD, GameState.controlShift)
+
+        Layer1FrameDriver.playKidFrame()
+
+        assertEquals(2, GameState.currTick)
+        assertEquals(1, GameState.controlX)
+        assertEquals(-1, GameState.controlY)
+        assertEquals(Control.RELEASED, GameState.controlShift)
+    }
+
     private fun replayWithMoves(vararg moves: Byte): ReplayData =
         ReplayData(
             formatClass = 0,
@@ -196,5 +338,39 @@ class ReplayRunnerTest {
             randomSeed = 0x12345678,
             numReplayTicks = moves.size.toLong(),
             moves = byteArrayOf(*moves),
+        )
+
+    private fun recordingHooks(calls: MutableList<String>): Layer1FrameHooks =
+        Layer1FrameHooks(
+            doMobs = { calls += "doMobs" },
+            processTrobs = { calls += "processTrobs" },
+            checkSkel = { calls += "checkSkel" },
+            loadKidAndOpp = { calls += "loadKidAndOpp" },
+            loadShadAndOpp = { calls += "loadShadAndOpp" },
+            saveKid = { calls += "saveKid" },
+            saveShadAndOpp = { calls += "saveShadAndOpp" },
+            loadFramDetCol = { calls += "loadFramDetCol" },
+            checkKilledShadow = { calls += "checkKilledShadow" },
+            playKid = { calls += "playKid" },
+            playGuard = { calls += "playGuard" },
+            playSeq = { calls += "playSeq" },
+            fallAccel = { calls += "fallAccel" },
+            fallSpeed = { calls += "fallSpeed" },
+            loadFrameToObj = { calls += "loadFrameToObj" },
+            setCharCollision = { calls += "setCharCollision" },
+            checkCollisions = { calls += "checkCollisions" },
+            checkBumped = { calls += "checkBumped" },
+            checkGatePush = { calls += "checkGatePush" },
+            checkAction = { calls += "checkAction" },
+            checkPress = { calls += "checkPress" },
+            checkSpikeBelow = { calls += "checkSpikeBelow" },
+            checkSpiked = { calls += "checkSpiked" },
+            checkChompedKid = { calls += "checkChompedKid" },
+            checkGuardBumped = { calls += "checkGuardBumped" },
+            checkChompedGuard = { calls += "checkChompedGuard" },
+            checkSwordHurting = { calls += "checkSwordHurting" },
+            checkSwordHurt = { calls += "checkSwordHurt" },
+            exitRoom = { calls += "exitRoom" },
+            checkGuardFallout = { calls += "checkGuardFallout" },
         )
 }

@@ -39,8 +39,8 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 14 — Replay Runner (Kotlin replay playback + trace writer) — **IN PROGRESS**
 **Phase:** 14a — Kotlin replay playback and trace producer — **IN PROGRESS**
-**Next:** Step 14a.3: add a narrow Kotlin frame tick that calls the already translated deterministic Layer 1 entry points in SDLPoP order, stubbing only platform/render/audio side effects as no-ops, and verify it mutates state deterministically on focused replay slices without introducing SDL, Android, file I/O, or rendering dependencies into `com.sdlpop.game`.
-**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 during Step 14a.2.
+**Next:** Step 14a.4: write Kotlin trace files by running `.P1R` inputs through the replay runner and `StateTraceFormat.serializeFrameBytes`, plug that producer into `Layer1RegressionHarness`, update the `layer1ReplayRegression` workflow/README boundary, and run `gradle test layer1ReplayRegression --rerun-tasks`.
+**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 during Step 14a.3.
 
 ## Phase Summary
 
@@ -104,7 +104,7 @@ One-line: Replace the Phase 13a copy-based producer with real Kotlin trace gener
 **Steps:**
 - **14a.1** Replay manifest and initialization — COMPLETE: mapped the 13 `Layer1RegressionManifest` ids to their `.P1R` files, parsed replay metadata through `P1RParser`, seeded `GameState` replay fields (`replaying`, `startLevel`, `randomSeed`, `numReplayTicks`, format/version/deprecation values), and tested path resolution plus initialization behavior.
 - **14a.2** Replay input hooks — COMPLETE: translated the replay move consumption needed by `ExternalStubs.doReplayMove`, decoded packed per-tick control bytes into `control_x`, `control_y`, `control_shift`, handled validate seek/skipping state and end-of-replay completion, restored saved replay RNG seed, and fixed/tested the old-version `g_deprecation_number` branch used by seg007 loose-floor RNG behavior.
-- **14a.3** Layer 1 frame driver: add a narrow Kotlin frame tick that calls the already translated deterministic Layer 1 entry points in SDLPoP order, stubbing only platform/render/audio side effects as no-ops, and verify it mutates state deterministically on focused replay slices without introducing SDL, Android, file I/O, or rendering dependencies into `com.sdlpop.game`.
+- **14a.3** Layer 1 frame driver — COMPLETE: added `Layer1FrameDriver` in `com.sdlpop.replay` with `playFrame`, `playKidFrame`, and `playGuardFrame` orchestration over translated Layer 1 entry points in SDLPoP order, plus focused tests for call order and deterministic replay input consumption without SDL, Android, file I/O, rendering, or audio dependencies in `com.sdlpop.game`.
 - **14a.4** Real trace producer workflow: write Kotlin trace files by running `.P1R` inputs through the replay runner and `StateTraceFormat.serializeFrameBytes`, plug that producer into `Layer1RegressionHarness`, update the `layer1ReplayRegression` workflow/README boundary, and run `gradle test layer1ReplayRegression --rerun-tasks`.
 
 **Acceptance:** The dedicated Layer 1 regression workflow uses real Kotlin-produced traces under `build/oracle/layer1-regression`. Any trace divergence must report replay id, frame, field, expected value, actual value, and actual trace path. True game-logic divergences get no more than two targeted fix attempts before escalation with the replay/frame/field details.

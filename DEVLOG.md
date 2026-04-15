@@ -2,6 +2,17 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14a.3: Layer 1 frame driver
+
+**Mode:** Code | **Outcome:** Complete — translated Layer 1 frame orchestration covered by focused replay tests
+**Contract changes:** Added `Layer1FrameDriver` in `com.sdlpop.replay` as the narrow replay-runner frame tick; no SDL, Android, file I/O, rendering, or audio dependency was added to `com.sdlpop.game`
+
+Added `Layer1FrameDriver` with `playFrame()`, `playKidFrame()`, and `playGuardFrame()` orchestration that calls the already translated Layer 1 entry points in SDLPoP frame order: mobs/trobs, skeleton checks, Kid frame processing, Guard frame processing, sword hurt checks, room exit, and guard fallout. The driver lives in the replay package and uses injected `Layer1FrameHooks` for tests, keeping platform/render/audio behavior outside the game package.
+
+Added replay-runner tests that verify the top-level call order, the Kid room-processing pipeline order, and a focused real replay slice where `Seg006.playKid()` consumes installed `.P1R` replay input through `ExternalStubs.doReplayMove()` across two deterministic ticks. Tightened replay test cleanup so shared `GameState` singleton defaults do not leak into unrelated suites.
+
+Verification: `gradle test --tests com.sdlpop.replay.ReplayRunnerTest` passed; full `gradle test` passed in `SDLPoP-kotlin`.
+
 ### 2026-04-15 — Step 14a.2: Replay input hooks
 
 **Mode:** Code | **Outcome:** Complete — replay move consumption and compatibility behavior covered by tests
