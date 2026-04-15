@@ -2,6 +2,19 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Phase 13a Complete
+
+**Mode:** Complete | **Outcome:** Phase 13a closed; Module 13 complete
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md — status propagation only; no interface or behavior contract changes
+
+Phase 13a delivered the Layer 1 replay-regression harness: `TRACE_FORMAT.md`-compatible parsing/comparison, `GameState` snapshot serialization to the 310-byte trace-frame layout, a manifest covering all 13 C reference traces, and a Gradle workflow that writes generated Kotlin traces under build output and reports triage-ready divergences.
+
+Learning review: no new DEVPLAN gotchas promoted. The phase had one review should-fix around stable reruns and build-output path normalization, but it was resolved in review without repeated failures or broader process impact.
+
+Contract scan: no game-logic, Layer 1, SDL, Android, or replay-format contract changes across Phase 13a. Module 14 still owns real `.P1R` replay playback through the translated game loop and replacement of the current trace-copy producer hook.
+
+Verification: fresh `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin`.
+
 ### 2026-04-15 — Phase 13a Review
 
 **Mode:** Review | **Outcome:** Complete — one should-fix applied

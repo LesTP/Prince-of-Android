@@ -37,10 +37,10 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 13 — Layer 1 integration test (full regression suite) — **IN PROGRESS**
-**Phase:** 13a — Layer 1 replay regression harness — **IN PROGRESS**
-**Next:** Phase Complete for 13a: close the replay-regression harness phase, propagate status, and preserve the Module 14 replay-runner handoff.
-**Blocked/Broken:** None. Fresh `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin` on 2026-04-15 after the Phase 13a review fix.
+**Module:** 14 — Replay Runner (Kotlin replay playback + trace writer) — **PENDING**
+**Phase:** None active
+**Next:** Phase Plan for Module 14: define the Kotlin replay playback path through the translated game loop and replace the Phase 13a trace-copy producer hook with real Kotlin trace output.
+**Blocked/Broken:** None. Fresh `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin` on 2026-04-15 during Phase 13a completion.
 
 ## Phase Summary
 
@@ -85,25 +85,11 @@ One-line: Translated trob pipeline, animated-tile state machines (torch/potion/s
 #### Phase 12b: Loose-floor mobs and remaining seg007 functions — COMPLETE
 One-line: Translated loose-floor fall initiation, falling-object simulation, Kid collision/death handling, row/room transitions, redraw bookkeeping, and mob object-table writes into Seg007.kt (3 steps, 21 new tests, 540 total pass, zero escalations). See DEVLOG §Module 12.
 
-### Module 13: Layer 1 integration test — IN PROGRESS
-One-line: Build the full Layer 1 replay regression suite around the translated Kotlin game logic, using the SDLPoP reference traces as the oracle and escalating only after reproducible divergence triage.
+### Module 13: Layer 1 integration test — COMPLETE
+One-line: Built the Kotlin replay-regression harness around the translated Layer 1 game logic: 310-byte trace parsing/comparison, `GameState` snapshot serialization, all-13-trace manifest coverage, Gradle workflow, triage-ready divergence reports, and explicit Module 14 handoff for real replay playback. See DEVLOG §Module 13.
 
-#### Phase 13a: Layer 1 replay regression harness — IN PROGRESS
-Regime: Build (autonomous)
+#### Phase 13a: Layer 1 replay regression harness — COMPLETE
+One-line: Delivered the trace oracle foundation, state snapshot writer, and manifest-driven regression workflow; review accepted after one should-fix, and `gradle test layer1ReplayRegression --rerun-tasks` passed. See DEVLOG §Module 13.
 
-Scope: Create the Kotlin-side oracle infrastructure needed to validate the combined Layer 1 port against the 13 SDLPoP reference traces. This phase owns trace parsing/comparison, state snapshot serialization, regression orchestration, and actionable divergence reporting. It does not translate Layer 2 game-loop code or Android platform behavior.
-
-Acceptance criteria:
-- Kotlin trace parsing and writing follow `TRACE_FORMAT.md` exactly: 310 bytes/frame, little-endian multi-byte fields, and byte-identical nested `char_type`, `trob_type`, and `mob_type` layout.
-- The regression manifest enumerates all 13 reference traces in `SDLPoP/traces/reference/` and keeps generated Kotlin artifacts under build output, not source-controlled trace outputs.
-- The harness can compare Kotlin-produced traces to C reference traces and report the first divergent frame, field, expected value, and actual value.
-- Failure policy is explicit: fix deterministic harness/serialization defects inline; for true game-logic divergence, make up to two targeted fix attempts, then escalate with the replay name, frame, field, and suspected module.
-- Phase review must confirm the harness remains deterministic game/test infrastructure with no SDL, Android, I/O side effects in Layer 1 logic code.
-
-Steps:
-- [x] **13a.1 — Trace oracle foundation:** Implement Kotlin trace-frame parsing/comparison support against `TRACE_FORMAT.md`, including field metadata and focused tests using constructed frames plus at least one existing C reference trace.
-- [x] **13a.2 — State snapshot writer:** Implement the Kotlin `GameState` to 310-byte trace-frame serializer for `Kid`, `Guard`, `Char`, core scalar fields, room buffers, trobs, mobs, and RNG state; add layout tests that pin offsets and signed/unsigned byte handling.
-- [x] **13a.3 — Regression harness workflow:** Add the regression manifest and Gradle/test workflow that enumerates the 13 reference traces, writes Kotlin trace artifacts under build output, runs comparisons, and emits triage-ready divergence reports while documenting any remaining Module 14 replay-runner boundary.
-
-Review:
-- [x] **Phase 13a Review:** Accepted after one should-fix: normalize actual trace paths for the build-output boundary check and make the manifest-copy workflow replace generated trace files so reruns remain stable. No must-fix findings; no Layer 1 logic coupling changes.
+### Module 14: Replay Runner — PENDING
+One-line: Build Kotlin replay playback through the translated game loop, produce real Kotlin state traces, and wire those traces into the Phase 13a regression harness.
