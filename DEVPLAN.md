@@ -39,8 +39,8 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 13 — Layer 1 integration test (full regression suite) — **IN PROGRESS**
 **Phase:** 13a — Layer 1 replay regression harness — **IN PROGRESS**
-**Next:** Execute Step 13a.2: implement the Kotlin `GameState` to 310-byte trace-frame serializer with pinned layout tests for offsets and signed/unsigned byte handling.
-**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 (544 tests, 0 failures).
+**Next:** Execute Step 13a.3: add the regression manifest and Gradle/test workflow that enumerates the 13 reference traces, writes Kotlin trace artifacts under build output, runs comparisons, and emits triage-ready divergence reports while documenting any remaining Module 14 replay-runner boundary.
+**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 (546 tests, 0 failures).
 
 ## Phase Summary
 
@@ -102,5 +102,5 @@ Acceptance criteria:
 
 Steps:
 - [x] **13a.1 — Trace oracle foundation:** Implement Kotlin trace-frame parsing/comparison support against `TRACE_FORMAT.md`, including field metadata and focused tests using constructed frames plus at least one existing C reference trace.
-- [ ] **13a.2 — State snapshot writer:** Implement the Kotlin `GameState` to 310-byte trace-frame serializer for `Kid`, `Guard`, `Char`, core scalar fields, room buffers, trobs, mobs, and RNG state; add layout tests that pin offsets and signed/unsigned byte handling.
+- [x] **13a.2 — State snapshot writer:** Implement the Kotlin `GameState` to 310-byte trace-frame serializer for `Kid`, `Guard`, `Char`, core scalar fields, room buffers, trobs, mobs, and RNG state; add layout tests that pin offsets and signed/unsigned byte handling.
 - [ ] **13a.3 — Regression harness workflow:** Add the regression manifest and Gradle/test workflow that enumerates the 13 reference traces, writes Kotlin trace artifacts under build output, runs comparisons, and emits triage-ready divergence reports while documenting any remaining Module 14 replay-runner boundary.

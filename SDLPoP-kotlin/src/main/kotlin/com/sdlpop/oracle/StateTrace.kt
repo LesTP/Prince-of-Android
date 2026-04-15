@@ -1,5 +1,9 @@
 package com.sdlpop.oracle
 
+import com.sdlpop.game.CharType
+import com.sdlpop.game.GameState
+import com.sdlpop.game.MobType
+import com.sdlpop.game.TrobType
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -191,6 +195,47 @@ object StateTraceFormat {
     fun compare(expected: ByteArray, actual: ByteArray): TraceComparison =
         compare(parse(expected), parse(actual))
 
+    fun serializeFrame(frameNumber: Long, state: GameState = GameState): StateTraceFrame =
+        StateTraceFrame(frameNumber.toInt(), serializeFrameBytes(frameNumber, state))
+
+    fun serializeFrameBytes(frameNumber: Long, state: GameState = GameState): ByteArray {
+        val bytes = ByteArray(FRAME_SIZE)
+        writeU32Le(bytes, 0, frameNumber)
+
+        writeChar(bytes, 4, state.Kid)
+        writeChar(bytes, 20, state.Guard)
+        writeChar(bytes, 36, state.Char)
+
+        writeU16Le(bytes, 52, state.currentLevel)
+        writeU16Le(bytes, 54, state.drawnRoom)
+        writeS16Le(bytes, 56, state.remMin)
+        writeU16Le(bytes, 58, state.remTick)
+        writeU16Le(bytes, 60, state.hitpCurr)
+        writeU16Le(bytes, 62, state.hitpMax)
+        writeU16Le(bytes, 64, state.guardhpCurr)
+        writeU16Le(bytes, 66, state.guardhpMax)
+
+        repeat(30) { index ->
+            writeU8(bytes, 68 + index, state.currRoomTiles[index])
+            writeU8(bytes, 98 + index, state.currRoomModif[index])
+        }
+
+        writeS16Le(bytes, 128, state.trobsCount)
+        repeat(30) { index ->
+            val offset = 130 + index * TrobType.SIZE_BYTES
+            writeTrob(bytes, offset, state.trobs[index])
+        }
+
+        writeS16Le(bytes, 220, state.mobsCount)
+        repeat(14) { index ->
+            val offset = 222 + index * MobType.SIZE_BYTES
+            writeMob(bytes, offset, state.mobs[index])
+        }
+
+        writeU32Le(bytes, 306, state.randomSeed)
+        return bytes
+    }
+
     private fun MutableList<TraceField>.charFields(prefix: String, baseOffset: Int) {
         field("$prefix.frame", baseOffset, 1, TraceValueType.U8)
         field("$prefix.x", baseOffset + 1, 1, TraceValueType.U8)
@@ -216,5 +261,62 @@ object StateTraceFormat {
         valueType: TraceValueType,
     ) {
         add(TraceField(name, offset, size, valueType))
+    }
+
+    private fun writeChar(bytes: ByteArray, offset: Int, char: CharType) {
+        writeU8(bytes, offset, char.frame)
+        writeU8(bytes, offset + 1, char.x)
+        writeU8(bytes, offset + 2, char.y)
+        writeS8(bytes, offset + 3, char.direction)
+        writeS8(bytes, offset + 4, char.currCol)
+        writeS8(bytes, offset + 5, char.currRow)
+        writeU8(bytes, offset + 6, char.action)
+        writeS8(bytes, offset + 7, char.fallX)
+        writeS8(bytes, offset + 8, char.fallY)
+        writeU8(bytes, offset + 9, char.room)
+        writeU8(bytes, offset + 10, char.repeat)
+        writeU8(bytes, offset + 11, char.charid)
+        writeU8(bytes, offset + 12, char.sword)
+        writeS8(bytes, offset + 13, char.alive)
+        writeU16Le(bytes, offset + 14, char.currSeq)
+    }
+
+    private fun writeTrob(bytes: ByteArray, offset: Int, trob: TrobType) {
+        writeU8(bytes, offset, trob.tilepos)
+        writeU8(bytes, offset + 1, trob.room)
+        writeS8(bytes, offset + 2, trob.type)
+    }
+
+    private fun writeMob(bytes: ByteArray, offset: Int, mob: MobType) {
+        writeU8(bytes, offset, mob.xh)
+        writeU8(bytes, offset + 1, mob.y)
+        writeU8(bytes, offset + 2, mob.room)
+        writeS8(bytes, offset + 3, mob.speed)
+        writeU8(bytes, offset + 4, mob.type)
+        writeU8(bytes, offset + 5, mob.row)
+    }
+
+    private fun writeU8(bytes: ByteArray, offset: Int, value: Int) {
+        bytes[offset] = value.and(0xFF).toByte()
+    }
+
+    private fun writeS8(bytes: ByteArray, offset: Int, value: Int) {
+        bytes[offset] = value.and(0xFF).toByte()
+    }
+
+    private fun writeU16Le(bytes: ByteArray, offset: Int, value: Int) {
+        bytes[offset] = value.and(0xFF).toByte()
+        bytes[offset + 1] = value.shr(8).and(0xFF).toByte()
+    }
+
+    private fun writeS16Le(bytes: ByteArray, offset: Int, value: Short) {
+        writeU16Le(bytes, offset, value.toInt())
+    }
+
+    private fun writeU32Le(bytes: ByteArray, offset: Int, value: Long) {
+        bytes[offset] = value.and(0xFF).toByte()
+        bytes[offset + 1] = value.shr(8).and(0xFF).toByte()
+        bytes[offset + 2] = value.shr(16).and(0xFF).toByte()
+        bytes[offset + 3] = value.shr(24).and(0xFF).toByte()
     }
 }

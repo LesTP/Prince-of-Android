@@ -2,6 +2,17 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Step 13a.2: State snapshot writer
+
+**Mode:** Code | **Outcome:** Complete — 2 new oracle tests pass (546 total)
+**Contract changes:** None
+
+Implemented the Kotlin state snapshot writer in `StateTraceFormat`: `serializeFrameBytes` now writes `GameState` into the exact 310-byte trace-frame layout used by the C `dump_frame_state()` instrumentation, including frame number, `Kid`/`Guard`/`Char`, core scalar state, room tile buffers, trobs, mobs, and RNG state. The writer uses little-endian multi-byte encoding and explicit byte truncation/sign preservation for the translated C `byte`, `sbyte`, `word`, `short`, and `dword` fields.
+
+Added focused oracle tests that pin the serialized offsets through the existing field metadata, including unsigned byte truncation, signed byte/short interpretation, unsigned 16-bit words, final mob offsets, and RNG serialization. The tests reset only the trace-owned `GameState` fields they mutate so singleton defaults used by unrelated suites remain intact.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin` (546 tests, 0 failures).
+
 ### 2026-04-15 — Step 13a.1: Trace oracle foundation
 
 **Mode:** Code | **Outcome:** Complete — 4 new oracle tests pass (544 total)
