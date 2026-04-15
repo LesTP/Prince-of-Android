@@ -55,3 +55,10 @@ Priority: Important
 Decision: Accept Module 12 as human-approved and unblock Module 13 planning.
 Rationale: Module 12 has completed both planned phases, both reviews found no must-fix or should-fix issues, and the latest recorded fresh Kotlin verification passed with 540 tests and 0 failures. The previous loop escalation was solely the explicit human-audit gate before Module 13, which is now cleared.
 Revisit if: Module 13 phase planning finds a missing Layer 1 contract dependency that should have been completed in Module 12.
+
+D-9: Phase 13a boundary for Layer 1 replay regression harness
+Date: 2026-04-15 | Status: Open
+Priority: Important
+Decision: Start Module 13 with one Build-regime phase that establishes the Kotlin trace oracle foundation, writes 310-byte `GameState` snapshots, and wires the 13-reference-trace regression workflow. Keep full replay playback/game-loop translation outside this phase except for documenting the Module 14 boundary.
+Rationale: The translated Layer 1 files now compile and have focused unit tests, but replay-level validation needs a deterministic harness before game-loop work begins. Splitting trace comparison, snapshot serialization, and regression orchestration into three steps creates testable progress without expanding scope into Layer 2 or Android platform behavior.
+Revisit if: Building the regression workflow proves impossible without translating `seg000` frame orchestration or replay playback semantics that belong to Module 14.

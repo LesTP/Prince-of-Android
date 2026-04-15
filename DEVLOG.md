@@ -2,6 +2,20 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Phase 13a Plan: Layer 1 Replay Regression Harness
+
+**Mode:** Discuss | **Outcome:** Phase planned
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md — status propagation and phase plan only; no interface or behavior contract changes
+
+Planned Phase 13a as the Build-regime bridge from focused Layer 1 unit tests to replay-based regression validation. The phase will create Kotlin trace parsing/comparison support, serialize `GameState` snapshots into the 310-byte oracle format, and wire a manifest-driven workflow around the 13 existing SDLPoP reference traces.
+
+Phase 13a is split into three steps:
+- **13a.1** Implement the trace oracle foundation: parse 310-byte frames, attach field metadata, compare frames/traces, and report first divergence details.
+- **13a.2** Implement the Kotlin state snapshot writer for `Kid`, `Guard`, `Char`, scalar state, room buffers, trobs, mobs, and RNG using the exact `TRACE_FORMAT.md` layout.
+- **13a.3** Add the regression manifest/workflow for all 13 reference traces, generated Kotlin trace artifacts under build output, comparison execution, and triage-ready failure reporting while documenting any remaining Module 14 replay-runner boundary.
+
+Acceptance policy: byte-identical trace layout is required, and true game-logic divergences get no more than two targeted fix attempts before escalation with replay, frame, field, and suspected module details. Planning decision recorded in `DECISIONS.md` D-9. No source code changed in this iteration.
+
 ### 2026-04-15 — Module 12 Human Approval; Module 13 Unblocked
 
 **Mode:** Governance | **Outcome:** Module 13 ready to plan
