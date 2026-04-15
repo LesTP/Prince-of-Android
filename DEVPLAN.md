@@ -38,7 +38,7 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
 **Phase:** 12b — loose-floor mobs and remaining seg007 functions — **IN PROGRESS**
-**Next:** Review Phase 12b.
+**Next:** Phase 12b complete — review passed with no must-fix or should-fix findings.
 **Blocked/Broken:** None. Fresh `gradle test` passed (540 tests, 0 failures) on 2026-04-15.
 
 ## Phase Summary

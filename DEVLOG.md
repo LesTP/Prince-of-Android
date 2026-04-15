@@ -2,6 +2,20 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Phase 12b Review
+
+**Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings
+**Contract changes:** None
+
+Reviewed the Phase 12b `Seg007.kt` implementation against the Layer 1 contract and the corresponding `seg007.c` loose-floor/mob source slice. The translated loose-floor animation entry point, falling-object simulation, Kid collision handling, row/room transitions, redraw bookkeeping, and mob object-table writes remain deterministic game logic with no platform, I/O, or Android coupling. The planned omission of unused SDL-only `sub_9A8E` remains valid because no Kotlin call site exists and the function belongs to the renderer blit path.
+
+Review findings:
+- Must fix: none
+- Should fix: none
+- Optional: none applied
+
+Verification: fresh `gradle test` passed in `SDLPoP-kotlin` (540 tests, 0 failures).
+
 ### 2026-04-15 — Step 12b.3: Mob draw/object-table bookkeeping
 
 **Mode:** Code | **Outcome:** Complete — 7 new tests pass (540 total)
