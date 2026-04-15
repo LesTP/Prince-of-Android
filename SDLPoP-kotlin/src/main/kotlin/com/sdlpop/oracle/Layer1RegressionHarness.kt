@@ -48,6 +48,7 @@ class Layer1RegressionHarness(
 ) {
     fun run(replays: List<Layer1ReplayTrace> = Layer1RegressionManifest.replays): List<Layer1RegressionResult> {
         outputRoot.createDirectories()
+        val normalizedOutputRoot = outputRoot.toAbsolutePath().normalize()
         return replays.map { replay ->
             val referencePath = replay.referencePath(referenceRoot)
             require(Files.isRegularFile(referencePath)) {
@@ -55,7 +56,9 @@ class Layer1RegressionHarness(
             }
 
             val actualPath = produceKotlinTrace(replay, outputRoot.resolve("${replay.id}.trace"))
-            require(actualPath.startsWith(outputRoot)) {
+                .toAbsolutePath()
+                .normalize()
+            require(actualPath.startsWith(normalizedOutputRoot)) {
                 "Kotlin trace for ${replay.id} must be written under build output: $actualPath"
             }
             require(Files.isRegularFile(actualPath)) {

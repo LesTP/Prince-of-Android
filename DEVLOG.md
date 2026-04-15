@@ -2,6 +2,20 @@
 
 ## Module 13: Layer 1 Integration Test
 
+### 2026-04-15 — Phase 13a Review
+
+**Mode:** Review | **Outcome:** Complete — one should-fix applied
+**Contract changes:** None
+
+Reviewed the Phase 13a oracle code against `TRACE_FORMAT.md`, the Layer 1 integration-test contract, and the phase acceptance criteria. The trace parser/comparator and `GameState` serializer cover the 310-byte frame layout, little-endian multi-byte values, and nested character/trob/mob byte fields. The regression manifest enumerates all 13 C reference traces and keeps generated Kotlin traces under Gradle build output. The workflow remains test infrastructure only; Layer 1 game logic has no new SDL, Android, or I/O coupling, and Module 14 still owns real `.P1R` playback through the translated game loop.
+
+Review findings:
+- Must fix: none
+- Should fix: normalize actual trace paths before enforcing the build-output boundary, and make the manifest-copy test producer replace generated traces so forced/rerun workflow executions are stable
+- Optional: none applied
+
+Verification: `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin`.
+
 ### 2026-04-15 — Step 13a.3: Regression harness workflow
 
 **Mode:** Code | **Outcome:** Complete — Layer 1 workflow task passes (550 total tests; 1 tagged workflow test)

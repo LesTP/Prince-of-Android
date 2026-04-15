@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import kotlin.io.path.createDirectories
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -34,15 +35,16 @@ class Layer1RegressionHarnessTest {
         val referenceRoot = referenceRoot()
         val outputRoot = outputRoot().resolve("manifest-copy")
         val harness = Layer1RegressionHarness(referenceRoot, outputRoot) { replay, outputPath ->
-            Files.copy(replay.referencePath(referenceRoot), outputPath)
+            Files.copy(replay.referencePath(referenceRoot), outputPath, StandardCopyOption.REPLACE_EXISTING)
         }
 
         val results = harness.run(Layer1RegressionManifest.fromReferenceRoot(referenceRoot))
+        val normalizedOutputRoot = outputRoot.toAbsolutePath().normalize()
 
         assertEquals(13, results.size)
         assertTrue(results.all { it.matched }, results.joinToString("\n") { it.triageReport() })
         results.forEach { result ->
-            assertTrue(result.actualPath.startsWith(outputRoot))
+            assertTrue(result.actualPath.startsWith(normalizedOutputRoot))
             assertTrue(Files.isRegularFile(result.actualPath))
         }
     }

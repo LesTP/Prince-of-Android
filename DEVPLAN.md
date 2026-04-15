@@ -39,8 +39,8 @@
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 13 — Layer 1 integration test (full regression suite) — **IN PROGRESS**
 **Phase:** 13a — Layer 1 replay regression harness — **IN PROGRESS**
-**Next:** Phase Review for 13a: verify the trace parser, serializer, manifest workflow, generated-artifact boundaries, and Module 14 replay-runner handoff against the Phase 13a acceptance criteria.
-**Blocked/Broken:** None. Fresh `gradle test layer1ReplayRegression` passed in `SDLPoP-kotlin` on 2026-04-15 (550 main-suite tests plus tagged workflow task, 0 failures).
+**Next:** Phase Complete for 13a: close the replay-regression harness phase, propagate status, and preserve the Module 14 replay-runner handoff.
+**Blocked/Broken:** None. Fresh `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin` on 2026-04-15 after the Phase 13a review fix.
 
 ## Phase Summary
 
@@ -104,3 +104,6 @@ Steps:
 - [x] **13a.1 — Trace oracle foundation:** Implement Kotlin trace-frame parsing/comparison support against `TRACE_FORMAT.md`, including field metadata and focused tests using constructed frames plus at least one existing C reference trace.
 - [x] **13a.2 — State snapshot writer:** Implement the Kotlin `GameState` to 310-byte trace-frame serializer for `Kid`, `Guard`, `Char`, core scalar fields, room buffers, trobs, mobs, and RNG state; add layout tests that pin offsets and signed/unsigned byte handling.
 - [x] **13a.3 — Regression harness workflow:** Add the regression manifest and Gradle/test workflow that enumerates the 13 reference traces, writes Kotlin trace artifacts under build output, runs comparisons, and emits triage-ready divergence reports while documenting any remaining Module 14 replay-runner boundary.
+
+Review:
+- [x] **Phase 13a Review:** Accepted after one should-fix: normalize actual trace paths for the build-output boundary check and make the manifest-copy workflow replace generated trace files so reruns remain stable. No must-fix findings; no Layer 1 logic coupling changes.

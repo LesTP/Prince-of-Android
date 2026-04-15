@@ -62,3 +62,10 @@ Priority: Important
 Decision: Start Module 13 with one Build-regime phase that establishes the Kotlin trace oracle foundation, writes 310-byte `GameState` snapshots, and wires the 13-reference-trace regression workflow. Keep full replay playback/game-loop translation outside this phase except for documenting the Module 14 boundary.
 Rationale: The translated Layer 1 files now compile and have focused unit tests, but replay-level validation needs a deterministic harness before game-loop work begins. Splitting trace comparison, snapshot serialization, and regression orchestration into three steps creates testable progress without expanding scope into Layer 2 or Android platform behavior.
 Revisit if: Building the regression workflow proves impossible without translating `seg000` frame orchestration or replay playback semantics that belong to Module 14.
+
+D-10: Phase 13a review outcome for Layer 1 replay regression harness
+Date: 2026-04-15 | Status: Closed
+Priority: Important
+Decision: Accept Phase 13a as meeting the trace-oracle and regression-harness contract after applying a review fix that normalizes build-output path checks and makes the manifest-copy workflow rerunnable with replacement of generated trace files.
+Rationale: Review confirmed `StateTrace.kt` follows the 310-byte `TRACE_FORMAT.md` layout, little-endian multi-byte encoding, and nested `char_type`/`trob_type`/`mob_type` byte ordering; `Layer1RegressionManifest` enumerates all 13 reference traces; generated traces stay under build output; divergence reports include replay, frame, field, expected value, and actual value; and Module 14 remains responsible for real replay playback. A fresh forced verification run passed with `gradle test layer1ReplayRegression --rerun-tasks`.
+Revisit if: Module 14 replay playback needs a different trace producer contract than `(Layer1ReplayTrace, Path) -> Path`.
