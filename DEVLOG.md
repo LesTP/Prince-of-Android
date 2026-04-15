@@ -2,6 +2,19 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Phase 12b Complete
+
+**Mode:** Complete | **Outcome:** Phase 12b closed; Module 12 complete
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md — status propagation and gotcha only; no interface or behavior contract changes
+
+Phase 12b delivered the remaining seg007 loose-floor and mob subsystem: `animateLoose`, loose-floor shaking/fall initiation, falling-object simulation, Kid collision/death handling, room/row transitions, redraw bookkeeping, and mob object-table writes. Three steps across 3 iterations, zero escalations, 21 new focused tests (540 total pass).
+
+Learning review: promoted one gotcha — seg007 tests that consume RNG through loose-floor shaking must restore `GameState.seedWasInit`, because the singleton default is validated by unrelated state-model tests.
+
+Log review: Phase 12b entries show no repeated failures or unresolved tool issues. Two implementation details are already covered by DEVPLAN gotchas: level-backed tile writes for `getTile()`-driven tests, and avoiding broad shared-array resets in `@BeforeTest`.
+
+Contract scan: no interface or behavior contract changes across Phase 12b; only status propagation to DEVPLAN/ARCHITECTURE and the gotcha addition.
+
 ### 2026-04-15 — Phase 12b Review
 
 **Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings

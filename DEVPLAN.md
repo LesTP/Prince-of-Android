@@ -29,6 +29,7 @@
 - **C unsigned word comparisons:** `(word)x < (word)y` in C casts to unsigned 16-bit. Translate as `(x and 0xFFFF) < (y and 0xFFFF)`. Common in distance checks (seg005 `controlStanding`, `controlWithSword`). Getting this wrong produces subtle distance-check bugs.
 - **`getTile()`-driven tests must seed level data, not room buffers:** `getTile()` calls `getRoomAddress()`, which reloads `currRoomTiles[]`/`currRoomModif[]` from `gs.level.fg[]`/`gs.level.bg[]`. In tests like `checkSkel`, write fixture tiles to `level` arrays or the setup will be overwritten.
 - **Test `@BeforeTest` must not zero shared arrays globally:** Resetting shared arrays like `soundInterruptible` by filling with zeros corrupts default values that other test suites (e.g., `TypesTest`) validate. Only reset the specific entries modified by each test.
+- **Seg007 RNG tests must restore seed init state:** Loose-floor shaking consumes RNG and can set `GameState.seedWasInit`; restore it after focused seg007 tests because `TypesTest` validates singleton defaults.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 - **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
 - **Trace generation:** From `/tmp/sdlpop/`: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345` → outputs `state_trace.bin` (310 bytes/frame).
@@ -36,10 +37,10 @@
 ## Current Status
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **IN PROGRESS**
-**Phase:** 12b — loose-floor mobs and remaining seg007 functions — **IN PROGRESS**
-**Next:** Phase 12b complete — review passed with no must-fix or should-fix findings.
-**Blocked/Broken:** None. Fresh `gradle test` passed (540 tests, 0 failures) on 2026-04-15.
+**Module:** 12 — Layer 1: seg007 (Traps, triggers, animated tiles) — **COMPLETE**
+**Phase:** 12b — loose-floor mobs and remaining seg007 functions — **COMPLETE**
+**Next:** Human audit Module 12 completion before Module 13 begins.
+**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 (540 tests, 0 failures previously reported).
 
 ## Phase Summary
 
@@ -75,15 +76,10 @@ One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005
 ### Module 11: Layer 1 seg002 — COMPLETE
 One-line: Translated seg002.c → Seg002.kt across phases 11a-11c, including guard AI, room transitions, sword combat detection, skeleton/shadow logic, and stub wire-up; review clean. See DEVLOG §Module 11.
 
-### Module 12: Layer 1 seg007 — IN PROGRESS
+### Module 12: Layer 1 seg007 — COMPLETE
 
 #### Phase 12a: Trob core, redraw helpers, trap/button animation — COMPLETE
 One-line: Translated trob pipeline, animated-tile state machines (torch/potion/sword/chomper/spike/button/gate/leveldoor), trigger plumbing, and 6 ExternalStubs wire-ups into Seg007.kt (3 steps, 70 tests, 519 total pass, zero escalations). See DEVLOG §Module 12.
 
-#### Phase 12b: Loose-floor mobs and remaining seg007 functions — IN PROGRESS
-Scope: Complete the deferred loose-floor/mob subsystem in `seg007.c`, keeping it pure game logic and covered by focused unit tests before Module 13 replay integration.
-
-Build steps:
-- **12b.1 — COMPLETE** Translate loose-floor animation entry point: `animate_loose` plus required local data (`y_loose_land`) and tests for shaking timers, level-13 auto-falling behavior, delayed fall spawning, `FIX_DROP_2_ROOMS_CLIMBING_LOOSE_TILE`, and redraw side effects. Delivered `animateLoose`, `looseShake`, local loose-floor data, byte-masked loose-floor modifiers, and 5 focused tests.
-- **12b.2 — COMPLETE** Translate falling-object simulation and Kid collision: `do_mobs`, `move_mob`, `move_loose`, `loose_land`, `loose_fall`, `redraw_at_cur_mob`, `mob_down_a_row`, `check_loose_fall_on_kid`, and `fell_on_your_head`; test mob compaction, row/room transitions, landing on buttons/floors/torches, chained loose-floor falls, and crushing damage/death sequence behavior. Delivered the loose-floor mob simulation, Kid collision handling, level-backed tile writes for mob mutations, and 9 focused tests.
-- **12b.3 — COMPLETE** Translate mob draw/object-table bookkeeping: `draw_mobs`, `draw_mob`, and `add_mob_to_objtable`; intentionally leave unused SDL blit helper `sub_9A8E` unported unless a compile-time reference appears. Delivered mob draw/object-table bookkeeping, current/above/below-room visibility mapping, redraw/object-tile markers, and 7 focused tests.
+#### Phase 12b: Loose-floor mobs and remaining seg007 functions — COMPLETE
+One-line: Translated loose-floor fall initiation, falling-object simulation, Kid collision/death handling, row/room transitions, redraw bookkeeping, and mob object-table writes into Seg007.kt (3 steps, 21 new tests, 540 total pass, zero escalations). See DEVLOG §Module 12.
