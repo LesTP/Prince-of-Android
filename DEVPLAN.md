@@ -38,9 +38,9 @@
 
 **Track:** A — Game Logic Translation (Build regime, autonomous)
 **Module:** 14 — Replay Runner (Kotlin replay playback + trace writer) — **IN PROGRESS**
-**Phase:** 14a — Kotlin replay playback and trace producer — **PLANNED**
-**Next:** Step 14a.1: map each Layer 1 regression manifest entry to its source `.P1R`, load replay metadata through `P1RParser`, initialize replay state fields, and add focused tests for manifest-to-replay resolution and start-level/seed/tick plumbing.
-**Blocked/Broken:** None. Fresh `gradle test layer1ReplayRegression --rerun-tasks` passed in `SDLPoP-kotlin` on 2026-04-15 during Phase 13a completion.
+**Phase:** 14a — Kotlin replay playback and trace producer — **IN PROGRESS**
+**Next:** Step 14a.2: translate the replay move consumption needed by `ExternalStubs.doReplayMove`, decode per-tick control bytes into `control_x`, `control_y`, `control_shift`, and replay seek/skipping state, and test tick advancement, end-of-replay handling, and the old-version `g_deprecation_number` branch used by seg007 RNG behavior.
+**Blocked/Broken:** None. Fresh `gradle test` passed in `SDLPoP-kotlin` on 2026-04-15 during Step 14a.1.
 
 ## Phase Summary
 
@@ -94,7 +94,7 @@ One-line: Delivered the trace oracle foundation, state snapshot writer, and mani
 ### Module 14: Replay Runner — IN PROGRESS
 One-line: Build Kotlin replay playback through the translated game loop, produce real Kotlin state traces, and wire those traces into the Phase 13a regression harness.
 
-#### Phase 14a: Kotlin replay playback and trace producer — PLANNED
+#### Phase 14a: Kotlin replay playback and trace producer — IN PROGRESS
 One-line: Replace the Phase 13a copy-based producer with real Kotlin trace generation from `.P1R` replay inputs, a narrow Layer 1 frame driver, replay move hooks, and 310-byte state snapshot output.
 
 **Regime:** Build — deterministic replay I/O and state comparison are machine-verifiable.
@@ -102,7 +102,7 @@ One-line: Replace the Phase 13a copy-based producer with real Kotlin trace gener
 **Scope:** Implement the minimal replay-runner surface needed by Track A. This phase may translate replay move consumption from `replay.c` and the small non-rendering frame orchestration needed to call translated Layer 1 logic, but it must not expand into full `seg000`/`seg001`/`seg003` game-loop translation, SDL/platform behavior, rendering, audio, menus, or Android integration.
 
 **Steps:**
-- **14a.1** Replay manifest and initialization: map the 13 `Layer1RegressionManifest` ids to their `.P1R` files, parse replay metadata, seed `GameState` replay fields (`replaying`, `startLevel`, `randomSeed`, `numReplayTicks`, format/deprecation values), and test path resolution plus initialization behavior.
+- **14a.1** Replay manifest and initialization — COMPLETE: mapped the 13 `Layer1RegressionManifest` ids to their `.P1R` files, parsed replay metadata through `P1RParser`, seeded `GameState` replay fields (`replaying`, `startLevel`, `randomSeed`, `numReplayTicks`, format/version/deprecation values), and tested path resolution plus initialization behavior.
 - **14a.2** Replay input hooks: translate the replay move consumption needed by `ExternalStubs.doReplayMove`, decode per-tick control bytes into `control_x`, `control_y`, `control_shift`, and replay seek/skipping state, and test tick advancement, end-of-replay handling, and the old-version `g_deprecation_number` branch used by seg007 RNG behavior.
 - **14a.3** Layer 1 frame driver: add a narrow Kotlin frame tick that calls the already translated deterministic Layer 1 entry points in SDLPoP order, stubbing only platform/render/audio side effects as no-ops, and verify it mutates state deterministically on focused replay slices without introducing SDL, Android, file I/O, or rendering dependencies into `com.sdlpop.game`.
 - **14a.4** Real trace producer workflow: write Kotlin trace files by running `.P1R` inputs through the replay runner and `StateTraceFormat.serializeFrameBytes`, plug that producer into `Layer1RegressionHarness`, update the `layer1ReplayRegression` workflow/README boundary, and run `gradle test layer1ReplayRegression --rerun-tasks`.

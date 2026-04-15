@@ -2,6 +2,17 @@
 
 ## Module 14: Replay Runner
 
+### 2026-04-15 — Step 14a.1: Replay manifest and initialization
+
+**Mode:** Code | **Outcome:** Complete — replay source resolution and metadata initialization covered by tests
+**Contract changes:** `Layer1ReplayTrace` now carries a `replayFile` source path; `GameState` now carries replay format/version/deprecation metadata needed by replay playback
+
+Mapped each of the 13 Layer 1 regression manifest entries to its source `.P1R` file under `SDLPoP/replays` or `SDLPoP/doc/replays-testcases`, preserving the existing `.trace` manifest and adding source replay validation. Added `ReplayRunner.loadManifestReplay()` to resolve manifest entries through `P1RParser`, plus `ReplayRunner.initializeReplayState()` to seed replay mode, `startLevel`, `randomSeed`, `numReplayTicks`, `currTick`, seek/skipping state, and format/version/deprecation fields on `GameState`.
+
+Added focused tests for manifest-to-replay path resolution, parsing every manifest replay source, and start-level/seed/tick/format/deprecation plumbing into `GameState`. This step intentionally does not decode move bytes or call frame logic; those remain Step 14a.2 and Step 14a.3 respectively.
+
+Verification: `gradle test --tests com.sdlpop.oracle.Layer1RegressionHarnessTest --tests com.sdlpop.replay.ReplayRunnerTest --tests com.sdlpop.replay.P1RParserTest` passed; full `gradle test` passed in `SDLPoP-kotlin`.
+
 ### 2026-04-15 — Phase 14a Plan: Kotlin replay playback and trace producer
 
 **Mode:** Discuss | **Outcome:** Phase planned

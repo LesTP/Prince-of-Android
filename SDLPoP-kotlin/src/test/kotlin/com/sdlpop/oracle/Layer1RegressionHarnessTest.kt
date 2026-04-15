@@ -30,6 +30,19 @@ class Layer1RegressionHarnessTest {
     }
 
     @Test
+    fun `manifest maps all regression ids to source replays`() {
+        val replayRoot = Paths.get(System.getProperty("sdlpop.replayRoot", "../SDLPoP"))
+        val replays = Layer1RegressionManifest.fromReplayRoot(replayRoot)
+
+        assertEquals(13, replays.size)
+        assertEquals("replays/basic movement.p1r", replays.first().replayFile)
+        assertEquals("doc/replays-testcases/trick_153.p1r", replays.last().replayFile)
+        replays.forEach { replay ->
+            assertTrue(Files.isRegularFile(replay.replayPath(replayRoot)), "Replay source exists for ${replay.id}")
+        }
+    }
+
+    @Test
     @Tag("layer1-regression")
     fun `workflow writes Kotlin trace artifacts under build output and compares all manifest traces`() {
         val referenceRoot = referenceRoot()
@@ -54,7 +67,7 @@ class Layer1RegressionHarnessTest {
         val tempRoot = outputRoot().resolve("divergence-report").also { it.createDirectories() }
         val referenceRoot = tempRoot.resolve("reference").also { it.createDirectories() }
         val actualRoot = tempRoot.resolve("actual")
-        val replay = Layer1ReplayTrace("focused", "focused.trace")
+        val replay = Layer1ReplayTrace("focused", "focused.trace", "focused.p1r")
         val referenceBytes = ByteArray(StateTraceFormat.FRAME_SIZE * 2)
         val actualBytes = referenceBytes.copyOf()
         writeU32(referenceBytes, 0, 0)
@@ -89,7 +102,7 @@ class Layer1RegressionHarnessTest {
         val tempRoot = outputRoot().resolve("require-match").also { it.createDirectories() }
         val referenceRoot = tempRoot.resolve("reference").also { it.createDirectories() }
         val actualRoot = tempRoot.resolve("actual")
-        val replay = Layer1ReplayTrace("focused", "focused.trace")
+        val replay = Layer1ReplayTrace("focused", "focused.trace", "focused.p1r")
         val referenceBytes = ByteArray(StateTraceFormat.FRAME_SIZE)
         val actualBytes = referenceBytes.copyOf()
         referenceBytes[68] = 1

@@ -7,8 +7,10 @@ import kotlin.io.path.createDirectories
 data class Layer1ReplayTrace(
     val id: String,
     val referenceFile: String,
+    val replayFile: String,
 ) {
     fun referencePath(referenceRoot: Path): Path = referenceRoot.resolve(referenceFile)
+    fun replayPath(replayRoot: Path): Path = replayRoot.resolve(replayFile)
 }
 
 data class Layer1RegressionResult(
@@ -84,20 +86,20 @@ class Layer1RegressionHarness(
 
 object Layer1RegressionManifest {
     val replays: List<Layer1ReplayTrace> = listOf(
-        "basic_movement",
-        "demo_suave_prince_level11",
-        "falling",
-        "falling_through_floor_pr274",
-        "grab_bug_pr288",
-        "grab_bug_pr289",
-        "original_level12_xpos_glitch",
-        "original_level2_falling_into_wall",
-        "original_level5_shadow_into_wall",
-        "snes_pc_set_level11",
-        "sword_and_level_transition",
-        "traps",
-        "trick_153",
-    ).map { id -> Layer1ReplayTrace(id = id, referenceFile = "$id.trace") }
+        Layer1ReplayTrace("basic_movement", "basic_movement.trace", "replays/basic movement.p1r"),
+        Layer1ReplayTrace("demo_suave_prince_level11", "demo_suave_prince_level11.trace", "doc/replays-testcases/Demo by Suave Prince level 11.p1r"),
+        Layer1ReplayTrace("falling", "falling.trace", "replays/falling.p1r"),
+        Layer1ReplayTrace("falling_through_floor_pr274", "falling_through_floor_pr274.trace", "doc/replays-testcases/Falling through floor (PR274).p1r"),
+        Layer1ReplayTrace("grab_bug_pr288", "grab_bug_pr288.trace", "doc/replays-testcases/Grab bug (PR288).p1r"),
+        Layer1ReplayTrace("grab_bug_pr289", "grab_bug_pr289.trace", "doc/replays-testcases/Grab bug (PR289).p1r"),
+        Layer1ReplayTrace("original_level12_xpos_glitch", "original_level12_xpos_glitch.trace", "doc/replays-testcases/Original level 12 xpos glitch.p1r"),
+        Layer1ReplayTrace("original_level2_falling_into_wall", "original_level2_falling_into_wall.trace", "doc/replays-testcases/Original level 2 falling into wall.p1r"),
+        Layer1ReplayTrace("original_level5_shadow_into_wall", "original_level5_shadow_into_wall.trace", "doc/replays-testcases/Original level 5 shadow into wall.p1r"),
+        Layer1ReplayTrace("snes_pc_set_level11", "snes_pc_set_level11.trace", "doc/replays-testcases/SNES-PC-set level 11.p1r"),
+        Layer1ReplayTrace("sword_and_level_transition", "sword_and_level_transition.trace", "replays/sword and level transition.p1r"),
+        Layer1ReplayTrace("traps", "traps.trace", "replays/traps.p1r"),
+        Layer1ReplayTrace("trick_153", "trick_153.trace", "doc/replays-testcases/trick_153.p1r"),
+    )
 
     fun fromReferenceRoot(referenceRoot: Path): List<Layer1ReplayTrace> {
         val missing = replays
@@ -116,6 +118,17 @@ object Layer1RegressionManifest {
         }
         require(unexpected.isEmpty()) {
             "Reference trace manifest must list every .trace file; unexpected: ${unexpected.joinToString()}"
+        }
+
+        return replays
+    }
+
+    fun fromReplayRoot(replayRoot: Path): List<Layer1ReplayTrace> {
+        val missing = replays
+            .map { it.replayPath(replayRoot) }
+            .filterNot { Files.isRegularFile(it) }
+        require(missing.isEmpty()) {
+            "Missing Layer 1 replay sources: ${missing.joinToString()}"
         }
 
         return replays

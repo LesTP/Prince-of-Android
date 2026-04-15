@@ -265,6 +265,9 @@ object GameState {
     var replaySeekTarget: Int = 0  // byte (replay_seek_target)
     var isValidateMode: Int = 0    // byte (is_validate_mode)
     var currTick: Long = 0         // dword (curr_tick)
+    var replayFormatClass: Int = 0 // word (replay_format_class)
+    var replayVersionNumber: Int = 0 // byte (version_number)
+    var gDeprecationNumber: Int = 0 // int (g_deprecation_number)
 
     // === Configuration ===
     var useFixesAndEnhancements: Int = 0  // byte
