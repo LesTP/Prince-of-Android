@@ -2,10 +2,13 @@
 SDLPoP-kotlin — Module 12 Phases 12a.1–12a.3: Seg007 tests.
 Tests drawn-room trob coordinate mapping, redraw/wipe bookkeeping,
 animated-tile state machines, trob lifecycle, and trigger plumbing.
+Phase 12b.1 adds loose-floor animation entry-point coverage.
 */
 
 package com.sdlpop.game
 
+import com.sdlpop.game.FrameIds as FID
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -69,6 +72,8 @@ class Seg007Test {
         gs.leveldoorOpen = 0
         gs.isFeatherFall = 0
         gs.soundFlags = 0
+        gs.lastLooseSound = 0
+        gs.seedWasInit = 1
         // Reset only the entries that tests may modify (preserve initial defaults)
         gs.soundInterruptible[SoundIds.LEVELDOOR_SLIDING] = 0
         lastPlayedSound = -1
@@ -85,6 +90,11 @@ class Seg007Test {
         }
         ExternalStubs.playSound = { id -> lastPlayedSound = id }
         ExternalStubs.stopSounds = { stopSoundsCalled = true }
+    }
+
+    @AfterTest
+    fun restoreGlobalDefaults() {
+        gs.seedWasInit = 0
     }
 
     @Test
@@ -926,5 +936,106 @@ class Seg007Test {
 
         seg007.playDoorSoundIfVisible(SoundIds.GATE_STOP)
         assertEquals(-1, lastPlayedSound)
+    }
+
+    // === Phase 12b.1 tests — animate_loose ===
+
+    @Test
+    fun animateLooseShakingTimerStopsAfterFourthFrame() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 12
+        gs.trob.type = 1
+        gs.currModifier = 0x83
+        gs.currentLevel = 1
+
+        seg007.animateLoose()
+
+        assertEquals(0, gs.currModifier)
+        assertEquals(-1, gs.trob.type)
+        assertTrue(lastPlayedSound in SoundIds.LOOSE_SHAKE_1..SoundIds.LOOSE_SHAKE_3)
+        assertEquals(0x20, gs.redrawHeight.toInt())
+        assertEquals(1, gs.redrawFramesFull[12])
+        assertEquals(1, gs.wipeFrames[12])
+    }
+
+    @Test
+    fun animateLooseLevel13ShakingKeepsAutoFallingTileActiveWithoutRedraw() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 12
+        gs.trob.type = 1
+        gs.currModifier = 0x83
+        gs.currentLevel = gs.custom.looseTilesLevel
+
+        seg007.animateLoose()
+
+        assertEquals(0x84, gs.currModifier)
+        assertEquals(1, gs.trob.type)
+        assertEquals(-1, lastPlayedSound)
+        assertEquals(0, gs.redrawFramesFull[12])
+    }
+
+    @Test
+    fun animateLooseBeforeDelayOnlyShakesAndRedraws() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 12
+        gs.trob.type = 0
+        gs.currModifier = 1
+        gs.custom.looseFloorDelay = 11
+
+        seg007.animateLoose()
+
+        assertEquals(2, gs.currModifier)
+        assertEquals(0, gs.mobsCount.toInt())
+        assertEquals(0, gs.currRoomTiles[12])
+        assertEquals(1, gs.redrawFramesFull[12])
+    }
+
+    @Test
+    fun animateLooseAtDelayRemovesTileAndSpawnsFallingMob() {
+        gs.trob.room = gs.drawnRoom
+        gs.trob.tilepos = 12
+        gs.trob.type = 0
+        gs.currModifier = 10
+        gs.currentLevel = 4
+        gs.currRoomTiles[12] = Tiles.LOOSE
+
+        seg007.animateLoose()
+
+        assertEquals(Tiles.EMPTY, gs.currRoomTiles[12])
+        assertEquals(gs.custom.tblLevelType[4], gs.currModifier)
+        assertEquals(-1, gs.trob.type)
+        assertEquals(1, gs.mobsCount.toInt())
+        assertEquals(8, gs.mobs[0].xh)
+        assertEquals(128, gs.mobs[0].y)
+        assertEquals(gs.drawnRoom, gs.mobs[0].room)
+        assertEquals(0, gs.mobs[0].speed)
+        assertEquals(0, gs.mobs[0].type)
+        assertEquals(1, gs.mobs[0].row)
+        assertEquals(1, gs.redrawFramesFull[12])
+        assertEquals(1, gs.redrawFramesFull[13])
+    }
+
+    @Test
+    fun animateLooseDropTwoRoomsFixKeepsClimbingKidAttached() {
+        gs.fixes.fixDrop2RoomsClimbingLooseTile = 1
+        gs.Kid.room = 2
+        gs.Kid.currRow = 0
+        gs.Kid.currCol = 4
+        gs.Kid.frame = FID.frame_135_climbing_1
+        gs.level.roomlinks[gs.Kid.room - 1].up = 8
+        gs.drawnRoom = 8
+        gs.trob.room = 8
+        gs.trob.tilepos = 24
+        gs.trob.type = 0
+        gs.currModifier = 10
+        gs.currRoomTiles[24] = Tiles.LOOSE
+
+        seg007.animateLoose()
+
+        assertEquals(11, gs.currModifier)
+        assertEquals(Tiles.LOOSE, gs.currRoomTiles[24])
+        assertEquals(0, gs.trob.type)
+        assertEquals(0, gs.mobsCount.toInt())
+        assertEquals(1, gs.redrawFramesFull[24])
     }
 }

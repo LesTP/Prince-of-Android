@@ -2,6 +2,17 @@
 
 ## Module 12: Layer 1 — seg007 (Traps, triggers, animated tiles)
 
+### 2026-04-15 — Step 12b.1: Loose-floor animation entry point
+
+**Mode:** Code | **Outcome:** Complete — 5 new tests pass (524 total)
+**Contract changes:** None
+
+Translated `animate_loose` into `Seg007.kt` with the local loose-floor landing Y table and the `loose_shake` helper it directly requires. The implementation covers shaking-timer progression, level-13 auto-falling loose floors, delayed mob spawning, the `FIX_DROP_2_ROOMS_CLIMBING_LOOSE_TILE` guard, redraw side effects, and byte-masked loose-floor modifiers.
+
+Added focused `Seg007Test` coverage for the 12b.1 behaviors named in the plan. Test setup now restores `GameState.seedWasInit` after each seg007 test because `loose_shake` consumes RNG and the singleton default is validated by `TypesTest`.
+
+Verification: `gradle test` passed in `SDLPoP-kotlin` (524 tests, 0 failures).
+
 ### 2026-04-15 — Phase 12b Plan: Loose-floor mobs and remaining seg007 functions
 
 **Mode:** Discuss | **Outcome:** Phase planned

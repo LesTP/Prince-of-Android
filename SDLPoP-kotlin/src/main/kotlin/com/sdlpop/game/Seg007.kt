@@ -12,6 +12,7 @@ animation starters, trob lifecycle (add/find), doorlink accessors, trigger plumb
 start_chompers, make_loose_fall, loose_make_shake, do_knock, is_spike_harmful.
 Phase 12a.3: Gate/leveldoor animation (animate_door, gate_stop, animate_leveldoor,
 play_door_sound_if_visible) — completes the animate_tile dispatch for gate and level door tiles.
+Phase 12b.1: Loose-floor animation entry point (animate_loose, loose_shake).
 */
 
 package com.sdlpop.game
@@ -19,6 +20,7 @@ package com.sdlpop.game
 import com.sdlpop.game.Tiles as T
 import com.sdlpop.game.SoundIds as Snd
 import com.sdlpop.game.SoundFlags as SF
+import com.sdlpop.game.FrameIds as FID
 
 /**
  * seg007 — traps, triggers, animated tiles, and loose-floor mobs.
@@ -659,7 +661,7 @@ object Seg007 {
         // is it a "solid" loose floor?
         if ((gs.currRoomTiles[gs.currTilepos] and 0x20) == 0) {
             if (gs.currRoomModif[gs.currTilepos].toByte().toInt() <= 0) {
-                gs.currRoomModif[gs.currTilepos] = modifier
+                gs.currRoomModif[gs.currTilepos] = modifier and 0xFF
                 addTrob(gs.currRoom.toInt(), gs.currTilepos, 0)
                 redraw20h()
             }
@@ -704,6 +706,12 @@ object Seg007 {
         mob.row = gs.curmob.row
         gs.mobsCount++
     }
+
+    // data:2284
+    private val yLooseLand = intArrayOf(2, 65, 128, 191, 254)
+
+    // data:2734
+    private val looseSound = intArrayOf(0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0)
 
     // data:27C0
     private val doorDelta = intArrayOf(-1, 4, 4)
@@ -860,7 +868,70 @@ object Seg007 {
         }
     }
 
+    // seg007:0D9D
     fun animateLoose() {
-        throw NotImplementedError("animate_loose (seg007 later phase)")
+        val animType = gs.trob.type
+        if (animType >= 0) {
+            gs.currModifier = (gs.currModifier + 1) and 0xFF
+            if ((gs.currModifier and 0x80) != 0) {
+                // Just shaking. Level 13 uses this path for auto-falling floors.
+                if (gs.currentLevel == gs.custom.looseTilesLevel) return
+                if (gs.currModifier >= 0x84) {
+                    gs.currModifier = 0
+                    gs.trob.type = -1
+                }
+                looseShake(if (gs.currModifier == 0) 1 else 0)
+            } else {
+                // Something is on the floor; spawn a falling mob once the delay expires.
+                if (gs.currModifier >= gs.custom.looseFloorDelay) {
+                    val room = gs.trob.room
+                    val tilepos = gs.trob.tilepos
+                    val skipDropForClimbingKid =
+                        gs.fixes.fixDrop2RoomsClimbingLooseTile != 0 &&
+                            room == gs.level.roomlinks[gs.Kid.room - 1].up &&
+                            tilepos / 10 == 2 &&
+                            gs.Kid.currRow == 0 &&
+                            gs.Kid.currCol == tilepos % 10 &&
+                            gs.Kid.frame >= FID.frame_135_climbing_1 &&
+                            gs.Kid.frame < FID.frame_141_climbing_7
+
+                    if (skipDropForClimbingKid) {
+                        looseShake(0)
+                    } else {
+                        gs.currModifier = removeLoose(room, tilepos)
+                        gs.trob.type = -1
+                        val row = tilepos / 10
+                        gs.curmob.xh = (tilepos % 10) shl 2
+                        gs.curmob.y = yLooseLand[row + 1]
+                        gs.curmob.room = room
+                        gs.curmob.speed = 0
+                        gs.curmob.type = 0
+                        gs.curmob.row = row
+                        addMob()
+                    }
+                } else {
+                    looseShake(0)
+                }
+            }
+        }
+        redraw20h()
+    }
+
+    // seg007:0E55
+    fun looseShake(arg0: Int) {
+        val modifier = gs.currModifier and 0x7F
+        if (arg0 != 0 || (modifier < looseSound.size && looseSound[modifier] != 0)) {
+            var soundId: Int
+            do {
+                soundId = Seg002.prandom(2) + Snd.LOOSE_SHAKE_1
+            } while (soundId == gs.lastLooseSound)
+
+            Seg002.prandom(2) // DOS compatibility: waste one RNG cycle.
+
+            if ((gs.soundFlags and SF.DIGI) != 0) {
+                gs.lastLooseSound = soundId
+            }
+            ext.playSound(soundId)
+        }
     }
 }
