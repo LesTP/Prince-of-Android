@@ -31,6 +31,7 @@
 - **Test `@BeforeTest` must not zero shared arrays globally:** Resetting shared arrays like `soundInterruptible` by filling with zeros corrupts default values that other test suites (e.g., `TypesTest`) validate. Only reset the specific entries modified by each test.
 - **Seg007 RNG tests must restore seed init state:** Loose-floor shaking consumes RNG and can set `GameState.seedWasInit`; restore it after focused seg007 tests because `TypesTest` validates singleton defaults.
 - **`soundFlags` must include `sfDigi` for replay mode:** C reference builds always have digital sound enabled (`sound_flags & sfDigi`). This controls `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop — without it, the loop iterates a different number of times, consuming extra `prandom(2)` calls and causing RNG drift. Set `soundFlags |= SoundFlags.DIGI` during replay initialization. Discovered in Phase 15a verification (4 traces had RNG drift, all fixed by this).
+- **C room buffers are pointers into level data:** `curr_room_tiles`/`curr_room_modif` point directly into `level.fg`/`level.bg` in C. Kotlin uses copied room buffers, so replay-mode animated tile writes that update `currRoomModif` must also sync the matching `level.bg` entry or later room reloads can resurrect stale modifiers. Discovered in Step 15b.8 (`sword_and_level_transition` frame-0 modifier drift).
 - **Enum object references:** `GameConstants.ROOMCOUNT` not `TileGeometry.ROOMCOUNT` — constants live in their defining object, not an alias. `Short == Int` comparisons need `.toInt()` on the Short side.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 - **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
@@ -41,8 +42,18 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.8 NEXT**
-**Next:** Implement Step 15b.8 — final regression verification, up to two targeted fixes, and superseded shim cleanup.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.8 ESCALATED**
+**Next:** Human/orchestrator review required: Step 15b.8 exhausted the two targeted fixes and replay regression remains 4/13.
+
+**Step 15b.8 results (verified 2026-04-20):**
+- Ran `gradle test --no-daemon`: passed.
+- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Targeted fix attempt 1: tested same-room first-draw animated tile startup by running `animTileModif()` in the `headlessDrawLevelFirst()` same-room path. Focused tests passed, but replay regression regressed many traces to frame-0 `curr_room_modif` divergences; reverted.
+- Targeted fix attempt 2: retained a C pointer-semantics fix in `Seg007.animateTile()` so animated tile modifier writes update both `currRoomModif[tilepos]` and the backing `level.bg` entry. Focused Seg007/replay-runner tests passed. This removed the `sword_and_level_transition` frame-0 tile-modifier divergence, shifting that replay back to frame 275 `Kid.frame`, but replay regression remained 4/13.
+- Ran `gradle test --tests com.sdlpop.game.Seg007Test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`: passed.
+- Ran final `gradle test --no-daemon`: passed.
+- No third targeted fix was attempted per Phase 15b acceptance. Superseded shim cleanup was not performed because the replay acceptance gate is still failing.
+- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
 
 **Step 15b.7 results (verified 2026-04-20):**
 - Applied the orchestrator-diagnosed `draw_level_first()` tail fix: `headlessDrawLevelFirst()` now always calls `redrawScreen(drawingDifferentRoom = false)` after the room-entry gate, setting `exitRoomTimer = 2` and clearing `differentRoom`.
@@ -255,8 +266,8 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
 - **15b.6** Regression verification and targeted fixes — ESCALATED: see results above. Full tests pass, replay regression remains 4/13 after two targeted fix attempts; no third fix attempted.
 - **15b.7** Orchestrator-diagnosed fixes — COMPLETE: applied `draw_level_first()` tail `redrawScreen(false)` and corrected upside-down expiry to set `needRedrawBecauseFlipped`; full unit tests pass, replay regression remains 4/13.
-- **15b.8** Final regression verification and cleanup — NEXT: Since 15b.7 did not reach 13/13, apply up to two targeted fixes. Clean up superseded shim code. Escalate if still not 13/13.
+- **15b.8** Final regression verification and cleanup — ESCALATED: replay regression remains 4/13 after two targeted fix attempts; retained the `Seg007.animateTile()` level-bg sync fix and stopped without a third attempt.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.8.
+**Next action:** Human/orchestrator review of Step 15b.8 escalation.

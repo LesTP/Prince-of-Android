@@ -81,6 +81,9 @@ object Seg007 {
             else -> gs.trob.type = -1
         }
         gs.currRoomModif[gs.trob.tilepos] = gs.currModifier
+        if (gs.trob.room > 0) {
+            gs.level.bg[(gs.trob.room - 1) * 30 + gs.trob.tilepos] = gs.currModifier and 0xFF
+        }
     }
 
     // seg007:0166

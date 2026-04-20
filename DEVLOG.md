@@ -2,6 +2,19 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.8: Final regression verification and cleanup
+
+**Mode:** Code | **Outcome:** Escalated — replay regression still 4/13 after two targeted fix attempts
+**Contract changes:** None.
+
+Ran the ordinary Kotlin suite and the dedicated 13-trace replay regression for the final Phase 15b closure step. Initial verification preserved the Step 15b.7 result: `gradle test --no-daemon` passed, while `gradle layer1ReplayRegression --rerun-tasks --no-daemon` failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+
+Two targeted fixes were attempted. First, same-room `draw_level_first()` animated tile startup was tested by running `animTileModif()` after `loadRoomLinks()` in the same-room first-draw path. Focused replay-runner coverage passed, but replay regression moved many traces to new frame-0 tile-modifier divergences, so the change was reverted. Second, `Seg007.animateTile()` was corrected to write the updated `currRoomModif[trob.tilepos]` value back into `level.bg`, matching C pointer semantics where `curr_room_modif` points directly into `level.bg`. This retained fix removed the `sword_and_level_transition` frame-0 tile-modifier divergence, shifting that replay back to its prior frame 275 `Kid.frame` divergence, but did not improve the total match count.
+
+Final verification: `gradle test --tests com.sdlpop.game.Seg007Test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon` passed; `gradle test --no-daemon` passed; `gradle layer1ReplayRegression --rerun-tasks --no-daemon` still failed with **4/13 MATCH**. No third targeted fix was attempted per Phase 15b acceptance. Superseded shim cleanup was not performed because the replay acceptance gate is still failing and the remaining lifecycle boundary is unresolved.
+
+Remaining divergences are triage-ready: `basic_movement` frame 325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` frame 0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` frame 17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` frame 16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` frame 40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` frame 275 `Kid.frame` expected `46` actual `0`; `traps` frame 41 `Kid.frame` expected `50` actual `55`; and `trick_153` frame 27 `Kid.y` expected `62` actual `251`.
+
 ### 2026-04-20 — Step 15b.7: Orchestrator-diagnosed fixes
 
 **Mode:** Code | **Outcome:** Complete — diagnosed fixes applied, replay regression remains 4/13
