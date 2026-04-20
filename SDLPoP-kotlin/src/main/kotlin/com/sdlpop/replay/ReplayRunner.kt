@@ -176,8 +176,8 @@ object ReplayRunner {
                 state.hitpDelta = 0
                 Seg003.timers()
                 Layer1FrameDriver.playFrame(state)
-                HeadlessFrameLifecycle.headlessDrawGameFrame()
                 output.write(StateTraceFormat.serializeFrameBytes(frameNumber, state))
+                HeadlessFrameLifecycle.headlessDrawGameFrame()
                 frameNumber += 1
             }
         }

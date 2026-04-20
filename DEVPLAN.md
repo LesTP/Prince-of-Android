@@ -41,11 +41,21 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.5 NEXT**
-**Next:** Implement Step 15b.5 — translate `draw_game_frame()` state effects and route draw-level-first through the new `redrawScreen()` helper.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.6 NEXT**
+**Next:** Implement Step 15b.6 — run regression verification and apply up to two targeted fixes based on the remaining divergence details.
+
+**Step 15b.5 results (verified 2026-04-20):**
+- Translated the deterministic `draw_game_frame()` state branches: `needFullRedraw`, `differentRoom`, `needRedrawBecauseFlipped`, palace wall color generation with RNG restoration, `playNextSound()`, and text timer countdown/expiry including restart text.
+- Moved the replay trace snapshot to occur before the headless draw-frame hook, matching C validate timing where `dump_frame_state()` runs at the end of `play_frame()` before `draw_game_frame()`.
+- Corrected the Phase 15b redraw assumption after direct C-source inspection: `redraw_screen()` does **not** call `anim_tile_modif()` or `start_chompers()`; animated tile/chomper startup belongs to `check_the_end()`. The headless redraw helper now reloads room links/buffers, clears `differentRoom`, and sets `exitRoomTimer = 2`.
+- Updated replay-runner tests for draw-frame full/different-room redraw state, palace wall RNG preservation, text expiry restart behavior, and `checkTheEnd()` chomper startup ownership.
+- Ran `gradle test --no-daemon`: passed.
+- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
 
 **Step 15b.4 results (verified 2026-04-20):**
 - Replaced the thin `HeadlessFrameLifecycle.redrawScreen()` shim with the state-bearing redraw slice: clear `differentRoom`, reload room links/current room buffers, run `animTileModif()`, start chompers, and set `exitRoomTimer = 2`.
+- Superseded by Step 15b.5 C-source correction: `animTileModif()` and `startChompers()` belong to `check_the_end()`, not `redraw_screen()`.
 - Kept SDL/rendering/palette/keyboard/screen-copy/blind-mode drawing behavior out of the headless replay path.
 - Updated replay-runner tests to assert potion/sword animated tile startup, chomper startup for the current character row, and redraw timer reset.
 - Ran `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`: passed.
@@ -209,26 +219,26 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 
 **Regime:** Build (semi-autonomous).
 
-**Remaining divergences to resolve (post-15a):**
-- Frame 0 tile modifiers (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing after Step 15b.1
-- Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr289` f16, `trick_153` f27, `traps` f41): frame lifecycle ordering — likely `need_full_redraw` / `redraw_screen()` path in `draw_game_frame()` that initializes animated tiles on room entry
-- Tile/trob state divergences (`grab_bug_pr288` f11, `sword_and_level_transition` f138, `snes_pc_set_level11` f40): `draw_game_frame()` → `redraw_screen()` → `anim_tile_modif()` on room changes during gameplay
+**Remaining divergences to resolve (post-15b.5):**
+- Frame 0 tile modifier (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing.
+- Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr288` f17, `grab_bug_pr289` f16, `sword_and_level_transition` f275, `traps` f41, `trick_153` f27): remaining seg000 lifecycle ordering/state still incomplete.
+- Tile/trob state divergence (`snes_pc_set_level11` f40): room-entry animated-tile/chomper setup still missing one trob.
 
-**Root cause (updated after 15b.3 escalation):** The thin headless shims (15b.1-15b.3) only handled room-link refresh and flag clearing, but missed the actual state-bearing side effects of `redraw_screen()` and `draw_game_frame()`. The C code's `redraw_screen()` calls `anim_tile_modif()` (animates potions/torches/swords in room tiles), `start_chompers()` (initializes chomper trobs), and sets `exit_room_timer = 2`. The C `draw_game_frame()` has full branching for `need_full_redraw` / `different_room` / `need_redraw_because_flipped`, each calling `redraw_screen()` with appropriate parameters. The shims skipped all of this, causing 9 trace divergences in tile modifiers, trob counts, Kid.frame, and Kid.y.
+**Root cause (updated after 15b.5 C-source correction):** The thin headless shims (15b.1-15b.3) only handled room-link refresh and flag clearing, but missed several deterministic `draw_game_frame()` effects. Direct source inspection showed that `redraw_screen()` itself does not call `anim_tile_modif()` or `start_chompers()`; those belong to `check_the_end()` room-entry initialization. `draw_game_frame()` still owns redraw branching, palace wall color generation for different-room palace redraws, `play_next_sound()`, text timer countdown/expiry, and `exit_room_timer = 2` through `redraw_screen()`.
 
 **New approach:** Replace headless shims with proper translations of the state-bearing parts of `redraw_screen()` and `draw_game_frame()`, skipping only pure rendering calls (draw_rect, copy_screen_rect, draw_moving, draw_tables, flip_screen, etc.). The key C functions to translate (state effects only):
-- `redraw_screen()` (seg003.c:240): `different_room = 0`, room buffer reload, `anim_tile_modif()`, `start_chompers()` (via room redraw path), `exit_room_timer = 2`
+- `redraw_screen()` (seg003.c:240): `different_room = 0`, room buffer/link reload through `redraw_room()`/`load_room_links()`, `exit_room_timer = 2`
 - `draw_game_frame()` (seg000.c:990): full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching → calls `redraw_screen(0)` or `redraw_screen(1)`, plus `play_next_sound()` and text timer logic
-- `draw_level_first()` (seg003.c:215): `next_room = Kid.room`, `check_the_end()`, `redraw_screen(0)`
+- `draw_level_first()` (seg003.c:215): `next_room = Kid.room`, `check_the_end()`, and first-frame redraw behavior without duplicating same-room savestate animated-tile initialization
 
 **Steps:**
 - **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: see results below.
 - **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: see results below.
 - **15b.3** Regression verification and cleanup — ESCALATED: see results below. Thin shims insufficient.
 - **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
-- **15b.5** Translate `draw_game_frame()` state effects: Replace `headlessDrawGameFrame()` with a proper translation of seg000.c `draw_game_frame()`. Must include: full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching with `redrawScreen()` calls, `drawn_room = next_room` on different-room path, `gen_palace_wall_colors()` for palace levels, `play_next_sound()` call, and text timer countdown logic (decrement `text_time_remaining`, handle expiry including `start_game()` restart). Also update `headlessDrawLevelFirst()` to call the new `redrawScreen(0)` instead of its ad-hoc logic. Run unit tests + full 13-trace replay regression. Target: significant improvement from 4/13 baseline.
+- **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
 - **15b.6** Regression verification and targeted fixes: Run full test suite + 13-trace regression. If any traces still diverge, apply up to two targeted fixes based on specific divergence details. Clean up any superseded shim code. If still not 13/13 after two fixes, escalate with triage.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.5.
+**Next action:** Implement Step 15b.6.

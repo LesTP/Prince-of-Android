@@ -2,6 +2,17 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.5: draw_game_frame state effects
+
+**Mode:** Code | **Outcome:** Complete — draw-frame branching translated, replay regression remains 4/13
+**Contract changes:** None.
+
+Translated the deterministic state effects of `seg000.c::draw_game_frame()` into the headless replay lifecycle: full-redraw, different-room, and flipped-redraw branching; palace wall color generation with RNG preservation; `play_next_sound()` queue drain semantics; and text timer countdown/expiry handling including restart text. The replay runner now serializes the trace immediately after `playFrame()` and then applies the headless draw-frame hook, matching the C validate build where `dump_frame_state()` runs at the end of `play_frame()` before the later draw-frame call.
+
+While implementing this step, direct C-source inspection corrected the stale Phase 15b assumption that `redraw_screen()` runs animated tile startup. In SDLPoP, `redraw_screen()` calls `redraw_room()` and sets `exit_room_timer = 2`; animated tile/chomper startup belongs to `check_the_end()`. The headless `redrawScreen()` helper was narrowed accordingly, and tests were updated so draw-frame redraws cover room-link/timer state while `checkTheEnd()` owns chomper startup.
+
+Verification: `gradle test --no-daemon` passed. `gradle layer1ReplayRegression --rerun-tasks --no-daemon` still fails at **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`). Remaining divergences are triage-ready: `basic_movement` frame 325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` frame 0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` frame 17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` frame 16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` frame 40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` frame 275 `Kid.frame` expected `46` actual `0`; `traps` frame 41 `Kid.frame` expected `50` actual `55`; and `trick_153` frame 27 `Kid.y` expected `62` actual `251`.
+
 ### 2026-04-20 — Step 15b.4: redraw_screen state effects
 
 **Mode:** Code | **Outcome:** Complete — headless redraw now runs room tile initialization state effects

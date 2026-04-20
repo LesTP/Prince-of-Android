@@ -20,6 +20,7 @@ import kotlin.test.assertTrue
 
 class ReplayRunnerTest {
     private var stopSoundsCount = 0
+    private var startGameCount = 0
 
     @BeforeTest
     fun resetState() {
@@ -66,6 +67,9 @@ class ReplayRunnerTest {
         GameState.isShowTime = 0
         GameState.textTimeRemaining = 0
         GameState.textTimeTotal = 0
+        GameState.needQuotes = 0
+        GameState.nextSound = (-1).toShort()
+        GameState.currentSound = 0
         GameState.level.fg.fill(0)
         GameState.level.bg.fill(0)
         GameState.level.roomlinks.forEach {
@@ -81,9 +85,11 @@ class ReplayRunnerTest {
             it.type = 0
         }
         stopSoundsCount = 0
+        startGameCount = 0
         ExternalStubs.preserveRoomBufferMutations = false
         ExternalStubs.control = { Seg005.control() }
         ExternalStubs.stopSounds = { stopSoundsCount += 1 }
+        ExternalStubs.startGame = { startGameCount += 1 }
         ExternalStubs.doReplayMove = { }
         ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
     }
@@ -93,6 +99,7 @@ class ReplayRunnerTest {
         ExternalStubs.control = { Seg005.control() }
         ExternalStubs.preserveRoomBufferMutations = false
         ExternalStubs.stopSounds = { }
+        ExternalStubs.startGame = { }
         ExternalStubs.doReplayMove = { }
         ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
         GameState.Kid = CharType()
@@ -127,6 +134,9 @@ class ReplayRunnerTest {
         GameState.isShowTime = 0
         GameState.textTimeRemaining = 0
         GameState.textTimeTotal = 0
+        GameState.needQuotes = 0
+        GameState.nextSound = (-1).toShort()
+        GameState.currentSound = 0
         GameState.level.fg.fill(0)
         GameState.level.bg.fill(0)
         GameState.level.roomlinks.forEach {
@@ -499,25 +509,26 @@ class ReplayRunnerTest {
     }
 
     @Test
-    fun `HeadlessFrameLifecycle drawGameFrame full redraw applies room tile initialization`() {
+    fun `HeadlessFrameLifecycle drawGameFrame full redraw reloads room links and timer state`() {
         GameState.Kid = CharType(room = 1)
         GameState.currentLevel = 1
         GameState.drawnRoom = 1
         GameState.nextRoom = 1
         GameState.needFullRedraw = 1
         GameState.level.fg[0] = Tiles.POTION
+        GameState.level.roomlinks[0].right = 2
 
         HeadlessFrameLifecycle.headlessDrawGameFrame()
 
         assertEquals(0, GameState.needFullRedraw)
         assertEquals(0, GameState.differentRoom)
+        assertEquals(2, GameState.roomR)
         assertEquals(Tiles.POTION, GameState.currRoomTiles[0])
-        assertEquals(1, GameState.trobsCount.toInt())
         assertEquals(2, GameState.exitRoomTimer)
     }
 
     @Test
-    fun `HeadlessFrameLifecycle drawGameFrame different room redraw applies room tile initialization`() {
+    fun `HeadlessFrameLifecycle drawGameFrame different room redraw advances drawn room`() {
         GameState.Kid = CharType(room = 3)
         GameState.currentLevel = 1
         GameState.drawnRoom = 2
@@ -530,25 +541,53 @@ class ReplayRunnerTest {
         assertEquals(3, GameState.drawnRoom)
         assertEquals(0, GameState.differentRoom)
         assertEquals(Tiles.SWORD, GameState.currRoomTiles[0])
-        assertEquals(1, GameState.trobsCount.toInt())
         assertEquals(2, GameState.exitRoomTimer)
     }
 
     @Test
-    fun `HeadlessFrameLifecycle drawGameFrame redraw starts chompers for current character row`() {
+    fun `HeadlessFrameLifecycle checkTheEnd starts chompers for current character row`() {
         GameState.currentLevel = 1
-        GameState.drawnRoom = 1
+        GameState.drawnRoom = 0
         GameState.nextRoom = 1
-        GameState.needFullRedraw = 1
+        GameState.Kid = CharType(room = 1, currRow = 0)
         GameState.Char = CharType(room = 1, currRow = 0)
         GameState.level.fg[0] = Tiles.CHOMPER
 
-        HeadlessFrameLifecycle.headlessDrawGameFrame()
+        HeadlessFrameLifecycle.checkTheEnd()
 
         assertEquals(1, GameState.trobsCount.toInt())
         assertEquals(1, GameState.trobs[0].room)
         assertEquals(0, GameState.trobs[0].tilepos)
         assertEquals(15, GameState.currRoomModif[0])
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle drawGameFrame palace room redraw preserves RNG while generating wall colors`() {
+        GameState.currentLevel = 4
+        GameState.randomSeed = 123456L
+        GameState.drawnRoom = 1
+        GameState.nextRoom = 2
+        GameState.differentRoom = 1
+
+        HeadlessFrameLifecycle.headlessDrawGameFrame()
+
+        assertEquals(2, GameState.drawnRoom)
+        assertEquals(123456L, GameState.randomSeed)
+        assertTrue(GameState.palaceWallColors.any { it != 0 })
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle drawGameFrame expiring restart text starts game`() {
+        GameState.textTimeRemaining = 1
+        GameState.textTimeTotal = 288
+        GameState.replaying = 1
+
+        HeadlessFrameLifecycle.headlessDrawGameFrame()
+
+        assertEquals((-1).toShort(), GameState.startLevel)
+        assertEquals(1, GameState.needQuotes)
+        assertEquals(0, GameState.replaying)
+        assertEquals(1, startGameCount)
     }
 
     @Test

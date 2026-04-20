@@ -56,6 +56,15 @@ data class Layer1FrameHooks(
     val showTime: () -> Unit = { HeadlessFrameLifecycle.showTime() },
 )
 
+private val SOUND_PRIORITY_TABLE = intArrayOf(
+    0x14, 0x1E, 0x23, 0x66, 0x32, 0x37, 0x30, 0x30, 0x4B, 0x50,
+    0x0D, 0x12, 0x0C, 0x0B, 0x69, 0x6E, 0x73, 0x78, 0x7D, 0x82,
+    0x91, 0x96, 0x9B, 0xA0, 0x01, 0x01, 0x01, 0x01, 0x01, 0x13,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00,
+    0x01, 0x01, 0x01, 0x01, 0x87, 0x8C, 0x0F, 0x10, 0x15, 0x16,
+    0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00,
+)
+
 object Layer1FrameDriver {
     fun playFrame(state: GameState = GameState, hooks: Layer1FrameHooks = Layer1FrameHooks()) {
         hooks.doMobs()
@@ -180,15 +189,70 @@ object HeadlessFrameLifecycle {
     }
 
     fun headlessDrawGameFrame() {
+        drawGameFrame()
+    }
+
+    fun drawGameFrame() {
         if (gs.needFullRedraw != 0) {
-            redrawScreen()
+            redrawScreen(drawingDifferentRoom = false)
             gs.needFullRedraw = 0
         } else if (gs.differentRoom != 0) {
             gs.drawnRoom = gs.nextRoom
-            redrawScreen()
+            if (isPalaceLevel()) {
+                genPalaceWallColors()
+            }
+            redrawScreen(drawingDifferentRoom = true)
         } else if (gs.needRedrawBecauseFlipped != 0) {
             gs.needRedrawBecauseFlipped = 0
-            redrawScreen()
+            redrawScreen(drawingDifferentRoom = false)
+        } else {
+            gs.drectsCount = 0.toShort()
+        }
+
+        playNextSound()
+        updateTextTimer()
+    }
+
+    fun playNextSound() {
+        val nextSound = gs.nextSound.toInt()
+        if (nextSound >= 0) {
+            val currentSound = gs.currentSound.coerceIn(0, gs.soundInterruptible.lastIndex)
+            if (com.sdlpop.game.ExternalStubs.checkSoundPlaying() == 0 ||
+                (gs.soundInterruptible[currentSound] != 0 &&
+                    soundPriority(nextSound) <= soundPriority(gs.currentSound))
+            ) {
+                gs.currentSound = nextSound
+            }
+        }
+        gs.nextSound = (-1).toShort()
+    }
+
+    private fun updateTextTimer() {
+        if (gs.textTimeRemaining == 1) {
+            if (gs.textTimeTotal == 36 || gs.textTimeTotal == 288) {
+                gs.startLevel = (-1).toShort()
+                gs.needQuotes = 1
+                if (gs.recording != 0) {
+                    gs.recording = 0
+                }
+                if (gs.replaying != 0) {
+                    gs.replaying = 0
+                }
+                com.sdlpop.game.ExternalStubs.startGame()
+            } else {
+                com.sdlpop.game.ExternalStubs.eraseBottomText(1)
+            }
+        } else if (gs.textTimeRemaining != 0 && gs.textTimeTotal != 1188) {
+            gs.textTimeRemaining = (gs.textTimeRemaining - 1) and 0xFFFF
+            if (gs.textTimeTotal == 288 && gs.textTimeRemaining < 72) {
+                val blinkFrame = gs.textTimeRemaining % 12
+                if (blinkFrame > 3) {
+                    com.sdlpop.game.ExternalStubs.eraseBottomText(0)
+                } else if (blinkFrame == 3) {
+                    com.sdlpop.game.ExternalStubs.displayTextBottom("Press Button to Continue")
+                    com.sdlpop.game.ExternalStubs.playSound(Snd.BLINK)
+                }
+            }
         }
     }
 
@@ -397,13 +461,42 @@ object HeadlessFrameLifecycle {
         }
     }
 
-    private fun redrawScreen() {
+    private fun redrawScreen(drawingDifferentRoom: Boolean) {
+        if (drawingDifferentRoom) {
+            gs.drectsCount = 0.toShort()
+        }
         gs.differentRoom = 0
         loadRoomLinks()
-        animTileModif()
-        Seg007.startChompers()
         gs.exitRoomTimer = 2
     }
+
+    private fun isPalaceLevel(): Boolean =
+        gs.currentLevel in gs.custom.tblLevelType.indices &&
+            gs.custom.tblLevelType[gs.currentLevel] != 0
+
+    private fun genPalaceWallColors() {
+        val oldRandomSeed = gs.randomSeed
+        gs.randomSeed = gs.drawnRoom.toLong()
+        Seg002.prandom(1)
+        for (row in 0 until 3) {
+            for (subrow in 0 until 4) {
+                val colorBase = if (subrow % 2 != 0) 0x61 else 0x66
+                var previousColor = -1
+                for (column in 0..10) {
+                    var color: Int
+                    do {
+                        color = colorBase + Seg002.prandom(3)
+                    } while (color == previousColor)
+                    gs.palaceWallColors[44 * row + 11 * subrow + column] = color
+                    previousColor = color
+                }
+            }
+        }
+        gs.randomSeed = oldRandomSeed
+    }
+
+    private fun soundPriority(soundId: Int): Int =
+        SOUND_PRIORITY_TABLE.getOrElse(soundId) { Int.MAX_VALUE }
 
     private fun checkFallFlo() {
         if (gs.currentLevel == gs.custom.looseTilesLevel &&
