@@ -179,6 +179,19 @@ object HeadlessFrameLifecycle {
         }
     }
 
+    fun headlessDrawGameFrame() {
+        if (gs.needFullRedraw != 0) {
+            redrawScreen()
+            gs.needFullRedraw = 0
+        } else if (gs.differentRoom != 0) {
+            gs.drawnRoom = gs.nextRoom
+            redrawScreen()
+        } else if (gs.needRedrawBecauseFlipped != 0) {
+            gs.needRedrawBecauseFlipped = 0
+            redrawScreen()
+        }
+    }
+
     fun checkCanGuardSeeKid() {
         if (gs.Guard.charid == CID.MOUSE) {
             gs.canGuardSeeKid = 0
@@ -382,6 +395,11 @@ object HeadlessFrameLifecycle {
             gs.roomR = 0
             gs.roomL = 0
         }
+    }
+
+    private fun redrawScreen() {
+        gs.differentRoom = 0
+        loadRoomLinks()
     }
 
     private fun checkFallFlo() {

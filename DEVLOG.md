@@ -2,6 +2,19 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.2: Per-frame draw-game-frame hook
+
+**Mode:** Code | **Outcome:** Complete — headless draw-frame flag handling wired before trace serialization
+**Contract changes:** None.
+
+Added `HeadlessFrameLifecycle.headlessDrawGameFrame()` and call it from `ReplayRunner.writeLayer1Trace()` immediately after `Layer1FrameDriver.playFrame()` and before `StateTraceFormat.serializeFrameBytes()`. The helper mirrors the deterministic state-bearing part of `seg000.c::draw_game_frame()`: handle `needFullRedraw`, `differentRoom`, and `needRedrawBecauseFlipped`; move `drawnRoom` to `nextRoom` on room redraws; clear `differentRoom`; and refresh room links/current room buffers through the existing headless room loader.
+
+The implementation deliberately does not re-run `animTileModif()` or `startChompers()` from the draw-frame hook. Trial runs showed that doing so duplicates the room-entry initialization already performed by `checkTheEnd()` during `playFrame()` and regresses previously matching traces to frame-0 tile-modifier divergences. The retained hook is therefore limited to the non-rendering redraw bookkeeping that does not duplicate game-logic tile initialization.
+
+Added focused replay-runner coverage for full-redraw and different-room redraw flag handling, plus reset coverage for `needFullRedraw` and `needRedrawBecauseFlipped` so replay manifests do not leak singleton redraw state between runs.
+
+Verification: `gradle test --no-daemon` passed. The dedicated replay regression still fails but preserves the 4/13 exact-match baseline (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`). Current divergences remain triage-ready: `basic_movement` frame 325 `Kid.frame`, `demo_suave_prince_level11` frame 29 `Kid.frame`, `falling_through_floor_pr274` frame 0 `curr_room_modif[17]`, `grab_bug_pr288` frame 11 `curr_room_tiles[2]`, `grab_bug_pr289` frame 16 `Kid.frame`, `snes_pc_set_level11` frame 40 `trobs_count`, `sword_and_level_transition` frame 138 `curr_room_tiles[0]`, `traps` frame 41 `Kid.frame`, and `trick_153` frame 27 `Kid.y`.
+
 ### 2026-04-20 — Step 15b.1: Initial room setup
 
 **Mode:** Code | **Outcome:** Complete — headless first-room setup wired before replay frame 0

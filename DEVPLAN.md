@@ -41,8 +41,17 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.2 NEXT**
-**Next:** Implement Step 15b.2 — add `headlessDrawGameFrame()` after `playFrame()` and before trace serialization for per-frame redraw/room-transition tile initialization.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.3 NEXT**
+**Next:** Implement Step 15b.3 — regression verification and cleanup; apply up to two targeted fixes if traces still diverge, then clean up superseded `HeadlessFrameLifecycle` code.
+
+**Step 15b.2 results (verified 2026-04-20):**
+- Added `HeadlessFrameLifecycle.headlessDrawGameFrame()` and called it from `ReplayRunner.writeLayer1Trace()` after `playFrame()` and before trace serialization.
+- The helper handles the state-bearing redraw flags from `draw_game_frame()`: `needFullRedraw`, `differentRoom`, and `needRedrawBecauseFlipped`; it advances `drawnRoom = nextRoom` for different-room redraws, clears `differentRoom`, and refreshes room links/current room buffers.
+- Focused replay-runner tests cover full-redraw and different-room redraw handling, and `resetTraceRunState()` now clears `needFullRedraw`/`needRedrawBecauseFlipped`.
+- A trial implementation that re-ran `animTileModif()`/`startChompers()` from the draw-frame hook was discarded because it duplicated `checkTheEnd()` room-entry initialization and regressed previously matching traces to frame-0 tile-modifier divergences.
+- `gradle test --no-daemon` passed.
+- Replay regression remains **4/13 MATCH**, preserving the Step 15b.1 match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Remaining divergences: `basic_movement` f325 `Kid.frame`; `demo_suave_prince_level11` f29 `Kid.frame`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f11 `curr_room_tiles[2]`; `grab_bug_pr289` f16 `Kid.frame`; `snes_pc_set_level11` f40 `trobs_count`; `sword_and_level_transition` f138 `curr_room_tiles[0]`; `traps` f41 `Kid.frame`; `trick_153` f27 `Kid.y`.
 
 **Step 15b.1 results (verified 2026-04-20):**
 - Added `HeadlessFrameLifecycle.headlessDrawLevelFirst()` and called it from `ReplayRunner.writeLayer1Trace()` after savestate restoration and before the first `playFrame()`.
@@ -193,9 +202,9 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 
 **Steps:**
 - **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: Added `headlessDrawLevelFirst()` to `ReplayRunner.writeLayer1Trace()` after savestate restoration but before first `play_frame()`. It runs `checkTheEnd()` for different starting rooms and refreshes room links for same-room starts. `traps` moved past its frame-0 tile-modifier divergence; `falling_through_floor_pr274` still needs same-room draw-frame initialization.
-- **15b.2** Per-frame room-transition tile initialization (`draw_game_frame` equivalent): Add `headlessDrawGameFrame()` after `playFrame()` but before trace serialization, matching C `play_level_2()` order (`play_frame()` → `draw_game_frame()` → `dump_frame_state()`). Checks `different_room` and `need_full_redraw` flags; if set, calls `anim_tile_modif()` + `start_chompers()`. Expected to fix the 7 mid-replay divergences.
+- **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: Added `headlessDrawGameFrame()` after `playFrame()` but before trace serialization. It handles `different_room`, `need_full_redraw`, and flipped redraw flags without duplicating `checkTheEnd()` animated-tile/chomper initialization. Regression remains 4/13.
 - **15b.3** Regression verification and cleanup: Run full test suite + 13-trace regression. Apply up to two targeted fixes if traces still diverge. Clean up superseded `HeadlessFrameLifecycle` code.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.2.
+**Next action:** Implement Step 15b.3.

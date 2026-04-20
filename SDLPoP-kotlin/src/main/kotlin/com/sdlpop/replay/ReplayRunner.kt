@@ -176,6 +176,7 @@ object ReplayRunner {
                 state.hitpDelta = 0
                 Seg003.timers()
                 Layer1FrameDriver.playFrame(state)
+                HeadlessFrameLifecycle.headlessDrawGameFrame()
                 output.write(StateTraceFormat.serializeFrameBytes(frameNumber, state))
                 frameNumber += 1
             }
@@ -196,6 +197,8 @@ object ReplayRunner {
         state.nextLevel = 0
         state.currRoom = 0
         state.differentRoom = 0
+        state.needFullRedraw = 0
+        state.needRedrawBecauseFlipped = 0
         state.roomL = 0
         state.roomR = 0
         state.roomA = 0
