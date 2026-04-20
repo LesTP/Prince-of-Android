@@ -41,8 +41,8 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.6 ESCALATED**
-**Next:** Human/orchestrator review of Step 15b.6 escalation — replay regression remains 4/13 after two targeted fix attempts.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.7 NEXT**
+**Next:** Implement Step 15b.7 — apply orchestrator-diagnosed fixes (exit_room_timer + needRedrawBecauseFlipped).
 
 **Step 15b.6 results (verified 2026-04-20):**
 - Ran `gradle test --no-daemon`: passed.
@@ -246,7 +246,19 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
 - **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
 - **15b.6** Regression verification and targeted fixes — ESCALATED: see results above. Full tests pass, replay regression remains 4/13 after two targeted fix attempts; no third fix attempted.
+- **15b.7** Orchestrator-diagnosed fixes: Two bugs identified by orchestrator C-source audit:
+
+  **Bug 1 (PRIMARY — exit_room_timer not initialized):** C's `draw_level_first()` (seg003.c:215) ALWAYS calls `redraw_screen(0)` at the end, which sets `exit_room_timer = 2` (seg003.c:307) and clears `different_room = 0`. The Kotlin `headlessDrawLevelFirst()` does NOT call `redrawScreen()` — for the different-room case it calls `checkTheEnd()` (which sets `different_room = 1`) but never clears it; for the same-room case it only calls `loadRoomLinks()`. Result: `exit_room_timer = 0` at frame 0 in Kotlin vs `= 2` in C. `exit_room()` (seg002.c:311) returns early when `exit_room_timer != 0`, so in C the Kid can't change rooms for the first 2 frames. In Kotlin, the Kid can exit immediately, causing early room transitions that cascade into Kid.frame, Kid.y, tile state, and trob count divergences.
+
+  **Fix 1:** At the end of `headlessDrawLevelFirst()`, unconditionally call `redrawScreen(drawingDifferentRoom = false)`. This matches C's `draw_level_first()` → `redraw_screen(0)` call, setting `exit_room_timer = 2` and clearing `different_room`. For the different-room case, `checkTheEnd()` already did room setup and set `different_room = 1`; the `redrawScreen()` will clear it (matching C). For the same-room case, `loadRoomLinks()` ran; `redrawScreen()` will call it again (harmless) and set the timer. Remove the if/else and make it: `checkTheEnd()` if different room, then always `redrawScreen(false)`.
+
+  **Bug 2 (SECONDARY — wrong redraw flag in playKidFrame):** `Layer1FrameDriver.kt` line 123 sets `state.needFullRedraw = 1` but C's `play_kid_frame()` (seg000.c:1273) sets `need_redraw_because_flipped = 1`. These are different flags checked in `draw_game_frame()` — `needFullRedraw` takes priority over `differentRoom`, while `needRedrawBecauseFlipped` only triggers when both other flags are clear. Wrong flag order may cause incorrect room-transition handling when `upsideDown` potion expires.
+
+  **Fix 2:** Change `state.needFullRedraw = 1` to `state.needRedrawBecauseFlipped = 1` on line 123 of `Layer1FrameDriver.kt`.
+
+  After both fixes, run full unit tests + 13-trace replay regression.
+- **15b.8** Final regression verification and cleanup: If 15b.7 doesn't reach 13/13, apply up to two targeted fixes. Clean up superseded shim code. Escalate if still not 13/13.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Human/orchestrator review of Step 15b.6 escalation.
+**Next action:** Implement Step 15b.7.
