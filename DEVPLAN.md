@@ -41,8 +41,16 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.6 NEXT**
-**Next:** Implement Step 15b.6 — run regression verification and apply up to two targeted fixes based on the remaining divergence details.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.6 ESCALATED**
+**Next:** Human/orchestrator review of Step 15b.6 escalation — replay regression remains 4/13 after two targeted fix attempts.
+
+**Step 15b.6 results (verified 2026-04-20):**
+- Ran `gradle test --no-daemon`: passed.
+- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Targeted fix attempt 1: tested adding the C `draw_level_first()` tail state (`gen_palace_wall_colors()` for palace levels plus `redraw_screen(0)`) to `headlessDrawLevelFirst()`. Focused replay-runner tests passed, but replay regression stayed 4/13 and regressed `trick_153` from frame 27 to a frame-0 `curr_room_modif[3]` divergence; reverted.
+- Targeted fix attempt 2: tested invoking translated `Seg003.checkMirror()` from the headless draw-frame hook, because C reaches `check_mirror()` through `draw_people()` during `draw_game_frame()`. Focused replay-runner tests passed, but replay regression was unchanged at 4/13; reverted.
+- No third targeted fix was attempted per Phase 15b acceptance. No production code changes are retained from this step; superseded shim cleanup was not performed because the acceptance gate is still failing.
+- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
 
 **Step 15b.5 results (verified 2026-04-20):**
 - Translated the deterministic `draw_game_frame()` state branches: `needFullRedraw`, `differentRoom`, `needRedrawBecauseFlipped`, palace wall color generation with RNG restoration, `playNextSound()`, and text timer countdown/expiry including restart text.
@@ -219,7 +227,7 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 
 **Regime:** Build (semi-autonomous).
 
-**Remaining divergences to resolve (post-15b.5):**
+**Remaining divergences to resolve (post-15b.6):**
 - Frame 0 tile modifier (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing.
 - Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr288` f17, `grab_bug_pr289` f16, `sword_and_level_transition` f275, `traps` f41, `trick_153` f27): remaining seg000 lifecycle ordering/state still incomplete.
 - Tile/trob state divergence (`snes_pc_set_level11` f40): room-entry animated-tile/chomper setup still missing one trob.
@@ -237,8 +245,8 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - **15b.3** Regression verification and cleanup — ESCALATED: see results below. Thin shims insufficient.
 - **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
 - **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
-- **15b.6** Regression verification and targeted fixes: Run full test suite + 13-trace regression. If any traces still diverge, apply up to two targeted fixes based on specific divergence details. Clean up any superseded shim code. If still not 13/13 after two fixes, escalate with triage.
+- **15b.6** Regression verification and targeted fixes — ESCALATED: see results above. Full tests pass, replay regression remains 4/13 after two targeted fix attempts; no third fix attempted.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.6.
+**Next action:** Human/orchestrator review of Step 15b.6 escalation.

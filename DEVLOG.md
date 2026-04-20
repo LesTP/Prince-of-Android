@@ -2,6 +2,19 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.6: Regression verification and targeted fixes
+
+**Mode:** Code | **Outcome:** Escalated — replay regression still 4/13 after two targeted fix attempts
+**Contract changes:** None.
+
+Ran the ordinary Kotlin suite and the dedicated 13-trace replay regression for the Phase 15b closure step. `gradle test --no-daemon` passed. `gradle layer1ReplayRegression --rerun-tasks --no-daemon` still failed with the same 4 exact matches as Step 15b.5: `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, and `original_level12_xpos_glitch`.
+
+Two targeted fixes were tested and rejected. First, `headlessDrawLevelFirst()` was changed to include the C `draw_level_first()` tail state: palace wall color generation and `redraw_screen(0)`. Focused replay-runner tests passed, but the replay regression remained 4/13 and moved `trick_153` from frame 27 to a new frame-0 `curr_room_modif[3]` divergence, so the change was reverted. Second, the headless draw-frame hook was tested with translated `Seg003.checkMirror()`, because C reaches `check_mirror()` through `draw_people()` during `draw_game_frame()`. Focused replay-runner tests passed, but the replay regression was unchanged at 4/13, so that change was also reverted.
+
+Per Phase 15b acceptance, no third targeted fix was attempted. No production code changes are retained from this step, and superseded shim cleanup was not performed because the replay acceptance gate is still failing.
+
+Remaining divergences are triage-ready: `basic_movement` frame 325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` frame 0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` frame 17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` frame 16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` frame 40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` frame 275 `Kid.frame` expected `46` actual `0`; `traps` frame 41 `Kid.frame` expected `50` actual `55`; and `trick_153` frame 27 `Kid.y` expected `62` actual `251`.
+
 ### 2026-04-20 — Step 15b.5: draw_game_frame state effects
 
 **Mode:** Code | **Outcome:** Complete — draw-frame branching translated, replay regression remains 4/13
