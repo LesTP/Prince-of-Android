@@ -41,8 +41,16 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.7 NEXT**
-**Next:** Implement Step 15b.7 — apply orchestrator-diagnosed fixes (exit_room_timer + needRedrawBecauseFlipped).
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.8 NEXT**
+**Next:** Implement Step 15b.8 — final regression verification, up to two targeted fixes, and superseded shim cleanup.
+
+**Step 15b.7 results (verified 2026-04-20):**
+- Applied the orchestrator-diagnosed `draw_level_first()` tail fix: `headlessDrawLevelFirst()` now always calls `redrawScreen(drawingDifferentRoom = false)` after the room-entry gate, setting `exitRoomTimer = 2` and clearing `differentRoom`.
+- Corrected upside-down expiry in `Layer1FrameDriver.playKidFrame()` to set `needRedrawBecauseFlipped = 1` instead of `needFullRedraw = 1`, matching C `play_kid_frame()`.
+- Added focused replay-runner tests for first-draw `differentRoom`/`exitRoomTimer` state and flipped-redraw flag selection.
+- Ran `gradle test --no-daemon`: passed, 573 tests.
+- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Remaining divergences are unchanged from Step 15b.6: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
 
 **Step 15b.6 results (verified 2026-04-20):**
 - Ran `gradle test --no-daemon`: passed.
@@ -227,7 +235,7 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 
 **Regime:** Build (semi-autonomous).
 
-**Remaining divergences to resolve (post-15b.6):**
+**Remaining divergences to resolve (post-15b.7):**
 - Frame 0 tile modifier (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing.
 - Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr288` f17, `grab_bug_pr289` f16, `sword_and_level_transition` f275, `traps` f41, `trick_153` f27): remaining seg000 lifecycle ordering/state still incomplete.
 - Tile/trob state divergence (`snes_pc_set_level11` f40): room-entry animated-tile/chomper setup still missing one trob.
@@ -246,19 +254,9 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
 - **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
 - **15b.6** Regression verification and targeted fixes — ESCALATED: see results above. Full tests pass, replay regression remains 4/13 after two targeted fix attempts; no third fix attempted.
-- **15b.7** Orchestrator-diagnosed fixes: Two bugs identified by orchestrator C-source audit:
-
-  **Bug 1 (PRIMARY — exit_room_timer not initialized):** C's `draw_level_first()` (seg003.c:215) ALWAYS calls `redraw_screen(0)` at the end, which sets `exit_room_timer = 2` (seg003.c:307) and clears `different_room = 0`. The Kotlin `headlessDrawLevelFirst()` does NOT call `redrawScreen()` — for the different-room case it calls `checkTheEnd()` (which sets `different_room = 1`) but never clears it; for the same-room case it only calls `loadRoomLinks()`. Result: `exit_room_timer = 0` at frame 0 in Kotlin vs `= 2` in C. `exit_room()` (seg002.c:311) returns early when `exit_room_timer != 0`, so in C the Kid can't change rooms for the first 2 frames. In Kotlin, the Kid can exit immediately, causing early room transitions that cascade into Kid.frame, Kid.y, tile state, and trob count divergences.
-
-  **Fix 1:** At the end of `headlessDrawLevelFirst()`, unconditionally call `redrawScreen(drawingDifferentRoom = false)`. This matches C's `draw_level_first()` → `redraw_screen(0)` call, setting `exit_room_timer = 2` and clearing `different_room`. For the different-room case, `checkTheEnd()` already did room setup and set `different_room = 1`; the `redrawScreen()` will clear it (matching C). For the same-room case, `loadRoomLinks()` ran; `redrawScreen()` will call it again (harmless) and set the timer. Remove the if/else and make it: `checkTheEnd()` if different room, then always `redrawScreen(false)`.
-
-  **Bug 2 (SECONDARY — wrong redraw flag in playKidFrame):** `Layer1FrameDriver.kt` line 123 sets `state.needFullRedraw = 1` but C's `play_kid_frame()` (seg000.c:1273) sets `need_redraw_because_flipped = 1`. These are different flags checked in `draw_game_frame()` — `needFullRedraw` takes priority over `differentRoom`, while `needRedrawBecauseFlipped` only triggers when both other flags are clear. Wrong flag order may cause incorrect room-transition handling when `upsideDown` potion expires.
-
-  **Fix 2:** Change `state.needFullRedraw = 1` to `state.needRedrawBecauseFlipped = 1` on line 123 of `Layer1FrameDriver.kt`.
-
-  After both fixes, run full unit tests + 13-trace replay regression.
-- **15b.8** Final regression verification and cleanup: If 15b.7 doesn't reach 13/13, apply up to two targeted fixes. Clean up superseded shim code. Escalate if still not 13/13.
+- **15b.7** Orchestrator-diagnosed fixes — COMPLETE: applied `draw_level_first()` tail `redrawScreen(false)` and corrected upside-down expiry to set `needRedrawBecauseFlipped`; full unit tests pass, replay regression remains 4/13.
+- **15b.8** Final regression verification and cleanup — NEXT: Since 15b.7 did not reach 13/13, apply up to two targeted fixes. Clean up superseded shim code. Escalate if still not 13/13.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.7.
+**Next action:** Implement Step 15b.8.

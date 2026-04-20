@@ -443,6 +443,23 @@ class ReplayRunnerTest {
     }
 
     @Test
+    fun `Layer1FrameDriver upside-down expiry requests flipped redraw`() {
+        val hooks = recordingHooks(mutableListOf()).copy(
+            playKid = {
+                GameState.Char.alive = 0
+                GameState.Char.room = 0
+            },
+        )
+        GameState.upsideDown = 1
+
+        Layer1FrameDriver.playKidFrame(hooks = hooks)
+
+        assertEquals(0, GameState.upsideDown)
+        assertEquals(0, GameState.needFullRedraw)
+        assertEquals(1, GameState.needRedrawBecauseFlipped)
+    }
+
+    @Test
     fun `HeadlessFrameLifecycle showTime decrements before trace serialization`() {
         GameState.Kid.alive = -1
         GameState.currentLevel = 1
@@ -494,6 +511,8 @@ class ReplayRunnerTest {
 
         assertEquals(2, GameState.nextRoom)
         assertEquals(2, GameState.drawnRoom)
+        assertEquals(0, GameState.differentRoom)
+        assertEquals(2, GameState.exitRoomTimer)
         assertEquals(1, GameState.roomL)
         assertEquals(3, GameState.roomR)
         assertEquals(4, GameState.roomA)

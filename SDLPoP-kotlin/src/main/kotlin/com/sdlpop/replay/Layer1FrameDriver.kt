@@ -120,7 +120,7 @@ object Layer1FrameDriver {
         hooks.playKid()
         if (state.upsideDown != 0 && state.Char.alive >= 0) {
             state.upsideDown = 0
-            state.needFullRedraw = 1
+            state.needRedrawBecauseFlipped = 1
         }
         if (state.isRestartLevel != 0) return true
 
@@ -186,6 +186,7 @@ object HeadlessFrameLifecycle {
         } else {
             loadRoomLinks()
         }
+        redrawScreen(drawingDifferentRoom = false)
     }
 
     fun headlessDrawGameFrame() {
