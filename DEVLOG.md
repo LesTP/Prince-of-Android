@@ -2,6 +2,17 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.4: redraw_screen state effects
+
+**Mode:** Code | **Outcome:** Complete — headless redraw now runs room tile initialization state effects
+**Contract changes:** None.
+
+Replaced the thin `HeadlessFrameLifecycle.redrawScreen()` shim with the deterministic state-bearing slice of the C redraw path: clear `differentRoom`, reload the current room links/buffers, run animated tile initialization with `animTileModif()`, start chomper trobs via `Seg007.startChompers()`, and set `exitRoomTimer = 2`. Pure rendering, palette, keyboard-buffer, screen-copy, and blind-mode drawing behavior remains out of scope for the headless replay path.
+
+Updated focused replay-runner tests so full-redraw and different-room redraw paths now expect potion/sword tile animations to create trobs and set the room-exit timer. Added coverage that redraw startup initializes chompers for the current character row, and reset `exitRoomTimer` in the test fixture to avoid singleton leakage.
+
+Verification: `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon` passed, and full `gradle test --no-daemon` passed. The 13-trace replay regression was not run in this step; Step 15b.5 owns the `draw_game_frame()` branching translation and replay-regression check.
+
 ### 2026-04-20 — Step 15b.3: Regression verification and cleanup
 
 **Mode:** Code | **Outcome:** Escalated — replay regression still 4/13 after two targeted fix attempts

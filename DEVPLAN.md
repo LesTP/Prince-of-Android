@@ -41,8 +41,16 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.4 NEXT**
-**Next:** Implement Step 15b.4 — replace thin headless shims with proper translations of redraw_screen() state effects and draw_game_frame() branching logic.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.5 NEXT**
+**Next:** Implement Step 15b.5 — translate `draw_game_frame()` state effects and route draw-level-first through the new `redrawScreen()` helper.
+
+**Step 15b.4 results (verified 2026-04-20):**
+- Replaced the thin `HeadlessFrameLifecycle.redrawScreen()` shim with the state-bearing redraw slice: clear `differentRoom`, reload room links/current room buffers, run `animTileModif()`, start chompers, and set `exitRoomTimer = 2`.
+- Kept SDL/rendering/palette/keyboard/screen-copy/blind-mode drawing behavior out of the headless replay path.
+- Updated replay-runner tests to assert potion/sword animated tile startup, chomper startup for the current character row, and redraw timer reset.
+- Ran `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`: passed.
+- Ran `gradle test --no-daemon`: passed.
+- Full 13-trace replay regression was not run in this step; Step 15b.5 owns the `draw_game_frame()` branching translation and regression check.
 
 **Step 15b.3 results (verified 2026-04-20):**
 - Ran `gradle test --no-daemon`: passed.
@@ -217,10 +225,10 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: see results below.
 - **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: see results below.
 - **15b.3** Regression verification and cleanup — ESCALATED: see results below. Thin shims insufficient.
-- **15b.4** Translate `redraw_screen()` state effects: Replace the thin `redrawScreen()` shim in `Layer1FrameDriver.kt` with a proper translation of seg003.c `redraw_screen()`. Must include: `different_room = 0`, full room buffer reload via `get_room_address(drawn_room)`, call `anim_tile_modif()` for current room tiles (potions/torches/swords → start_anim_*), call left-room torch animation, and set `exit_room_timer = 2`. Skip all pure rendering: `draw_rect`, `redraw_room`, `draw_tables`, `draw_moving`, `copy_screen_rect`, `flip_screen`, palette/blind mode, keyboard buffer clears. The `drawing_different_room` parameter controls whether the room-entry dark transition happens (rendering only — skip), but both paths share the state side effects. Run unit tests.
+- **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
 - **15b.5** Translate `draw_game_frame()` state effects: Replace `headlessDrawGameFrame()` with a proper translation of seg000.c `draw_game_frame()`. Must include: full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching with `redrawScreen()` calls, `drawn_room = next_room` on different-room path, `gen_palace_wall_colors()` for palace levels, `play_next_sound()` call, and text timer countdown logic (decrement `text_time_remaining`, handle expiry including `start_game()` restart). Also update `headlessDrawLevelFirst()` to call the new `redrawScreen(0)` instead of its ad-hoc logic. Run unit tests + full 13-trace replay regression. Target: significant improvement from 4/13 baseline.
 - **15b.6** Regression verification and targeted fixes: Run full test suite + 13-trace regression. If any traces still diverge, apply up to two targeted fixes based on specific divergence details. Clean up any superseded shim code. If still not 13/13 after two fixes, escalate with triage.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.4.
+**Next action:** Implement Step 15b.5.

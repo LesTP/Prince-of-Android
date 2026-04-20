@@ -400,6 +400,9 @@ object HeadlessFrameLifecycle {
     private fun redrawScreen() {
         gs.differentRoom = 0
         loadRoomLinks()
+        animTileModif()
+        Seg007.startChompers()
+        gs.exitRoomTimer = 2
     }
 
     private fun checkFallFlo() {

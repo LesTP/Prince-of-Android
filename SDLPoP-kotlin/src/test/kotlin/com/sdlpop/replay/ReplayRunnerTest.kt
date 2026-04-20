@@ -45,6 +45,7 @@ class ReplayRunnerTest {
         GameState.differentRoom = 0
         GameState.needFullRedraw = 0
         GameState.needRedrawBecauseFlipped = 0
+        GameState.exitRoomTimer = 0
         GameState.Kid = CharType()
         GameState.Guard = CharType(direction = Directions.NONE)
         GameState.Char = CharType()
@@ -118,6 +119,7 @@ class ReplayRunnerTest {
         GameState.startLevel = (-1).toShort()
         GameState.seedWasInit = 0
         GameState.remTick = 0
+        GameState.exitRoomTimer = 0
         GameState.hitpDelta = 0
         GameState.guardhpDelta = 0
         GameState.canGuardSeeKid = 0
@@ -497,7 +499,7 @@ class ReplayRunnerTest {
     }
 
     @Test
-    fun `HeadlessFrameLifecycle drawGameFrame handles full redraw without duplicating tile initialization`() {
+    fun `HeadlessFrameLifecycle drawGameFrame full redraw applies room tile initialization`() {
         GameState.Kid = CharType(room = 1)
         GameState.currentLevel = 1
         GameState.drawnRoom = 1
@@ -510,11 +512,12 @@ class ReplayRunnerTest {
         assertEquals(0, GameState.needFullRedraw)
         assertEquals(0, GameState.differentRoom)
         assertEquals(Tiles.POTION, GameState.currRoomTiles[0])
-        assertEquals(0, GameState.trobsCount.toInt())
+        assertEquals(1, GameState.trobsCount.toInt())
+        assertEquals(2, GameState.exitRoomTimer)
     }
 
     @Test
-    fun `HeadlessFrameLifecycle drawGameFrame clears different room redraw after play frame initialization`() {
+    fun `HeadlessFrameLifecycle drawGameFrame different room redraw applies room tile initialization`() {
         GameState.Kid = CharType(room = 3)
         GameState.currentLevel = 1
         GameState.drawnRoom = 2
@@ -527,7 +530,25 @@ class ReplayRunnerTest {
         assertEquals(3, GameState.drawnRoom)
         assertEquals(0, GameState.differentRoom)
         assertEquals(Tiles.SWORD, GameState.currRoomTiles[0])
-        assertEquals(0, GameState.trobsCount.toInt())
+        assertEquals(1, GameState.trobsCount.toInt())
+        assertEquals(2, GameState.exitRoomTimer)
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle drawGameFrame redraw starts chompers for current character row`() {
+        GameState.currentLevel = 1
+        GameState.drawnRoom = 1
+        GameState.nextRoom = 1
+        GameState.needFullRedraw = 1
+        GameState.Char = CharType(room = 1, currRow = 0)
+        GameState.level.fg[0] = Tiles.CHOMPER
+
+        HeadlessFrameLifecycle.headlessDrawGameFrame()
+
+        assertEquals(1, GameState.trobsCount.toInt())
+        assertEquals(1, GameState.trobs[0].room)
+        assertEquals(0, GameState.trobs[0].tilepos)
+        assertEquals(15, GameState.currRoomModif[0])
     }
 
     @Test
