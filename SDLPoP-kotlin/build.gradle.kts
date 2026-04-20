@@ -37,6 +37,8 @@ tasks.test {
 tasks.register<Test>("layer1ReplayRegression") {
     description = "Runs the Layer 1 replay-regression oracle workflow against the reference trace manifest."
     group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform {
         includeTags("layer1-regression")
     }

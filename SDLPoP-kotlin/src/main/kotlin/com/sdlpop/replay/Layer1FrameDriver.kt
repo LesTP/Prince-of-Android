@@ -6,6 +6,7 @@ import com.sdlpop.game.Actions as Act
 import com.sdlpop.game.CharIds as CID
 import com.sdlpop.game.Seg002
 import com.sdlpop.game.Seg004
+import com.sdlpop.game.Seg003
 import com.sdlpop.game.Seg005
 import com.sdlpop.game.Seg006
 import com.sdlpop.game.Seg007
@@ -18,7 +19,7 @@ data class Layer1FrameHooks(
     val doMobs: () -> Unit = { Seg007.doMobs() },
     val processTrobs: () -> Unit = { Seg007.processTrobs() },
     val checkSkel: () -> Unit = { Seg002.checkSkel() },
-    val checkCanGuardSeeKid: () -> Unit = { HeadlessFrameLifecycle.checkCanGuardSeeKid() },
+    val checkCanGuardSeeKid: () -> Unit = { Seg003.checkCanGuardSeeKid() },
     val loadKidAndOpp: () -> Unit = { Seg006.loadkidAndOpp() },
     val loadShadAndOpp: () -> Unit = { Seg006.loadshadAndOpp() },
     val saveKid: () -> Unit = { Seg006.savekid() },
@@ -33,7 +34,7 @@ data class Layer1FrameHooks(
     val fallSpeed: () -> Unit = { Seg006.fallSpeed() },
     val loadFrameToObj: () -> Unit = { loadFrameToObjForLayer1() },
     val setCharCollision: () -> Unit = { Seg006.setCharCollision() },
-    val bumpIntoOpponent: () -> Unit = { HeadlessFrameLifecycle.bumpIntoOpponent() },
+    val bumpIntoOpponent: () -> Unit = { Seg003.bumpIntoOpponent() },
     val checkCollisions: () -> Unit = { Seg004.checkCollisions() },
     val checkBumped: () -> Unit = { Seg004.checkBumped() },
     val checkGatePush: () -> Unit = { Seg004.checkGatePush() },
@@ -42,7 +43,7 @@ data class Layer1FrameHooks(
     val checkSpikeBelow: () -> Unit = { Seg006.checkSpikeBelow() },
     val checkSpiked: () -> Unit = { Seg006.checkSpiked() },
     val checkChompedKid: () -> Unit = { Seg004.checkChompedKid() },
-    val checkKnock: () -> Unit = { HeadlessFrameLifecycle.checkKnock() },
+    val checkKnock: () -> Unit = { Seg003.checkKnock() },
     val checkGuardBumped: () -> Unit = { Seg004.checkGuardBumped() },
     val checkChompedGuard: () -> Unit = { Seg004.checkChompedGuard() },
     val checkSwordHurting: () -> Unit = { Seg002.checkSwordHurting() },
@@ -72,7 +73,35 @@ object Layer1FrameDriver {
         hooks.exitRoom()
         hooks.checkTheEnd()
         hooks.checkGuardFallout()
+        // Level-specific exit events (from C play_frame lines 955-978)
+        if (state.currentLevel == 0) {
+            // Special event: level 0 running exit
+            if (state.Kid.room == state.custom.demoEndRoom) {
+                state.startLevel = (-1).toShort()
+                state.needQuotes = 1
+                com.sdlpop.game.ExternalStubs.startGame()
+            }
+        } else if (state.currentLevel == state.custom.fallingExitLevel) {
+            // Special event: level 6 falling exit
+            if (state.roomleaveResult.toInt() == -2) {
+                state.Kid.y = -1
+                com.sdlpop.game.ExternalStubs.stopSounds()
+                state.nextLevel++
+            }
+        } else if (state.currentLevel in state.custom.tblSeamlessExit.indices &&
+            state.custom.tblSeamlessExit[state.currentLevel] >= 0) {
+            // Special event: level 12 running exit
+            if (state.Kid.room == state.custom.tblSeamlessExit[state.currentLevel]) {
+                state.nextLevel++
+                com.sdlpop.game.ExternalStubs.stopSounds()
+                state.seamless = 1
+            }
+        }
         hooks.showTime()
+        // expiring doesn't count on Jaffar/princess level
+        if (state.currentLevel < 13 && state.remMin.toInt() == 0) {
+            com.sdlpop.game.ExternalStubs.expired()
+        }
     }
 
     fun playKidFrame(state: GameState = GameState, hooks: Layer1FrameHooks = Layer1FrameHooks()): Boolean {
@@ -140,6 +169,15 @@ object Layer1FrameDriver {
 
 object HeadlessFrameLifecycle {
     private val gs = GameState
+
+    fun headlessDrawLevelFirst() {
+        gs.nextRoom = gs.Kid.room
+        if (gs.nextRoom != 0 && gs.nextRoom != gs.drawnRoom) {
+            checkTheEnd()
+        } else {
+            loadRoomLinks()
+        }
+    }
 
     fun checkCanGuardSeeKid() {
         if (gs.Guard.charid == CID.MOUSE) {

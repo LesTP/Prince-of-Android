@@ -30,17 +30,41 @@
 - **`getTile()`-driven tests must seed level data, not room buffers:** `getTile()` calls `getRoomAddress()`, which reloads `currRoomTiles[]`/`currRoomModif[]` from `gs.level.fg[]`/`gs.level.bg[]`. In tests like `checkSkel`, write fixture tiles to `level` arrays or the setup will be overwritten.
 - **Test `@BeforeTest` must not zero shared arrays globally:** Resetting shared arrays like `soundInterruptible` by filling with zeros corrupts default values that other test suites (e.g., `TypesTest`) validate. Only reset the specific entries modified by each test.
 - **Seg007 RNG tests must restore seed init state:** Loose-floor shaking consumes RNG and can set `GameState.seedWasInit`; restore it after focused seg007 tests because `TypesTest` validates singleton defaults.
+- **`soundFlags` must include `sfDigi` for replay mode:** C reference builds always have digital sound enabled (`sound_flags & sfDigi`). This controls `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop — without it, the loop iterates a different number of times, consuming extra `prandom(2)` calls and causing RNG drift. Set `soundFlags |= SoundFlags.DIGI` during replay initialization. Discovered in Phase 15a verification (4 traces had RNG drift, all fixed by this).
+- **Enum object references:** `GameConstants.ROOMCOUNT` not `TileGeometry.ROOMCOUNT` — constants live in their defining object, not an alias. `Short == Int` comparisons need `.toInt()` on the Short side.
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 - **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
 - **Trace generation:** From `/tmp/sdlpop/`: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345` → outputs `state_trace.bin` (310 bytes/frame).
 
 ## Current Status
 
-**Track:** A — Game Logic Translation (Build regime, autonomous)
-**Module:** 14 — Replay Runner (Kotlin replay playback + trace writer) — **IN PROGRESS**
-**Phase:** 14b — Non-rendering frame lifecycle reconciliation — **ESCALATED**
-**Next:** Human/orchestrator decision required: either authorize a Module 15 game-loop/seg003 phase to absorb the remaining lifecycle/pickup boundary, or explicitly bypass this escalation with a revised Module 14 scope.
-**Blocked/Broken:** Step 14b.3 applied the two allowed targeted fixes, but `gradle test layer1ReplayRegression --rerun-tasks --no-daemon` still fails after the ordinary Kotlin suite passes. `original_level12_xpos_glitch` now matches exactly, and the stale first-frame `drawn_room=16` contamination is fixed. Remaining triage details: `basic_movement` frame 270 `random_seed` expected `1431214705` actual `2786909894`; `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`; `falling` frame 26 `random_seed` expected `2017826505` actual `2448654334`; `falling_through_floor_pr274` frame 0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` frame 11 `curr_room_tiles[2]` expected `0` actual `47`; `grab_bug_pr289` frame 16 `Kid.frame` expected `91` actual `102`; `original_level2_falling_into_wall` frame 67 `guardhp_curr` expected `0` actual `3`; `original_level5_shadow_into_wall` matches frames 0-47 then throws `NotImplementedError: do_pickup (seg003)` while producing frame 48 (expected 175 frames, actual partial 48). Actual traces are under `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`. Suspected boundary: Module 15 Layer 2 game-loop/seg003 behavior.
+**Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
+**Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
+**Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.2 NEXT**
+**Next:** Implement Step 15b.2 — add `headlessDrawGameFrame()` after `playFrame()` and before trace serialization for per-frame redraw/room-transition tile initialization.
+
+**Step 15b.1 results (verified 2026-04-20):**
+- Added `HeadlessFrameLifecycle.headlessDrawLevelFirst()` and called it from `ReplayRunner.writeLayer1Trace()` after savestate restoration and before the first `playFrame()`.
+- The helper follows C `draw_level_first()` room-entry gating: set `nextRoom = Kid.room`, run the existing `checkTheEnd()` setup when starting room differs from `drawnRoom`, otherwise refresh room links without re-randomizing same-room tile modifiers.
+- `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon` passed; `gradle test --no-daemon` passed.
+- Replay regression remains **4/13 MATCH**, preserving the Phase 15a match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- `traps` moved from frame 0 `curr_room_modif[0]` to frame 41 `Kid.frame`, confirming initial different-room setup for that replay.
+- `falling_through_floor_pr274` still diverges at frame 0 `curr_room_modif[17]` expected `6` actual `4`; this is now classified with same-room first-draw/redraw initialization for Step 15b.2.
+
+**Phase 15a results (verified 2026-04-20):**
+- 566 unit tests pass (up from 540 in Module 14)
+- 3 compile errors fixed: `GameConstants.ROOMCOUNT` reference, `Short == Int` comparison, `tblSeamlessExit` bounds check
+- `soundFlags |= SoundFlags.DIGI` fix resolved all 4 RNG-drift traces (root cause: `lastLooseSound` not tracked → `do-while` loop in `loose_shake()` consumed extra `prandom(2)` calls)
+- Replay regression: **4/13 MATCH** (up from 1/13 Module 14 baseline)
+  - New matches: `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`
+  - Existing match: `original_level12_xpos_glitch`
+- Remaining 9 divergences categorized:
+  - Frame 0 tile modifiers (2): `traps`, `falling_through_floor_pr274` — missing `draw_level_first()` / `redraw_screen()` initialization
+  - Mid-replay Kid.frame (4): `basic_movement` (f325), `demo_suave_prince_level11` (f29), `grab_bug_pr289` (f16), `trick_153` (f27) — frame lifecycle ordering in seg000
+  - Tile/trob state (3): `grab_bug_pr288` (f11), `sword_and_level_transition` (f138), `snes_pc_set_level11` (f40) — room-transition tile initialization
+
+**Phase 15a changes:** Wired `doPickup` to `Seg006.doPickup()`, implemented `addLife`/`featherFall`/`toggleUpside`/`expired`/`startGame` stubs, translated all 22 seg003.c functions into `Seg003.kt`, integrated `Seg003.timers()` into replay runner before each `playFrame()`, added level-specific exit events and `expired()` to frame driver, replaced `HeadlessFrameLifecycle` shims (`checkCanGuardSeeKid`, `bumpIntoOpponent`, `checkKnock`) with proper seg003 translations. Fixed `soundFlags` initialization for replay mode, added `lastLooseSound`/`soundFlags` reset to `resetTraceRunState`, added `testClassesDirs`/`classpath` to `layer1ReplayRegression` Gradle task.
 
 ## Phase Summary
 
@@ -91,8 +115,17 @@ One-line: Built the Kotlin replay-regression harness around the translated Layer
 #### Phase 13a: Layer 1 replay regression harness — COMPLETE
 One-line: Delivered the trace oracle foundation, state snapshot writer, and manifest-driven regression workflow; review accepted after one should-fix, human approval recorded on 2026-04-15, and `gradle test layer1ReplayRegression --rerun-tasks` passed. See DEVLOG §Module 13.
 
-### Module 14: Replay Runner — IN PROGRESS
-One-line: Build Kotlin replay playback through the translated game loop, produce real Kotlin state traces, and wire those traces into the Phase 13a regression harness.
+### Module 14: Replay Runner — COMPLETE (known Layer 2 boundary limitations)
+One-line: Built Kotlin replay playback pipeline with real `.P1R` trace production, Layer 1 frame driver, replay move hooks, headless lifecycle shim, and 310-byte state trace output. 1/13 traces match exactly; remaining divergences are Layer 2 game-loop behavior (seg000/seg003) deferred to Module 15. See DEVLOG §Module 14.
+
+**Known limitations (deferred to Module 15):**
+Remaining 12 trace divergences are caused by missing Layer 2 lifecycle behavior, not Layer 1 translation bugs:
+- `do_pickup` (seg003) — unimplemented, crashes `original_level5_shadow_into_wall` at frame 48
+- `do_delta_hp` (seg003) — guard HP not applied, causes `original_level2_falling_into_wall` guardhp divergence
+- Guard spawn/room-transition lifecycle in seg000 — causes RNG drift in `basic_movement`, `falling`
+- Savestate initialization sequence — causes frame-0 room buffer divergences in `falling_through_floor_pr274`, `grab_bug_pr288`
+- Frame lifecycle ordering — causes Kid.frame divergences in `demo_suave_prince_level11`, `grab_bug_pr289`
+Full triage details in DEVLOG §Step 14b.3. Actual traces under `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`.
 
 #### Phase 14a: Kotlin replay playback and trace producer — ESCALATION BYPASSED
 One-line: Replace the Phase 13a copy-based producer with real Kotlin trace generation from `.P1R` replay inputs, a narrow Layer 1 frame driver, replay move hooks, and 310-byte state snapshot output.
@@ -109,7 +142,7 @@ One-line: Replace the Phase 13a copy-based producer with real Kotlin trace gener
 
 **Acceptance:** The dedicated Layer 1 regression workflow uses real Kotlin-produced traces under `build/oracle/layer1-regression`. Any trace divergence must report replay id, frame, field, expected value, actual value, and actual trace path. True game-logic divergences get no more than two targeted fix attempts before escalation with the replay/frame/field details.
 
-#### Phase 14b: Non-rendering frame lifecycle reconciliation — IN PROGRESS
+#### Phase 14b: Non-rendering frame lifecycle reconciliation — COMPLETE (remaining divergences deferred to Module 15)
 One-line: Resolve the Phase 14a replay-regression escalation by adding the smallest non-rendering game-loop/timer lifecycle slice needed for Kotlin replay traces to match the C validate runner.
 
 **Regime:** Build — expected behavior is machine-verifiable through the 13-trace replay regression workflow.
@@ -129,3 +162,40 @@ One-line: Resolve the Phase 14a replay-regression escalation by adding the small
 - Replay input scope: `do_replay_move()` remains consumed from `Seg006.controlKid()` during the Kid subframe. The replay runner should not consume moves before `play_frame()`, because C restores RNG/validate seek state at tick 0 from inside the first Kid control path.
 
 **Acceptance:** The ordinary Kotlin test suite remains green, and the dedicated Layer 1 replay regression workflow either passes with real Kotlin-produced traces for all 13 manifests or escalates after two targeted fixes with triage-ready divergence details. Any added lifecycle behavior must remain deterministic, headless, and free of SDL, rendering, audio, menu, or Android dependencies.
+
+### Module 15: Game Loop — IN PROGRESS
+One-line: Refactor and translate seg000/seg001/seg003 (Layer 2 game loop), resolving replay regression divergences by implementing the full non-rendering frame lifecycle.
+
+**Regime:** Build (semi-autonomous). seg000 is heavily entangled with SDL (~95 calls) and requires manual refactoring to separate game logic from platform calls before translation. seg003 helper functions are closer to autonomous translation.
+
+**Scope:** Translate the deterministic game-loop and helper functions in seg000.c (~2,200 lines), seg001.c (~800 lines), and seg003.c (~500 lines). Refactor to remove SDL dependencies, replacing platform calls with stubs or the existing headless shim pattern. The existing `Layer1FrameDriver` and `HeadlessFrameLifecycle` should be absorbed or replaced by the full game-loop translation.
+
+**Primary acceptance test:** All 13 replay regression traces must match. The regression suite (`gradle layer1ReplayRegression --rerun-tasks`) is the acceptance gate.
+
+**Current baseline:** 4/13 traces match after Phase 15a.
+
+**Depends on:** Modules 6-14 (all Layer 1 game logic + replay runner pipeline)
+
+#### Phase 15a: seg003 translation + stub wiring — COMPLETE
+One-line: Translated 22 seg003 functions, wired stubs, fixed `soundFlags` RNG bug. 4/13 traces match (up from 1/13). 566 tests pass. See DEVLOG §Module 15.
+
+#### Phase 15b: seg000 frame lifecycle alignment — IN PROGRESS
+One-line: Translate seg000 initialization and room-transition paths to resolve remaining 9 trace divergences, targeting 13/13.
+
+**Regime:** Build (semi-autonomous).
+
+**Remaining divergences to resolve (post-15a):**
+- Frame 0 tile modifiers (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing after Step 15b.1
+- Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr289` f16, `trick_153` f27, `traps` f41): frame lifecycle ordering — likely `need_full_redraw` / `redraw_screen()` path in `draw_game_frame()` that initializes animated tiles on room entry
+- Tile/trob state divergences (`grab_bug_pr288` f11, `sword_and_level_transition` f138, `snes_pc_set_level11` f40): `draw_game_frame()` → `redraw_screen()` → `anim_tile_modif()` on room changes during gameplay
+
+**Root cause:** Both groups share the same mechanistic root — C calls `anim_tile_modif()` from two paths: (1) `check_the_end()` on game-logic room transitions (already in Kotlin), and (2) `draw_game_frame()` → `redraw_screen()` on rendering room transitions including the initial `draw_level_first()` call (missing from Kotlin).
+
+**Steps:**
+- **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: Added `headlessDrawLevelFirst()` to `ReplayRunner.writeLayer1Trace()` after savestate restoration but before first `play_frame()`. It runs `checkTheEnd()` for different starting rooms and refreshes room links for same-room starts. `traps` moved past its frame-0 tile-modifier divergence; `falling_through_floor_pr274` still needs same-room draw-frame initialization.
+- **15b.2** Per-frame room-transition tile initialization (`draw_game_frame` equivalent): Add `headlessDrawGameFrame()` after `playFrame()` but before trace serialization, matching C `play_level_2()` order (`play_frame()` → `draw_game_frame()` → `dump_frame_state()`). Checks `different_room` and `need_full_redraw` flags; if set, calls `anim_tile_modif()` + `start_chompers()`. Expected to fix the 7 mid-replay divergences.
+- **15b.3** Regression verification and cleanup: Run full test suite + 13-trace regression. Apply up to two targeted fixes if traces still diverge. Clean up superseded `HeadlessFrameLifecycle` code.
+
+**Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
+
+**Next action:** Implement Step 15b.2.

@@ -289,8 +289,8 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 11 | Layer 1: seg002 | Guard AI, room transitions | Build (autonomous) | seg005, seg006 | **Complete** |
 | 12 | Layer 1: seg007 | Traps, triggers, animated tiles | Build (autonomous) | seg006 | **Complete** |
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | **Complete** |
-| 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **In progress** |
-| 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | Pending |
+| 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **Complete** (1/13 traces; Layer 2 boundary) |
+| 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | **In progress** (4/13 traces, Phase 15b next) |
 | 16 | Rendering | seg008 + lighting → Android | Build | Game Loop | Pending |
 | 17 | Platform | seg009 → Android APIs | Build | — | Pending |
 | 18 | Audio | Sound + music → Android | Build | Platform | Pending |
@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Track A, Module 14 (Replay Runner)** is in progress. Phase 14a is planned; the next worker iteration should execute Step 14a.1 to map Layer 1 regression manifest entries to `.P1R` files and initialize replay state from parsed replay metadata.
+**Track A→B transition, Module 15 (Game Loop)** is in progress. Phase 15a completed seg003 translation and fixed the `soundFlags` RNG bug, bringing traces from 1/13 to 4/13. Phase 15b targets 13/13 by adding the missing `draw_level_first()` initialization and `draw_game_frame()` room-transition tile initialization paths. Step 15b.1 adds initial room setup before the first `play_frame()`, Step 15b.2 adds per-frame room-transition handling after `play_frame()`, and Step 15b.3 runs final verification.
 
 ---
 

@@ -4,6 +4,8 @@ import com.sdlpop.game.CharType
 import com.sdlpop.game.Control
 import com.sdlpop.game.ExternalStubs
 import com.sdlpop.game.GameState
+import com.sdlpop.game.Seg003
+import com.sdlpop.game.SoundFlags
 import com.sdlpop.game.LevelType
 import com.sdlpop.game.MobType
 import com.sdlpop.game.TrobType
@@ -50,6 +52,9 @@ object ReplayRunner {
         state.replayFormatClass = replay.formatClass and 0xFFFF
         state.replayVersionNumber = replay.versionNumber and 0xFF
         state.gDeprecationNumber = replay.deprecationNumber
+        // Reference build always has digital sound enabled — needed for
+        // lastLooseSound tracking which affects RNG consumption in loose_shake.
+        state.soundFlags = state.soundFlags or SoundFlags.DIGI
     }
 
     fun restoreSavestate(replay: ReplayData, state: GameState = GameState) {
@@ -159,12 +164,17 @@ object ReplayRunner {
         ExternalStubs.preserveRoomBufferMutations = true
         initializeReplayState(input.replay, state)
         restoreSavestate(input.replay, state)
+        HeadlessFrameLifecycle.headlessDrawLevelFirst()
         installReplayMoveHook(input.replay, state)
 
         Files.createDirectories(outputPath.parent)
         Files.newOutputStream(outputPath).use { output ->
             var frameNumber = 0L
             while (!replayEnded && frameNumber < input.replay.numReplayTicks) {
+                // Match C play_level_2() order: reset deltas → timers → play_frame
+                state.guardhpDelta = 0
+                state.hitpDelta = 0
+                Seg003.timers()
                 Layer1FrameDriver.playFrame(state)
                 output.write(StateTraceFormat.serializeFrameBytes(frameNumber, state))
                 frameNumber += 1
@@ -213,6 +223,8 @@ object ReplayRunner {
         state.offguard = 0
         state.currentSound = 0
         state.nextSound = 0
+        state.soundFlags = 0
+        state.lastLooseSound = 0
         state.roomleaveResult = 0
         state.exitRoomTimer = 0
         state.isRestartLevel = 0

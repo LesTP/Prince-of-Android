@@ -193,7 +193,81 @@ Total estimated waste: ~$0.40-0.70 per iteration, ~15-20% of module cost.
 - [x] CLAUDE.md hints for loop efficiency (no Agent(Explore), bash for spaces, read-before-edit) — done 2026-04-04
 - [ ] Log digest script (tools/digest_logs.py)
 - [x] Workspace-level CLAUDE.md defining orchestrator role — done 2026-04-05. Prevents orchestrator from implementing code directly.
+- [x] Log digest script (`tools/digest_logs.py`) — done 2026-04-07
+- [x] Codex backend support in `run-iteration.sh` — done 2026-04-10
+- [x] `parse_codex_jsonl.py` for Codex transcript parsing — done 2026-04-11
+- [x] WORKER_SPEC.md (backend-agnostic contract) — done 2026-04-15
+- [ ] Replay oracle wiring for seg006+ (needed for ground-truth validation beyond unit tests)
 
 ---
 
-*Last updated: 2026-04-05, after iteration 13 (Module 10 complete).*
+## Update: Iterations 14-51 (Modules 11-14)
+
+*Added 2026-04-16. Covers the completion of Layer 1 translation and the replay runner.*
+
+### Additional Agent Behavior Patterns
+
+| # | Pattern | Frequency | Iterations | Mitigation |
+|---|---------|-----------|------------|------------|
+| 12 | Kotlin Short/Int type confusion in translated code | Common | 14-28 | Added to DEVPLAN gotchas: CharType fields are Int, not Short. Agent still hits this occasionally. |
+| 13 | Codex backend produces correct code but less verbose DEVLOG entries | Pattern | 23-28 | Codex iterations (cost=n/a) work functionally but governance doc updates are terser than Claude iterations. Acceptable trade-off. |
+| 14 | Replay regression tests catch frame-0 divergences | Blocker | 47-51 | Layer 1 replay oracle exposed game-loop initialization differences. Blocked Module 14 until Layer 2 (seg000/seg003) is translated. Correct escalation behavior. |
+
+### Additional Cost Analysis
+
+#### Iterations 14-51
+
+| Iter | Type | Module | Cost | Backend | Notes |
+|------|------|--------|------|---------|-------|
+| 14 | Plan | 11 (seg002) | $1.16 | claude | Guard AI planning |
+| 15-22 | Mixed | 11 (seg002) | ~$15 | claude | 73 functions, guard AI + combat |
+| 23-28 | Mixed | 12 (seg007) | n/a | codex | Trob, loose floors — first Codex module |
+| 29-38 | Mixed | 13 (integration) | ~$5 | claude | Replay oracle pipeline |
+| 39-45 | Mixed | 14 (replay runner) | ~$8 | mixed | P1R parser, trace comparison |
+| 46-48 | Step | 14 | n/a | codex | Regression harness |
+| 49-51 | Review+ | 14 | — | mixed | ESCALATE on replay divergence — correct |
+
+**Total cost (all 51 iterations):** ~$60.81 (Claude iterations only; Codex cost not metered)
+
+#### Per-module totals (updated)
+
+| Module | Iterations | Total Cost | Lines | Tests | Notes |
+|--------|-----------|------------|-------|-------|-------|
+| 6 (State Model) | 2 | ~$4.00 | ~987 | 27 | |
+| 7 (Seq Table) | 4 | ~$8.23 | ~1,500 | 50 | |
+| 8 (seg006) | 6 | ~$19.74 | ~1,993 | 113 | |
+| 9 (seg004) | 0* | N/A | ~350 | 42 | Orchestrator anti-pattern |
+| 10 (seg005) | 1** | ~$0.80 | ~600 | 75 | |
+| 11 (seg002) | ~9 | ~$16 | ~2,000+ | ~80 | Guard AI, combat |
+| 12 (seg007) | ~6 | n/a | ~800+ | ~50 | First Codex-only module |
+| 13 (integration) | ~10 | ~$5 | ~500 | ~60 | Replay oracle pipeline |
+| 14 (replay runner) | ~7 | ~$8 | ~400 | ~40 | 1/13 traces match |
+
+#### By activity type (updated through iter 51)
+
+| Activity | Avg Cost (Claude) | Avg Duration |
+|----------|-------------------|-------------|
+| Planning | ~$1.10 | ~180s |
+| Coding | ~$3.50 | ~500s |
+| Review/Complete | ~$1.20 | ~150s |
+
+### Additional Human Interventions
+
+| # | Iter | What | Why | Could it be automated? |
+|---|------|------|-----|----------------------|
+| 11 | 23+ | Switched to Codex backend for Module 12 | Cost experiment — Codex iterations are unmetered | N/A — human decision about cost strategy |
+| 12 | 47-51 | Module 14 replay regression blocked | Frame-0 divergences require Layer 2 game loop translation | No — genuine dependency; correct escalation |
+
+### Framework Observations (Modules 11-14)
+
+#### What worked
+- **Codex backend validated:** Module 12 (seg007) completed entirely on Codex with the same governance framework. Proves backend-agnostic design works in practice.
+- **ExternalStubs pattern scaled to 5 modules:** seg002, seg004, seg005, seg006, seg007 all use the stub pattern for cross-segment dependencies. Wire-up happens naturally as modules complete.
+- **Replay oracle as acceptance gate:** The oracle correctly identified when game-loop initialization was missing, producing genuine escalations (not false positives). This validates the test strategy.
+
+#### What didn't work
+- **Replay oracle blocked further progress:** 12/13 traces fail due to Layer 2 game-loop behavior (frame-0 initialization). Unit tests pass, but end-to-end validation is gated on Layer 2 translation. This is an architectural dependency, not a framework failure.
+
+---
+
+*Last updated: 2026-04-16, after iteration 51 (Module 14 complete, Module 15 in progress).*

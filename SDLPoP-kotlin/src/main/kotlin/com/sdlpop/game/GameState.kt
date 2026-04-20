@@ -174,6 +174,7 @@ object GameState {
     val tileObjectRedraw = IntArray(30)        // byte[30] (tile_object_redraw)
     val redrawFramesAbove = IntArray(10)       // byte[10] (redraw_frames_above)
     var needFullRedraw: Int = 0                // word (need_full_redraw)
+    var needRedrawBecauseFlipped: Int = 0       // word (need_redraw_because_flipped)
     var redrawHeight: Short = 0                // short (redraw_height)
     var needDrects: Int = 0                    // word (need_drects)
 

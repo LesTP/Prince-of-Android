@@ -7,6 +7,7 @@ import com.sdlpop.game.Directions
 import com.sdlpop.game.ExternalStubs
 import com.sdlpop.game.FrameIds
 import com.sdlpop.game.GameState
+import com.sdlpop.game.Tiles
 import com.sdlpop.game.Seg005
 import com.sdlpop.oracle.Layer1RegressionManifest
 import kotlin.test.AfterTest
@@ -60,6 +61,20 @@ class ReplayRunnerTest {
         GameState.isShowTime = 0
         GameState.textTimeRemaining = 0
         GameState.textTimeTotal = 0
+        GameState.level.fg.fill(0)
+        GameState.level.bg.fill(0)
+        GameState.level.roomlinks.forEach {
+            it.left = 0
+            it.right = 0
+            it.up = 0
+            it.down = 0
+        }
+        GameState.trobsCount = 0
+        GameState.trobs.forEach {
+            it.room = 0
+            it.tilepos = 0
+            it.type = 0
+        }
         stopSoundsCount = 0
         ExternalStubs.preserveRoomBufferMutations = false
         ExternalStubs.control = { Seg005.control() }
@@ -106,6 +121,20 @@ class ReplayRunnerTest {
         GameState.isShowTime = 0
         GameState.textTimeRemaining = 0
         GameState.textTimeTotal = 0
+        GameState.level.fg.fill(0)
+        GameState.level.bg.fill(0)
+        GameState.level.roomlinks.forEach {
+            it.left = 0
+            it.right = 0
+            it.up = 0
+            it.down = 0
+        }
+        GameState.trobsCount = 0
+        GameState.trobs.forEach {
+            it.room = 0
+            it.tilepos = 0
+            it.type = 0
+        }
     }
 
     @Test
@@ -422,6 +451,41 @@ class ReplayRunnerTest {
         assertEquals(24, GameState.textTimeRemaining)
         assertEquals(24, GameState.textTimeTotal)
         assertEquals(0, GameState.isShowTime)
+    }
+
+    @Test
+    fun `HeadlessFrameLifecycle drawLevelFirst initializes starting room animated tiles`() {
+        GameState.Kid = CharType(room = 2)
+        GameState.Char = CharType(room = 2, currRow = 0)
+        GameState.currentLevel = 1
+        GameState.drawnRoom = 0
+        GameState.nextRoom = 0
+        GameState.level.fg[30] = Tiles.POTION
+        GameState.level.roomlinks[1].left = 1
+        GameState.level.roomlinks[1].right = 3
+        GameState.level.roomlinks[1].up = 4
+        GameState.level.roomlinks[1].down = 5
+        GameState.level.roomlinks[3].left = 6
+        GameState.level.roomlinks[3].right = 7
+        GameState.level.roomlinks[4].left = 8
+        GameState.level.roomlinks[4].right = 9
+
+        HeadlessFrameLifecycle.headlessDrawLevelFirst()
+
+        assertEquals(2, GameState.nextRoom)
+        assertEquals(2, GameState.drawnRoom)
+        assertEquals(1, GameState.roomL)
+        assertEquals(3, GameState.roomR)
+        assertEquals(4, GameState.roomA)
+        assertEquals(5, GameState.roomB)
+        assertEquals(6, GameState.roomAL)
+        assertEquals(7, GameState.roomAR)
+        assertEquals(8, GameState.roomBL)
+        assertEquals(9, GameState.roomBR)
+        assertEquals(Tiles.POTION, GameState.currRoomTiles[0])
+        assertEquals(1, GameState.trobsCount.toInt())
+        assertEquals(2, GameState.trobs[0].room)
+        assertEquals(0, GameState.trobs[0].tilepos)
     }
 
     @Test

@@ -41,7 +41,7 @@ object ExternalStubs {
 
     // --- seg003 (game loop helpers) ---
     var doFall: () -> Unit = { Seg005.doFall() }
-    var doPickup: (Int) -> Unit = { _ -> throw NotImplementedError("do_pickup (seg003)") }
+    var doPickup: (Int) -> Unit = { objType -> Seg006.doPickup(objType) }
 
     // --- seg005 (sword/combat) ---
     var drawSword: () -> Unit = { Seg005.drawSword() }
@@ -52,6 +52,7 @@ object ExternalStubs {
     var setWipe: (Int, Int) -> Unit = { _, _ -> /* rendering stub — no-op for game logic tests */ }
     var setRedrawFull: (Int, Int) -> Unit = { _, _ -> /* rendering stub — no-op for game logic tests */ }
     var drawGuardHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
+    var drawKidHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
     var eraseBottomText: (Int) -> Unit = { _ -> /* rendering stub */ }
     var addObjtable: (Int) -> Unit = { _ -> /* rendering stub */ }
     var getImage: (Int, Int) -> Pair<Int, Int>? = { _, _ -> null } // returns (width, height) or null
@@ -61,10 +62,18 @@ object ExternalStubs {
     var playSound: (Int) -> Unit = { _ -> /* sound stub */ }
     var stopSounds: () -> Unit = { /* sound stub */ }
     var checkSoundPlaying: () -> Int = { 0 }
-    var expired: () -> Unit = { throw NotImplementedError("expired (seg000)") }
+    var expired: () -> Unit = {
+        // Minimal headless expired: set restart state, call startGame stub
+        val gs = GameState
+        if (gs.demoMode == 0) {
+            // skip rendering (free_surface, clear_screen, load_intro) in headless mode
+        }
+        gs.startLevel = (-1).toShort()
+        startGame()
+    }
     var displayTextBottom: (String) -> Unit = { _ -> /* text stub */ }
-    var setStartPos: () -> Unit = { throw NotImplementedError("set_start_pos (seg000)") }
-    var startGame: () -> Unit = { throw NotImplementedError("start_game (seg000)") }
+    var setStartPos: () -> Unit = { Seg003.setStartPos() }
+    var startGame: () -> Unit = { /* stub — in headless replay, game restart is a no-op */ }
     var loadGame: () -> Int = { throw NotImplementedError("load_game (seg000)") }
     var keyTestQuit: () -> Int = { 0 }
     var doPaused: () -> Int = { 0 }
@@ -78,10 +87,37 @@ object ExternalStubs {
         Seg002.doAutoMoves(moves)
     }
 
-    // --- seg005 (potion effects) ---
-    var addLife: () -> Unit = { throw NotImplementedError("add_life (seg005)") }
-    var featherFall: () -> Unit = { throw NotImplementedError("feather_fall (seg005)") }
-    var toggleUpside: () -> Unit = { throw NotImplementedError("toggle_upside (seg005)") }
+    // --- seg000 (potion effects) ---
+    var addLife: () -> Unit = {
+        val gs = GameState
+        var hpmax = gs.hitpMax
+        hpmax++
+        if (hpmax > gs.custom.maxHitpAllowed) hpmax = gs.custom.maxHitpAllowed
+        gs.hitpMax = hpmax
+        setHealthLife()
+    }
+    var setHealthLife: () -> Unit = {
+        val gs = GameState
+        gs.hitpDelta = (gs.hitpMax - gs.hitpCurr).toShort()
+    }
+    var featherFall: () -> Unit = {
+        val gs = GameState
+        if (gs.fixes.fixQuicksaveDuringFeather != 0) {
+            // FEATHER_FALL_LENGTH (18.75) * ticks_per_sec (12 at DOS timing) = 225
+            gs.isFeatherFall = 225
+        } else {
+            gs.isFeatherFall = 1
+        }
+        gs.flashColor = 2 // green
+        gs.flashTime = 3
+        stopSounds()
+        playSound(SoundIds.LOW_WEIGHT)
+    }
+    var toggleUpside: () -> Unit = {
+        val gs = GameState
+        gs.upsideDown = gs.upsideDown.inv()
+        gs.needRedrawBecauseFlipped = 1
+    }
 
     fun loadRoomAddress(room: Int) {
         val gs = GameState

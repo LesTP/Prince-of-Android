@@ -1,5 +1,33 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 15: Game Loop
+
+### 2026-04-20 — Step 15b.1: Initial room setup
+
+**Mode:** Code | **Outcome:** Complete — headless first-room setup wired before replay frame 0
+**Contract changes:** None.
+
+Added `HeadlessFrameLifecycle.headlessDrawLevelFirst()` and call it from `ReplayRunner.writeLayer1Trace()` immediately after replay savestate restoration and before installing the replay input hook / entering the first `playFrame()`. The helper follows the C `draw_level_first()` room-entry gate: set `nextRoom = Kid.room`, run the existing `checkTheEnd()` animated-tile/chomper setup only when the starting room differs from `drawnRoom`, and otherwise refresh room links without re-randomizing already-initialized same-room tile modifiers.
+
+Added focused replay-runner coverage for first-room link loading and animated-tile startup, and tightened that test class's singleton fixture reset for level room links, tile arrays, and trobs.
+
+Verification: `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon` passed, and full `gradle test --no-daemon` passed. The dedicated replay regression still fails, but preserves the 4/13 exact-match baseline (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`). `traps` moved from frame 0 `curr_room_modif[0]` to frame 41 `Kid.frame`, confirming the initial room transition setup for that replay. `falling_through_floor_pr274` still diverges at frame 0 `curr_room_modif[17]` expected `6` actual `4`, so the remaining same-room first-draw torch initialization belongs to the next draw-frame alignment slice.
+
+### 2026-04-16 — Phase 15a: seg003 translation + stub wiring
+
+**Mode:** Code | **Outcome:** Complete — awaiting gradle verification on Pi
+**Contract changes:** `ExternalStubs.kt` — `doPickup` wired to `Seg006.doPickup()`, `setStartPos` wired to `Seg003.setStartPos()`, `addLife`/`setHealthLife`/`featherFall`/`toggleUpside` implemented, `expired`/`startGame` made safe for headless mode, `drawKidHp` stub added.
+
+Translated all 22 seg003.c functions into `Seg003.kt`: `doStartpos`, `setStartPos`, `findStartLevelDoor`, `posGuards`, `checkCanGuardSeeKid`, `getTileAtKid`, `doMouse`, `redrawAtChar`, `redrawAtChar2`, `checkMirrorImage`, `checkKnock`, `checkMirror`, `jumpThroughMirror`, `bumpIntoOpponent`, `removeFlashIfHurt`, `timers`, and 6 Tier 3 orchestrators deferred (init_game, play_level, play_level_2, draw_level_first, redraw_screen, flash_if_hurt — heavy SDL, needed for game running not trace matching).
+
+Integrated `Seg003.timers()` into `ReplayRunner.writeLayer1Trace()` before each `playFrame()` call, matching C `play_level_2()` order: `guardhp_delta=0` → `hitp_delta=0` → `timers()` → `play_frame()`. Added level-specific exit events (levels 0/6/12) and `expired()` check to `Layer1FrameDriver.playFrame()`. Replaced three `HeadlessFrameLifecycle` shims with proper seg003 translations (`checkCanGuardSeeKid`, `bumpIntoOpponent`, `checkKnock`).
+
+Added `needRedrawBecauseFlipped` to `GameState.kt`.
+
+Code review found and fixed 4 issues: missing `.toInt()` on 3 `yLand[]` → `Char.y` assignments, `unitedWithShadow--` on Short (changed to explicit `.toShort()` pattern), `canGuardSeeKid >= 2` without `.toInt()`, and missing `drawKidHp` call in `jumpThroughMirror`. Validation passes (no compile errors on Windows).
+
+**Verification pending:** `gradle test --no-daemon` and `gradle test layer1ReplayRegression --rerun-tasks --no-daemon` on the Pi. Expected improvements: `original_level5_shadow_into_wall` should no longer crash (doPickup wired), timer-dependent divergences (guard respawn, feather fall, RNG drift from timer events) should resolve or shift later.
+
 ## Module 14: Replay Runner
 
 ### 2026-04-15 — Step 14b.3: Real-trace regression closure
