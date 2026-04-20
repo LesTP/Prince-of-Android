@@ -41,8 +41,8 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.3 ESCALATED**
-**Next:** Human/orchestrator review of Step 15b.3 escalation. Replay regression remains 4/13 after the allowed two targeted fix attempts; no production code changes were retained.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.4 NEXT**
+**Next:** Implement Step 15b.4 — replace thin headless shims with proper translations of redraw_screen() state effects and draw_game_frame() branching logic.
 
 **Step 15b.3 results (verified 2026-04-20):**
 - Ran `gradle test --no-daemon`: passed.
@@ -206,13 +206,21 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 - Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr289` f16, `trick_153` f27, `traps` f41): frame lifecycle ordering — likely `need_full_redraw` / `redraw_screen()` path in `draw_game_frame()` that initializes animated tiles on room entry
 - Tile/trob state divergences (`grab_bug_pr288` f11, `sword_and_level_transition` f138, `snes_pc_set_level11` f40): `draw_game_frame()` → `redraw_screen()` → `anim_tile_modif()` on room changes during gameplay
 
-**Root cause:** Both groups share the same mechanistic root — C calls `anim_tile_modif()` from two paths: (1) `check_the_end()` on game-logic room transitions (already in Kotlin), and (2) `draw_game_frame()` → `redraw_screen()` on rendering room transitions including the initial `draw_level_first()` call (missing from Kotlin).
+**Root cause (updated after 15b.3 escalation):** The thin headless shims (15b.1-15b.3) only handled room-link refresh and flag clearing, but missed the actual state-bearing side effects of `redraw_screen()` and `draw_game_frame()`. The C code's `redraw_screen()` calls `anim_tile_modif()` (animates potions/torches/swords in room tiles), `start_chompers()` (initializes chomper trobs), and sets `exit_room_timer = 2`. The C `draw_game_frame()` has full branching for `need_full_redraw` / `different_room` / `need_redraw_because_flipped`, each calling `redraw_screen()` with appropriate parameters. The shims skipped all of this, causing 9 trace divergences in tile modifiers, trob counts, Kid.frame, and Kid.y.
+
+**New approach:** Replace headless shims with proper translations of the state-bearing parts of `redraw_screen()` and `draw_game_frame()`, skipping only pure rendering calls (draw_rect, copy_screen_rect, draw_moving, draw_tables, flip_screen, etc.). The key C functions to translate (state effects only):
+- `redraw_screen()` (seg003.c:240): `different_room = 0`, room buffer reload, `anim_tile_modif()`, `start_chompers()` (via room redraw path), `exit_room_timer = 2`
+- `draw_game_frame()` (seg000.c:990): full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching → calls `redraw_screen(0)` or `redraw_screen(1)`, plus `play_next_sound()` and text timer logic
+- `draw_level_first()` (seg003.c:215): `next_room = Kid.room`, `check_the_end()`, `redraw_screen(0)`
 
 **Steps:**
-- **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: Added `headlessDrawLevelFirst()` to `ReplayRunner.writeLayer1Trace()` after savestate restoration but before first `play_frame()`. It runs `checkTheEnd()` for different starting rooms and refreshes room links for same-room starts. `traps` moved past its frame-0 tile-modifier divergence; `falling_through_floor_pr274` still needs same-room draw-frame initialization.
-- **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: Added `headlessDrawGameFrame()` after `playFrame()` but before trace serialization. It handles `different_room`, `need_full_redraw`, and flipped redraw flags without duplicating `checkTheEnd()` animated-tile/chomper initialization. Regression remains 4/13.
-- **15b.3** Regression verification and cleanup — ESCALATED: Full unit suite passes, but the 13-trace regression remains 4/13 after two targeted fix attempts. No production code changes were retained; see Current Status and DEVLOG Step 15b.3 for divergence details.
+- **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: see results below.
+- **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: see results below.
+- **15b.3** Regression verification and cleanup — ESCALATED: see results below. Thin shims insufficient.
+- **15b.4** Translate `redraw_screen()` state effects: Replace the thin `redrawScreen()` shim in `Layer1FrameDriver.kt` with a proper translation of seg003.c `redraw_screen()`. Must include: `different_room = 0`, full room buffer reload via `get_room_address(drawn_room)`, call `anim_tile_modif()` for current room tiles (potions/torches/swords → start_anim_*), call left-room torch animation, and set `exit_room_timer = 2`. Skip all pure rendering: `draw_rect`, `redraw_room`, `draw_tables`, `draw_moving`, `copy_screen_rect`, `flip_screen`, palette/blind mode, keyboard buffer clears. The `drawing_different_room` parameter controls whether the room-entry dark transition happens (rendering only — skip), but both paths share the state side effects. Run unit tests.
+- **15b.5** Translate `draw_game_frame()` state effects: Replace `headlessDrawGameFrame()` with a proper translation of seg000.c `draw_game_frame()`. Must include: full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching with `redrawScreen()` calls, `drawn_room = next_room` on different-room path, `gen_palace_wall_colors()` for palace levels, `play_next_sound()` call, and text timer countdown logic (decrement `text_time_remaining`, handle expiry including `start_game()` restart). Also update `headlessDrawLevelFirst()` to call the new `redrawScreen(0)` instead of its ad-hoc logic. Run unit tests + full 13-trace replay regression. Target: significant improvement from 4/13 baseline.
+- **15b.6** Regression verification and targeted fixes: Run full test suite + 13-trace regression. If any traces still diverge, apply up to two targeted fixes based on specific divergence details. Clean up any superseded shim code. If still not 13/13 after two fixes, escalate with triage.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
-**Next action:** Implement Step 15b.3.
+**Next action:** Implement Step 15b.4.
