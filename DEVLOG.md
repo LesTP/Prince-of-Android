@@ -2,6 +2,19 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Step 15b.3: Regression verification and cleanup
+
+**Mode:** Code | **Outcome:** Escalated — replay regression still 4/13 after two targeted fix attempts
+**Contract changes:** None.
+
+Ran the full ordinary Kotlin suite and the dedicated 13-trace replay regression for the Phase 15b closure step. `gradle test --no-daemon` passed. `gradle layer1ReplayRegression --rerun-tasks --no-daemon` still failed with the same 4 exact matches as Step 15b.2: `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, and `original_level12_xpos_glitch`.
+
+Two targeted fixes were tested and rejected. First, the headless redraw shim was given C `redraw_screen()`'s `exit_room_timer = 2` side effect. Unit tests passed, but the replay regression introduced a new frame-0 divergence in `sword_and_level_transition` and shifted `grab_bug_pr288` to a different later failure, so the change was reverted. Second, the replay runner was tested with C-like trace timing by serializing before `headlessDrawGameFrame()`. Unit tests passed, but the replay regression remained unchanged at 4/13, so that change was also reverted.
+
+Per Phase 15b acceptance, no third targeted fix was attempted. Because the trace acceptance gate is still failing, the requested cleanup of superseded `HeadlessFrameLifecycle` code was not performed; no production code changes are retained from this step.
+
+Remaining divergences are triage-ready: `basic_movement` frame 325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` frame 29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` frame 0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` frame 11 `curr_room_tiles[2]` expected `0` actual `47`; `grab_bug_pr289` frame 16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` frame 40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` frame 138 `curr_room_tiles[0]` expected `52` actual `47`; `traps` frame 41 `Kid.frame` expected `50` actual `55`; and `trick_153` frame 27 `Kid.y` expected `62` actual `251`.
+
 ### 2026-04-20 — Step 15b.2: Per-frame draw-game-frame hook
 
 **Mode:** Code | **Outcome:** Complete — headless draw-frame flag handling wired before trace serialization

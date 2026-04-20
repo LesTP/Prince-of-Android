@@ -41,8 +41,16 @@
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
 **Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
 **Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.3 NEXT**
-**Next:** Implement Step 15b.3 — regression verification and cleanup; apply up to two targeted fixes if traces still diverge, then clean up superseded `HeadlessFrameLifecycle` code.
+**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.3 ESCALATED**
+**Next:** Human/orchestrator review of Step 15b.3 escalation. Replay regression remains 4/13 after the allowed two targeted fix attempts; no production code changes were retained.
+
+**Step 15b.3 results (verified 2026-04-20):**
+- Ran `gradle test --no-daemon`: passed.
+- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH**, preserving the Step 15b.2 match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
+- Targeted fix attempt 1: added C `redraw_screen()`'s `exit_room_timer = 2` side effect to the headless redraw shim. Unit tests passed, but replay regression moved `sword_and_level_transition` to a new frame-0 `curr_room_modif[13]` divergence and changed `grab_bug_pr288` to a later `Kid.frame` divergence; reverted.
+- Targeted fix attempt 2: tested C-equivalent trace timing by serializing before `headlessDrawGameFrame()`. Unit tests passed, but replay regression was unchanged at 4/13; reverted.
+- No third targeted fix was attempted per Phase 15b acceptance. Superseded `HeadlessFrameLifecycle` cleanup was not performed because the phase acceptance gate is still failing.
+- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f11 `curr_room_tiles[2]` expected `0` actual `47`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f138 `curr_room_tiles[0]` expected `52` actual `47`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
 
 **Step 15b.2 results (verified 2026-04-20):**
 - Added `HeadlessFrameLifecycle.headlessDrawGameFrame()` and called it from `ReplayRunner.writeLayer1Trace()` after `playFrame()` and before trace serialization.
@@ -203,7 +211,7 @@ One-line: Translate seg000 initialization and room-transition paths to resolve r
 **Steps:**
 - **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: Added `headlessDrawLevelFirst()` to `ReplayRunner.writeLayer1Trace()` after savestate restoration but before first `play_frame()`. It runs `checkTheEnd()` for different starting rooms and refreshes room links for same-room starts. `traps` moved past its frame-0 tile-modifier divergence; `falling_through_floor_pr274` still needs same-room draw-frame initialization.
 - **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: Added `headlessDrawGameFrame()` after `playFrame()` but before trace serialization. It handles `different_room`, `need_full_redraw`, and flipped redraw flags without duplicating `checkTheEnd()` animated-tile/chomper initialization. Regression remains 4/13.
-- **15b.3** Regression verification and cleanup: Run full test suite + 13-trace regression. Apply up to two targeted fixes if traces still diverge. Clean up superseded `HeadlessFrameLifecycle` code.
+- **15b.3** Regression verification and cleanup — ESCALATED: Full unit suite passes, but the 13-trace regression remains 4/13 after two targeted fix attempts. No production code changes were retained; see Current Status and DEVLOG Step 15b.3 for divergence details.
 
 **Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
 
