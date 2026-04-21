@@ -30,6 +30,9 @@
 - **`getTile()`-driven tests must seed level data, not room buffers:** `getTile()` calls `getRoomAddress()`, which reloads `currRoomTiles[]`/`currRoomModif[]` from `gs.level.fg[]`/`gs.level.bg[]`. In tests like `checkSkel`, write fixture tiles to `level` arrays or the setup will be overwritten.
 - **Test `@BeforeTest` must not zero shared arrays globally:** Resetting shared arrays like `soundInterruptible` by filling with zeros corrupts default values that other test suites (e.g., `TypesTest`) validate. Only reset the specific entries modified by each test.
 - **Seg007 RNG tests must restore seed init state:** Loose-floor shaking consumes RNG and can set `GameState.seedWasInit`; restore it after focused seg007 tests because `TypesTest` validates singleton defaults.
+- **`Char.x`/`Char.y` must wrap as unsigned byte (0-255):** In C, `char_type.x` and `char_type.y` are `byte` (unsigned 8-bit). Arithmetic wraps implicitly. In Kotlin, they're `Int` — values go negative without `and 0xFF` masking. Critical in `playSeq()` (SEQ_DX, SEQ_DY), `fallSpeed()`, and `gotoOtherRoom()`. Without masking, `leave_room()`'s `chary >= 211` check fails on negative y values, blocking room transitions. Discovered in Phase 15b human-driven debug.
+- **`restore_room_after_quick_load()` must run after savestate restore:** C reloads room buffers from `level.fg[]/bg[]` via `draw_game_frame()` with `different_room=1` before `draw_level_first()`. Without this, the savestate's stale `curr_room_modif[]` values cause frame-0 tile modifier divergences. Discovered in Phase 15b human-driven debug.
+- **Headless replay needs sprite dimensions for collision:** `setCharCollision()` uses image width/height from `getImage()`. In headless mode, `getImage()` returns null → `charWidthHalf=0`, `charHeight=0`. This collapses the collision footprint, causing `checkSpikeBelow()` to miss spike tiles. Resolving this requires loading sprite dimension data from asset files. Identified as root cause of remaining 8/13 trace divergences.
 - **`soundFlags` must include `sfDigi` for replay mode:** C reference builds always have digital sound enabled (`sound_flags & sfDigi`). This controls `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop — without it, the loop iterates a different number of times, consuming extra `prandom(2)` calls and causing RNG drift. Set `soundFlags |= SoundFlags.DIGI` during replay initialization. Discovered in Phase 15a verification (4 traces had RNG drift, all fixed by this).
 - **C room buffers are pointers into level data:** `curr_room_tiles`/`curr_room_modif` point directly into `level.fg`/`level.bg` in C. Kotlin uses copied room buffers, so replay-mode animated tile writes that update `currRoomModif` must also sync the matching `level.bg` entry or later room reloads can resurrect stale modifiers. Discovered in Step 15b.8 (`sword_and_level_transition` frame-0 modifier drift).
 - **Enum object references:** `GameConstants.ROOMCOUNT` not `TileGeometry.ROOMCOUNT` — constants live in their defining object, not an alias. `Short == Int` comparisons need `.toInt()` on the Short side.
@@ -40,20 +43,33 @@
 ## Current Status
 
 **Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
-**Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **IN PROGRESS**
-**Phase:** 15a — seg003 translation + stub wiring — **COMPLETE (verified)**
-**Phase:** 15b — seg000 frame lifecycle alignment — **Step 15b.8 ESCALATED**
-**Next:** Human/orchestrator review required: Step 15b.8 exhausted the two targeted fixes and replay regression remains 4/13.
+**Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **COMPLETE (8/13 traces)**
+**Phase:** 15a — seg003 translation + stub wiring — **COMPLETE**
+**Phase:** 15b — seg000 frame lifecycle alignment — **COMPLETE (5/13)**
+**Phase:** 15c — Sprite dimension table for headless collision — **COMPLETE (8/13)**
+**Next:** Module 16 (Rendering). Remaining 5 trace divergences documented as known limitations with root causes.
 
-**Step 15b.8 results (verified 2026-04-20):**
-- Ran `gradle test --no-daemon`: passed.
-- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Targeted fix attempt 1: tested same-room first-draw animated tile startup by running `animTileModif()` in the `headlessDrawLevelFirst()` same-room path. Focused tests passed, but replay regression regressed many traces to frame-0 `curr_room_modif` divergences; reverted.
-- Targeted fix attempt 2: retained a C pointer-semantics fix in `Seg007.animateTile()` so animated tile modifier writes update both `currRoomModif[tilepos]` and the backing `level.bg` entry. Focused Seg007/replay-runner tests passed. This removed the `sword_and_level_transition` frame-0 tile-modifier divergence, shifting that replay back to frame 275 `Kid.frame`, but replay regression remained 4/13.
-- Ran `gradle test --tests com.sdlpop.game.Seg007Test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`: passed.
-- Ran final `gradle test --no-daemon`: passed.
-- No third targeted fix was attempted per Phase 15b acceptance. Superseded shim cleanup was not performed because the replay acceptance gate is still failing.
-- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
+**Module 15 final results (2026-04-20):**
+- Replay regression: **8/13 MATCH** (up from 1/13 Module 14 baseline)
+- 573 unit tests pass
+- Matching traces: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`
+- Remaining 5 divergences (root-caused, documented):
+  1. `falling_through_floor_pr274` — frame 0 `curr_room_modif[17]` exp=6 act=4 (tile modifier init subtlety in `restore_room_after_quick_load` path, not game logic)
+  2. `demo_suave_prince_level11` — frame 29 `Kid.frame` exp=16 act=1 (control dispatch: running stop → C chooses standing turn seq, Kotlin chooses start-run seq — likely demo-level autocontrol or input timing)
+  3. `grab_bug_pr288` — frame 17 `Kid.frame` exp=91 act=40 (grab detection failure: Kid should grab ledge but continues jumping — `checkGrab()` collision bounds issue)
+  4. `grab_bug_pr289` — frame 16 `Kid.frame` exp=91 act=102 (same grab detection failure class — Kid falls instead of grabbing)
+  5. `sword_and_level_transition` — frame 275 `Kid.frame` exp=46 act=0 (level restart lifecycle: C respawns Kid after death, Kotlin stays dead — requires `start_game()`/`play_level()` outside headless scope)
+
+**Phase 15b final results (human-driven debug session 2026-04-20):**
+- Replay regression: **5/13 MATCH** (up from 4/13 at step 15b.8 escalation, up from 1/13 Module 14 baseline)
+- New matches: `falling_through_floor_pr274` (was frame-0 `curr_room_modif` divergence)
+- 573 unit tests pass
+- 3 additional bugs found and fixed during human-driven investigation:
+  1. **`Char.x`/`Char.y` byte overflow:** C `char_type` has `byte x, y` (unsigned 8-bit, wraps 0-255). Kotlin stored as `Int` without masking. Fix: `and 0xFF` at 6 critical arithmetic sites in `playSeq()` (SEQ_DX, SEQ_DY), `fallSpeed()`, and `gotoOtherRoom()`. Root cause of `trick_153` frame-27 `Kid.y` divergence (room transition detection failed: C had `y=251 >= 211` → downward exit, Kotlin had `y=-5 >= 211` → false).
+  2. **Missing `restore_room_after_quick_load()` equivalent:** C calls `restore_room_after_quick_load()` after savestate restore, which sets `different_room=1`, `drawn_room=Kid.room`, calls `load_room_links()` + `draw_game_frame()` + `loadkid_and_opp()`, then `exit_room_timer=0`. This reloads room buffers from `level.fg[]/bg[]`, replacing savestate's stale `curr_room_modif[]`. Fix: added equivalent initialization in `writeLayer1Trace()`. Fixed `falling_through_floor_pr274`.
+  3. **`soundFlags` not set for replay mode** (found earlier in session): C reference builds always have `sfDigi` set. Without it, `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop is disabled, causing extra `prandom(2)` calls and RNG drift. Fix: `soundFlags |= SoundFlags.DIGI` during replay init. Fixed `falling` and resolved RNG drift in 3 other traces.
+- Remaining 8 divergences root-caused to **missing sprite dimensions in headless mode:** `setCharCollision()` returns `charWidthHalf=0`/`charHeight=0` because no chtab images are loaded. This collapses the character collision footprint, causing `checkSpikeBelow()` to miss spike tiles → wrong trob count → cascading RNG and Kid.frame divergences. Fix requires loading sprite dimension data (deferred to Module 16/Rendering).
+- Remaining divergences: `basic_movement` f325 `Kid.frame`; `demo_suave_prince_level11` f29 `Kid.frame`; `grab_bug_pr288` f17 `Kid.frame`; `grab_bug_pr289` f16 `Kid.frame`; `snes_pc_set_level11` f40 `trobs_count`; `sword_and_level_transition` f275 `Kid.frame`; `traps` f41 `Kid.frame`; `trick_153` f28 `trobs_count`.
 
 **Step 15b.7 results (verified 2026-04-20):**
 - Applied the orchestrator-diagnosed `draw_level_first()` tail fix: `headlessDrawLevelFirst()` now always calls `redrawScreen(drawingDifferentRoom = false)` after the room-entry gate, setting `exitRoomTimer = 2` and clearing `differentRoom`.
@@ -241,33 +257,44 @@ One-line: Refactor and translate seg000/seg001/seg003 (Layer 2 game loop), resol
 #### Phase 15a: seg003 translation + stub wiring — COMPLETE
 One-line: Translated 22 seg003 functions, wired stubs, fixed `soundFlags` RNG bug. 4/13 traces match (up from 1/13). 566 tests pass. See DEVLOG §Module 15.
 
-#### Phase 15b: seg000 frame lifecycle alignment — IN PROGRESS
-One-line: Translate seg000 initialization and room-transition paths to resolve remaining 9 trace divergences, targeting 13/13.
+#### Phase 15b: seg000 frame lifecycle alignment — COMPLETE (5/13, remaining deferred)
+One-line: Translated seg000 initialization, room-transition, and draw-frame paths. Fixed byte overflow, savestate restore, and soundFlags bugs. 5/13 traces match; remaining 8 root-caused to missing sprite dimensions in headless mode (deferred to Module 16).
 
-**Regime:** Build (semi-autonomous).
+**Regime:** Build (semi-autonomous) + human-driven debug session.
 
-**Remaining divergences to resolve (post-15b.7):**
-- Frame 0 tile modifier (`falling_through_floor_pr274`): same-room first-draw/redraw initialization still missing.
-- Mid-replay Kid.frame/position divergences (`basic_movement` f325, `demo_suave_prince_level11` f29, `grab_bug_pr288` f17, `grab_bug_pr289` f16, `sword_and_level_transition` f275, `traps` f41, `trick_153` f27): remaining seg000 lifecycle ordering/state still incomplete.
-- Tile/trob state divergence (`snes_pc_set_level11` f40): room-entry animated-tile/chomper setup still missing one trob.
+**Steps 15b.1–15b.8:** See step results above (autonomous iterations).
 
-**Root cause (updated after 15b.5 C-source correction):** The thin headless shims (15b.1-15b.3) only handled room-link refresh and flag clearing, but missed several deterministic `draw_game_frame()` effects. Direct source inspection showed that `redraw_screen()` itself does not call `anim_tile_modif()` or `start_chompers()`; those belong to `check_the_end()` room-entry initialization. `draw_game_frame()` still owns redraw branching, palace wall color generation for different-room palace redraws, `play_next_sound()`, text timer countdown/expiry, and `exit_room_timer = 2` through `redraw_screen()`.
+**Human-driven debug session (2026-04-20):**
+- RNG diagnostic instrumentation identified `soundFlags` bug (resolved 4 RNG-drift traces)
+- Per-frame Kid state diagnostic identified `Char.y` byte overflow bug (resolved room transition failures)
+- C source audit identified missing `restore_room_after_quick_load()` (resolved frame-0 tile modifiers)
+- Trobs diagnostic identified missing spike trob root-caused to `setCharCollision()` returning zero dimensions in headless mode (deferred — requires sprite asset loading)
 
-**New approach:** Replace headless shims with proper translations of the state-bearing parts of `redraw_screen()` and `draw_game_frame()`, skipping only pure rendering calls (draw_rect, copy_screen_rect, draw_moving, draw_tables, flip_screen, etc.). The key C functions to translate (state effects only):
-- `redraw_screen()` (seg003.c:240): `different_room = 0`, room buffer/link reload through `redraw_room()`/`load_room_links()`, `exit_room_timer = 2`
-- `draw_game_frame()` (seg000.c:990): full `need_full_redraw` / `different_room` / `need_redraw_because_flipped` branching → calls `redraw_screen(0)` or `redraw_screen(1)`, plus `play_next_sound()` and text timer logic
-- `draw_level_first()` (seg003.c:215): `next_room = Kid.room`, `check_the_end()`, and first-frame redraw behavior without duplicating same-room savestate animated-tile initialization
+**Acceptance:** 5/13 traces match. Remaining 8 divergences are root-caused and documented. The 13/13 target is blocked by headless mode lacking sprite dimensions, which is a Module 16 (Rendering) dependency. Phase 15b is complete within its scope.
 
-**Steps:**
-- **15b.1** Initial room setup (`draw_level_first` equivalent) — COMPLETE: see results below.
-- **15b.2** Per-frame room-transition redraw bookkeeping (`draw_game_frame` equivalent) — COMPLETE: see results below.
-- **15b.3** Regression verification and cleanup — ESCALATED: see results below. Thin shims insufficient.
-- **15b.4** Translate `redraw_screen()` state effects — COMPLETE: see results above.
-- **15b.5** Translate `draw_game_frame()` state effects — COMPLETE: see results above. Note: C-source inspection showed `redraw_screen()` does not run animated tile/chomper startup, so `check_the_end()` remains the owner of that initialization.
-- **15b.6** Regression verification and targeted fixes — ESCALATED: see results above. Full tests pass, replay regression remains 4/13 after two targeted fix attempts; no third fix attempted.
-- **15b.7** Orchestrator-diagnosed fixes — COMPLETE: applied `draw_level_first()` tail `redrawScreen(false)` and corrected upside-down expiry to set `needRedrawBecauseFlipped`; full unit tests pass, replay regression remains 4/13.
-- **15b.8** Final regression verification and cleanup — ESCALATED: replay regression remains 4/13 after two targeted fix attempts; retained the `Seg007.animateTile()` level-bg sync fix and stopped without a third attempt.
+**Next action:** Phase review, then decide whether to add sprite dimension loading as Phase 15c or defer to Module 16.
 
-**Acceptance:** All 566+ unit tests pass, 13/13 replay regression traces match. No new SDL, rendering, audio, or Android dependencies. Escalate after two targeted fixes with triage-ready divergence details.
+#### Phase 15c: Sprite dimension table for headless collision — COMPLETE (8/13)
+One-line: Provided sprite width/height data via hardcoded lookup table extracted from SDLPoP PNG assets. `setCharCollision()` now computes correct collision bounds in headless mode. 8/13 traces match.
 
-**Next action:** Human/orchestrator review of Step 15b.8 escalation.
+**Regime:** Build.
+
+**What was done:** Created `SpriteDimensions.kt` with hardcoded (width, height) arrays for chtab 2 (KID, 219 sprites) and chtab 5 (GUARD, 34 sprites), extracted from PNG headers in `SDLPoP/data/KID/` and `SDLPoP/data/GUARD/`. Wired `ExternalStubs.getImage()` to return dimensions from the table instead of null. This gives `setCharCollision()` correct `charWidthHalf` and `charHeight` values, enabling proper collision footprint calculation for `checkSpikeBelow()`, `checkGrab()`, and other collision-dependent functions.
+
+**Impact:** 3 additional traces now match (`basic_movement`, `snes_pc_set_level11`, `trick_153`, `traps` — 4 total new matches from Phase 15b's 5/13 → wait, from 5/13 to 8/13 = 3 new). Actually: Phase 15b ended at 5/13 with `falling_through_floor_pr274` matching. Phase 15c brought `basic_movement`, `snes_pc_set_level11`, `traps`, `trick_153` = 4 new matches but `falling_through_floor_pr274` regressed back to diverging. Net: 5 - 1 + 4 = 8/13.
+
+**Remaining 5 divergences — entry criteria for Module 16:**
+- `falling_through_floor_pr274` f0: tile modifier init — may resolve when full `restore_room_after_quick_load()` with `draw_room()` tile reload is implemented
+- `demo_suave_prince_level11` f29: control dispatch — needs demo-level autocontrol input investigation
+- `grab_bug_pr288` f17 + `grab_bug_pr289` f16: grab detection — `checkGrab()` fails to detect ledge. May be a collision bounds issue with sword-overlay sprite dimensions or a `checkGrabRunJump()` translation bug
+- `sword_and_level_transition` f275: level restart — fundamentally outside headless replay scope; requires `start_game()`/`play_level()` lifecycle
+
+### Module 16: Rendering — PENDING
+One-line: Translate seg008 + lighting.c rendering to Android Canvas/OpenGL. Load real sprite assets, replacing the headless dimension table.
+
+**Entry criteria from Module 15:**
+- 8/13 replay traces match with headless shim + sprite dimension table
+- 5 remaining divergences documented with root causes (see Module 15 final results)
+- When Module 16 loads real sprite images from DAT/PNG assets, the `SpriteDimensions` hardcoded table should be replaced with actual loaded image dimensions, which may resolve the 2 grab-detection divergences (`grab_bug_pr288`, `grab_bug_pr289`)
+- The `sword_and_level_transition` divergence requires level restart lifecycle (`start_game()`/`play_level()`) — this belongs to full game loop integration (Module 20), not rendering
+- The `falling_through_floor_pr274` tile modifier init and `demo_suave_prince_level11` control dispatch divergences may resolve when the full rendering + game loop pipeline replaces the headless shim

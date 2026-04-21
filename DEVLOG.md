@@ -2,6 +2,36 @@
 
 ## Module 15: Game Loop
 
+### 2026-04-20 — Phase 15c: Sprite dimension table for headless collision
+
+**Mode:** Code (human-driven) | **Outcome:** 8/13 traces match (up from 5/13)
+**Contract changes:** `SpriteDimensions.kt` — new file with hardcoded sprite (width, height) arrays. `ExternalStubs.kt` — `getImage` now returns dimensions from `SpriteDimensions` instead of null.
+
+Created `SpriteDimensions.kt` with hardcoded width/height arrays for chtab 2 (KID, 219 sprites) and chtab 5 (GUARD, 34 sprites), extracted from PNG headers in `SDLPoP/data/KID/` and `SDLPoP/data/GUARD/`. Wired `ExternalStubs.getImage()` to return `SpriteDimensions.getImageDimensions(chtab, imageId)`. This gives `setCharCollision()` correct `charWidthHalf` and `charHeight` values so collision-dependent functions (`checkSpikeBelow()`, `checkGrab()`, `checkPress()`, etc.) compute correct column ranges.
+
+Impact: 3 new trace matches (`basic_movement`, `snes_pc_set_level11`, `traps`, `trick_153` — 4 traces newly matching, but `falling_through_floor_pr274` regressed from Phase 15b's match back to diverging). Net: 5/13 → 8/13.
+
+Quick triage of remaining 5 divergences:
+- `falling_through_floor_pr274` f0: tile modifier init subtlety — Kid state matches but `curr_room_modif[17]` differs (exp=6 act=4)
+- `demo_suave_prince_level11` f29: control dispatch — frame 28 matches (both have frame=50, running), then C transitions to standing turn (frame 16) while Kotlin starts a new run (frame 1)
+- `grab_bug_pr288` f17 + `grab_bug_pr289` f16: grab detection failure — Kid should grab a ledge but doesn't. C goes to frame 91 (hang), Kotlin continues jumping/falling
+- `sword_and_level_transition` f275: level restart — C respawns the Kid in room 5 after death, Kotlin stays dead in room 9. Requires `start_game()`/`play_level()` lifecycle
+
+### 2026-04-20 — Phase 15b human-driven debug session: 3 bugs found, 5/13 traces
+
+**Mode:** Code (human-driven) | **Outcome:** 5/13 traces match, remaining 8 root-caused to missing sprite dimensions
+**Contract changes:** `Seg006.kt` — byte masking on `Char.x`/`Char.y` arithmetic. `Seg002.kt` — byte masking on `gotoOtherRoom()` x/y. `ReplayRunner.kt` — `restore_room_after_quick_load()` equivalent, `soundFlags |= DIGI`, `lastLooseSound`/`soundFlags` reset. `Layer1FrameDriver.kt` — `loadRoomLinks()` visibility changed to internal. `build.gradle.kts` — `testClassesDirs`/`classpath` for `layer1ReplayRegression` task.
+
+Human-driven investigation after Step 15b.8 autonomous escalation. Used targeted per-frame state instrumentation (RNG call logging, Kid state comparison against reference trace bytes) to identify three bugs:
+
+**Bug 1 — `soundFlags` not initialized for replay mode:** C reference builds have `sound_flags & sfDigi` set, enabling `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop. Without it, the loop consumed extra `prandom(2)` calls, causing RNG drift. Diagnostic: added `prandom()` call counter + per-call log, compared frame-by-frame `random_seed` against reference trace. Frame 19 of `trick_153` had 2 extra `prandom(2)` calls from the untracked `do-while` loop. Fix: `soundFlags |= SoundFlags.DIGI` in `initializeReplayState()`. Impact: fixed `falling`, resolved RNG drift in `trick_153`/`snes_pc_set_level11`/`basic_movement` (divergence points moved much later).
+
+**Bug 2 — `Char.x`/`Char.y` byte overflow:** C `char_type.x` and `char_type.y` are `byte` (unsigned 8-bit). Arithmetic wraps to 0-255 implicitly. Kotlin stores them as `Int`, so values go negative. Diagnostic: per-frame Kid state dump showed `Kid.y=-5` (Kotlin) vs `Kid.y=62=251-189` (C) at frame 27 of `trick_153`. The climbing sequence applied `dy(-63)` to `y=55`, giving `-8` in Kotlin vs `248` in C. Then `leave_room()` checked `chary >= 211`: C had `248 >= 211` (true, downward exit) while Kotlin had `-8 >= 211` (false, no transition). Fix: `and 0xFF` masking at 6 critical sites — `SEQ_DX`/`SEQ_DY` in `playSeq()`, `fallSpeed()` for both x and y, and `gotoOtherRoom()` for left/right/up/down.
+
+**Bug 3 — Missing `restore_room_after_quick_load()`:** C calls `restore_room_after_quick_load()` after savestate restore, which sets `different_room=1`, `drawn_room=Kid.room`, runs `draw_game_frame()` (reloading room buffers from `level.fg[]/bg[]`), then resets `exit_room_timer=0`. The Kotlin replay runner skipped this, using the savestate's stale `curr_room_modif[]`. Fix: added the equivalent initialization sequence in `writeLayer1Trace()`. Impact: fixed `falling_through_floor_pr274`, resolved `trick_153` frame-0 tile modifier divergence.
+
+**Root cause of remaining 8 divergences:** `setCharCollision()` in headless mode receives `null` from `getImage()` (no chtab sprites loaded), setting `charWidthHalf=0` and `charHeight=0`. This collapses the collision footprint, causing `checkSpikeBelow()` to miss spike tiles at adjacent columns → wrong trob count → cascading RNG and Kid.frame divergences. Confirmed by trob diagnostic showing C has a spike trob at room 6 tilepos 23 (tile type 2) that Kotlin misses despite identical Kid state. Resolving requires loading sprite dimension data from chtab asset files.
+
 ### 2026-04-20 — Step 15b.8: Final regression verification and cleanup
 
 **Mode:** Code | **Outcome:** Escalated — replay regression still 4/13 after two targeted fix attempts

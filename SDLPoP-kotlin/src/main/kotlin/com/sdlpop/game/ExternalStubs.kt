@@ -55,7 +55,9 @@ object ExternalStubs {
     var drawKidHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
     var eraseBottomText: (Int) -> Unit = { _ -> /* rendering stub */ }
     var addObjtable: (Int) -> Unit = { _ -> /* rendering stub */ }
-    var getImage: (Int, Int) -> Pair<Int, Int>? = { _, _ -> null } // returns (width, height) or null
+    var getImage: (Int, Int) -> Pair<Int, Int>? = { chtab, imageId ->
+        SpriteDimensions.getImageDimensions(chtab, imageId)
+    }
     var calcScreenXCoord: (Short) -> Short = { x -> x } // identity stub
 
     // --- seg000 (game flow) ---

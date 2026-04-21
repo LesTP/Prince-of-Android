@@ -1022,11 +1022,11 @@ object Seg006 {
             gs.Char.currSeq++
             when (command) {
                 SeqI.SEQ_DX -> {
-                    gs.Char.x = charDxForward(seqtblReadSigned(gs.Char.currSeq))
+                    gs.Char.x = charDxForward(seqtblReadSigned(gs.Char.currSeq)) and 0xFF
                     gs.Char.currSeq++
                 }
                 SeqI.SEQ_DY -> {
-                    gs.Char.y += seqtblReadSigned(gs.Char.currSeq)
+                    gs.Char.y = (gs.Char.y + seqtblReadSigned(gs.Char.currSeq)) and 0xFF
                     gs.Char.currSeq++
                 }
                 SeqI.SEQ_FLIP -> {
@@ -1258,9 +1258,9 @@ object Seg006 {
 
     // seg006:05AE
     fun fallSpeed() {
-        gs.Char.y += gs.Char.fallY
+        gs.Char.y = (gs.Char.y + gs.Char.fallY) and 0xFF
         if (gs.Char.action == Act.IN_FREEFALL) {
-            gs.Char.x = charDxForward(gs.Char.fallX)
+            gs.Char.x = charDxForward(gs.Char.fallX) and 0xFF
             loadFramDetCol()
         }
     }

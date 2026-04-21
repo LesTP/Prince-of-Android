@@ -472,20 +472,20 @@ object Seg002 {
         gs.Char.room = otherRoom
         when (direction) {
             0 -> { // left
-                gs.Char.x += 140
+                gs.Char.x = (gs.Char.x + 140) and 0xFF
                 oppositeDir = 1
             }
             1 -> { // right
-                gs.Char.x -= 140
+                gs.Char.x = (gs.Char.x - 140) and 0xFF
                 oppositeDir = 0
             }
             2 -> { // up
-                gs.Char.y += 189
+                gs.Char.y = (gs.Char.y + 189) and 0xFF
                 gs.Char.currRow = seg006.yToRowMod4(gs.Char.y)
                 oppositeDir = 3
             }
             else -> { // down
-                gs.Char.y -= 189
+                gs.Char.y = (gs.Char.y - 189) and 0xFF
                 gs.Char.currRow = seg006.yToRowMod4(gs.Char.y)
                 oppositeDir = 2
             }

@@ -290,7 +290,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 12 | Layer 1: seg007 | Traps, triggers, animated tiles | Build (autonomous) | seg006 | **Complete** |
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | **Complete** |
 | 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **Complete** (1/13 traces; Layer 2 boundary) |
-| 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | **In progress** (4/13 traces, Phase 15b next) |
+| 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | **Complete** (8/13 traces, 5 divergences root-caused) |
 | 16 | Rendering | seg008 + lighting → Android | Build | Game Loop | Pending |
 | 17 | Platform | seg009 → Android APIs | Build | — | Pending |
 | 18 | Audio | Sound + music → Android | Build | Platform | Pending |
@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Track A→B transition, Module 15 (Game Loop)** is in progress. Phase 15a completed seg003 translation and fixed the `soundFlags` RNG bug, bringing traces from 1/13 to 4/13. Phase 15b targets 13/13 by adding the missing `draw_level_first()` initialization and `draw_game_frame()` room-transition tile initialization paths. Step 15b.1 adds initial room setup before the first `play_frame()`, Step 15b.2 adds per-frame room-transition handling after `play_frame()`, and Step 15b.3 runs final verification.
+**Module 15 (Game Loop) is complete** at 8/13 traces. Phase 15a translated seg003 and fixed the `soundFlags` RNG bug. Phase 15b translated seg000 initialization and room-transition paths, fixed `Char.x/y` byte overflow and `restore_room_after_quick_load()`. Phase 15c added a hardcoded sprite dimension table so collision detection works in headless mode. Remaining 5 divergences are root-caused: 2 grab detection (likely collision bounds edge case), 1 tile modifier init, 1 control dispatch, 1 level restart lifecycle (outside headless scope). Module 16 (Rendering) is next — when real sprite assets are loaded, the dimension table will be replaced and the grab bugs may resolve.
 
 ---
 

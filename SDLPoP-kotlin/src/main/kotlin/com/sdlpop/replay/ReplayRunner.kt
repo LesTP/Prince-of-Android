@@ -5,6 +5,7 @@ import com.sdlpop.game.Control
 import com.sdlpop.game.ExternalStubs
 import com.sdlpop.game.GameState
 import com.sdlpop.game.Seg003
+import com.sdlpop.game.Seg006
 import com.sdlpop.game.SoundFlags
 import com.sdlpop.game.LevelType
 import com.sdlpop.game.MobType
@@ -164,6 +165,23 @@ object ReplayRunner {
         ExternalStubs.preserveRoomBufferMutations = true
         initializeReplayState(input.replay, state)
         restoreSavestate(input.replay, state)
+        // Match C restore_room_after_quick_load(): reload room buffers from level data
+        // before draw_level_first(). C does this via draw_game_frame() with different_room=1.
+        state.differentRoom = 1
+        state.nextRoom = state.Kid.room
+        state.drawnRoom = state.Kid.room
+        HeadlessFrameLifecycle.loadRoomLinks()
+        HeadlessFrameLifecycle.headlessDrawGameFrame()
+        state.hitpDelta = 1
+        state.guardhpDelta = 1
+        if (state.Guard.room != state.drawnRoom) {
+            state.Guard.direction = com.sdlpop.game.Directions.NONE
+            state.guardhpCurr = 0
+        }
+        Seg006.loadkidAndOpp()
+        state.textTimeTotal = 0
+        state.textTimeRemaining = 0
+        state.exitRoomTimer = 0
         HeadlessFrameLifecycle.headlessDrawLevelFirst()
         installReplayMoveHook(input.replay, state)
 

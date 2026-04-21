@@ -428,7 +428,7 @@ object HeadlessFrameLifecycle {
     private fun getTileAtKid(xpos: Int): Int =
         Seg006.getTile(gs.Kid.room, Seg006.getTileDivModM7(xpos), gs.Kid.currRow)
 
-    private fun loadRoomLinks() {
+    internal fun loadRoomLinks() {
         gs.roomBR = 0
         gs.roomBL = 0
         gs.roomAR = 0
