@@ -61,88 +61,16 @@
   5. `sword_and_level_transition` — frame 275 `Kid.frame` exp=46 act=0 (level restart lifecycle: C respawns Kid after death, Kotlin stays dead — requires `start_game()`/`play_level()` outside headless scope)
 
 **Phase 15b final results (human-driven debug session 2026-04-20):**
-- Replay regression: **5/13 MATCH** (up from 4/13 at step 15b.8 escalation, up from 1/13 Module 14 baseline)
-- New matches: `falling_through_floor_pr274` (was frame-0 `curr_room_modif` divergence)
-- 573 unit tests pass
-- 3 additional bugs found and fixed during human-driven investigation:
-  1. **`Char.x`/`Char.y` byte overflow:** C `char_type` has `byte x, y` (unsigned 8-bit, wraps 0-255). Kotlin stored as `Int` without masking. Fix: `and 0xFF` at 6 critical arithmetic sites in `playSeq()` (SEQ_DX, SEQ_DY), `fallSpeed()`, and `gotoOtherRoom()`. Root cause of `trick_153` frame-27 `Kid.y` divergence (room transition detection failed: C had `y=251 >= 211` → downward exit, Kotlin had `y=-5 >= 211` → false).
-  2. **Missing `restore_room_after_quick_load()` equivalent:** C calls `restore_room_after_quick_load()` after savestate restore, which sets `different_room=1`, `drawn_room=Kid.room`, calls `load_room_links()` + `draw_game_frame()` + `loadkid_and_opp()`, then `exit_room_timer=0`. This reloads room buffers from `level.fg[]/bg[]`, replacing savestate's stale `curr_room_modif[]`. Fix: added equivalent initialization in `writeLayer1Trace()`. Fixed `falling_through_floor_pr274`.
-  3. **`soundFlags` not set for replay mode** (found earlier in session): C reference builds always have `sfDigi` set. Without it, `lastLooseSound` tracking in `loose_shake()`'s `do-while` loop is disabled, causing extra `prandom(2)` calls and RNG drift. Fix: `soundFlags |= SoundFlags.DIGI` during replay init. Fixed `falling` and resolved RNG drift in 3 other traces.
-- Remaining 8 divergences root-caused to **missing sprite dimensions in headless mode:** `setCharCollision()` returns `charWidthHalf=0`/`charHeight=0` because no chtab images are loaded. This collapses the character collision footprint, causing `checkSpikeBelow()` to miss spike tiles → wrong trob count → cascading RNG and Kid.frame divergences. Fix requires loading sprite dimension data (deferred to Module 16/Rendering).
-- Remaining divergences: `basic_movement` f325 `Kid.frame`; `demo_suave_prince_level11` f29 `Kid.frame`; `grab_bug_pr288` f17 `Kid.frame`; `grab_bug_pr289` f16 `Kid.frame`; `snes_pc_set_level11` f40 `trobs_count`; `sword_and_level_transition` f275 `Kid.frame`; `traps` f41 `Kid.frame`; `trick_153` f28 `trobs_count`.
+See DEVLOG §Module 15 for full details. Key fixes: `soundFlags` RNG init, `Char.x/y` byte overflow masking, `restore_room_after_quick_load()` equivalent.
 
-**Step 15b.7 results (verified 2026-04-20):**
-- Applied the orchestrator-diagnosed `draw_level_first()` tail fix: `headlessDrawLevelFirst()` now always calls `redrawScreen(drawingDifferentRoom = false)` after the room-entry gate, setting `exitRoomTimer = 2` and clearing `differentRoom`.
-- Corrected upside-down expiry in `Layer1FrameDriver.playKidFrame()` to set `needRedrawBecauseFlipped = 1` instead of `needFullRedraw = 1`, matching C `play_kid_frame()`.
-- Added focused replay-runner tests for first-draw `differentRoom`/`exitRoomTimer` state and flipped-redraw flag selection.
-- Ran `gradle test --no-daemon`: passed, 573 tests.
-- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Remaining divergences are unchanged from Step 15b.6: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
+**Phase 15a results:**
+See DEVLOG §Module 15 for full details. Key: seg003 translation (22 functions), stub wiring, 566 tests.
 
-**Step 15b.6 results (verified 2026-04-20):**
-- Ran `gradle test --no-daemon`: passed.
-- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Targeted fix attempt 1: tested adding the C `draw_level_first()` tail state (`gen_palace_wall_colors()` for palace levels plus `redraw_screen(0)`) to `headlessDrawLevelFirst()`. Focused replay-runner tests passed, but replay regression stayed 4/13 and regressed `trick_153` from frame 27 to a frame-0 `curr_room_modif[3]` divergence; reverted.
-- Targeted fix attempt 2: tested invoking translated `Seg003.checkMirror()` from the headless draw-frame hook, because C reaches `check_mirror()` through `draw_people()` during `draw_game_frame()`. Focused replay-runner tests passed, but replay regression was unchanged at 4/13; reverted.
-- No third targeted fix was attempted per Phase 15b acceptance. No production code changes are retained from this step; superseded shim cleanup was not performed because the acceptance gate is still failing.
-- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
+**Phase 15a results:**
+See DEVLOG §Module 15 for full details. Key: seg003 translation (22 functions), stub wiring, `soundFlags` fix, 566 tests.
 
-**Step 15b.5 results (verified 2026-04-20):**
-- Translated the deterministic `draw_game_frame()` state branches: `needFullRedraw`, `differentRoom`, `needRedrawBecauseFlipped`, palace wall color generation with RNG restoration, `playNextSound()`, and text timer countdown/expiry including restart text.
-- Moved the replay trace snapshot to occur before the headless draw-frame hook, matching C validate timing where `dump_frame_state()` runs at the end of `play_frame()` before `draw_game_frame()`.
-- Corrected the Phase 15b redraw assumption after direct C-source inspection: `redraw_screen()` does **not** call `anim_tile_modif()` or `start_chompers()`; animated tile/chomper startup belongs to `check_the_end()`. The headless redraw helper now reloads room links/buffers, clears `differentRoom`, and sets `exitRoomTimer = 2`.
-- Updated replay-runner tests for draw-frame full/different-room redraw state, palace wall RNG preservation, text expiry restart behavior, and `checkTheEnd()` chomper startup ownership.
-- Ran `gradle test --no-daemon`: passed.
-- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH** (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f17 `Kid.frame` expected `91` actual `40`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f275 `Kid.frame` expected `46` actual `0`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
-
-**Step 15b.4 results (verified 2026-04-20):**
-- Replaced the thin `HeadlessFrameLifecycle.redrawScreen()` shim with the state-bearing redraw slice: clear `differentRoom`, reload room links/current room buffers, run `animTileModif()`, start chompers, and set `exitRoomTimer = 2`.
-- Superseded by Step 15b.5 C-source correction: `animTileModif()` and `startChompers()` belong to `check_the_end()`, not `redraw_screen()`.
-- Kept SDL/rendering/palette/keyboard/screen-copy/blind-mode drawing behavior out of the headless replay path.
-- Updated replay-runner tests to assert potion/sword animated tile startup, chomper startup for the current character row, and redraw timer reset.
-- Ran `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon`: passed.
-- Ran `gradle test --no-daemon`: passed.
-- Full 13-trace replay regression was not run in this step; Step 15b.5 owns the `draw_game_frame()` branching translation and regression check.
-
-**Step 15b.3 results (verified 2026-04-20):**
-- Ran `gradle test --no-daemon`: passed.
-- Ran `gradle layer1ReplayRegression --rerun-tasks --no-daemon`: failed with **4/13 MATCH**, preserving the Step 15b.2 match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Targeted fix attempt 1: added C `redraw_screen()`'s `exit_room_timer = 2` side effect to the headless redraw shim. Unit tests passed, but replay regression moved `sword_and_level_transition` to a new frame-0 `curr_room_modif[13]` divergence and changed `grab_bug_pr288` to a later `Kid.frame` divergence; reverted.
-- Targeted fix attempt 2: tested C-equivalent trace timing by serializing before `headlessDrawGameFrame()`. Unit tests passed, but replay regression was unchanged at 4/13; reverted.
-- No third targeted fix was attempted per Phase 15b acceptance. Superseded `HeadlessFrameLifecycle` cleanup was not performed because the phase acceptance gate is still failing.
-- Remaining divergences: `basic_movement` f325 `Kid.frame` expected `103` actual `102`; `demo_suave_prince_level11` f29 `Kid.frame` expected `16` actual `1`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f11 `curr_room_tiles[2]` expected `0` actual `47`; `grab_bug_pr289` f16 `Kid.frame` expected `91` actual `102`; `snes_pc_set_level11` f40 `trobs_count` expected `3` actual `2`; `sword_and_level_transition` f138 `curr_room_tiles[0]` expected `52` actual `47`; `traps` f41 `Kid.frame` expected `50` actual `55`; `trick_153` f27 `Kid.y` expected `62` actual `251`.
-
-**Step 15b.2 results (verified 2026-04-20):**
-- Added `HeadlessFrameLifecycle.headlessDrawGameFrame()` and called it from `ReplayRunner.writeLayer1Trace()` after `playFrame()` and before trace serialization.
-- The helper handles the state-bearing redraw flags from `draw_game_frame()`: `needFullRedraw`, `differentRoom`, and `needRedrawBecauseFlipped`; it advances `drawnRoom = nextRoom` for different-room redraws, clears `differentRoom`, and refreshes room links/current room buffers.
-- Focused replay-runner tests cover full-redraw and different-room redraw handling, and `resetTraceRunState()` now clears `needFullRedraw`/`needRedrawBecauseFlipped`.
-- A trial implementation that re-ran `animTileModif()`/`startChompers()` from the draw-frame hook was discarded because it duplicated `checkTheEnd()` room-entry initialization and regressed previously matching traces to frame-0 tile-modifier divergences.
-- `gradle test --no-daemon` passed.
-- Replay regression remains **4/13 MATCH**, preserving the Step 15b.1 match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- Remaining divergences: `basic_movement` f325 `Kid.frame`; `demo_suave_prince_level11` f29 `Kid.frame`; `falling_through_floor_pr274` f0 `curr_room_modif[17]` expected `6` actual `4`; `grab_bug_pr288` f11 `curr_room_tiles[2]`; `grab_bug_pr289` f16 `Kid.frame`; `snes_pc_set_level11` f40 `trobs_count`; `sword_and_level_transition` f138 `curr_room_tiles[0]`; `traps` f41 `Kid.frame`; `trick_153` f27 `Kid.y`.
-
-**Step 15b.1 results (verified 2026-04-20):**
-- Added `HeadlessFrameLifecycle.headlessDrawLevelFirst()` and called it from `ReplayRunner.writeLayer1Trace()` after savestate restoration and before the first `playFrame()`.
-- The helper follows C `draw_level_first()` room-entry gating: set `nextRoom = Kid.room`, run the existing `checkTheEnd()` setup when starting room differs from `drawnRoom`, otherwise refresh room links without re-randomizing same-room tile modifiers.
-- `gradle test --tests com.sdlpop.replay.ReplayRunnerTest --no-daemon` passed; `gradle test --no-daemon` passed.
-- Replay regression remains **4/13 MATCH**, preserving the Phase 15a match set (`falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`).
-- `traps` moved from frame 0 `curr_room_modif[0]` to frame 41 `Kid.frame`, confirming initial different-room setup for that replay.
-- `falling_through_floor_pr274` still diverges at frame 0 `curr_room_modif[17]` expected `6` actual `4`; this is now classified with same-room first-draw/redraw initialization for Step 15b.2.
-
-**Phase 15a results (verified 2026-04-20):**
-- 566 unit tests pass (up from 540 in Module 14)
-- 3 compile errors fixed: `GameConstants.ROOMCOUNT` reference, `Short == Int` comparison, `tblSeamlessExit` bounds check
-- `soundFlags |= SoundFlags.DIGI` fix resolved all 4 RNG-drift traces (root cause: `lastLooseSound` not tracked → `do-while` loop in `loose_shake()` consumed extra `prandom(2)` calls)
-- Replay regression: **4/13 MATCH** (up from 1/13 Module 14 baseline)
-  - New matches: `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`
-  - Existing match: `original_level12_xpos_glitch`
-- Remaining 9 divergences categorized:
-  - Frame 0 tile modifiers (2): `traps`, `falling_through_floor_pr274` — missing `draw_level_first()` / `redraw_screen()` initialization
-  - Mid-replay Kid.frame (4): `basic_movement` (f325), `demo_suave_prince_level11` (f29), `grab_bug_pr289` (f16), `trick_153` (f27) — frame lifecycle ordering in seg000
-  - Tile/trob state (3): `grab_bug_pr288` (f11), `sword_and_level_transition` (f138), `snes_pc_set_level11` (f40) — room-transition tile initialization
-
-**Phase 15a changes:** Wired `doPickup` to `Seg006.doPickup()`, implemented `addLife`/`featherFall`/`toggleUpside`/`expired`/`startGame` stubs, translated all 22 seg003.c functions into `Seg003.kt`, integrated `Seg003.timers()` into replay runner before each `playFrame()`, added level-specific exit events and `expired()` to frame driver, replaced `HeadlessFrameLifecycle` shims (`checkCanGuardSeeKid`, `bumpIntoOpponent`, `checkKnock`) with proper seg003 translations. Fixed `soundFlags` initialization for replay mode, added `lastLooseSound`/`soundFlags` reset to `resetTraceRunState`, added `testClassesDirs`/`classpath` to `layer1ReplayRegression` Gradle task.
+**Phase 15b autonomous iteration results (steps 15b.1–15b.8):**
+See DEVLOG §Module 15 for full step-by-step details. Summary: 8 autonomous iterations translated `draw_level_first()`, `draw_game_frame()`, `redraw_screen()` state effects into headless replay shim. Escalated 3 times at 4/13 traces. Human debug session then found 3 additional bugs (byte overflow, `restore_room_after_quick_load()`, sprite dimensions) to reach 8/13.
 
 ## Phase Summary
 

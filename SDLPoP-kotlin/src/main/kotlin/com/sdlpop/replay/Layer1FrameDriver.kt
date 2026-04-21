@@ -2,16 +2,13 @@ package com.sdlpop.replay
 
 import com.sdlpop.game.Directions
 import com.sdlpop.game.GameState
-import com.sdlpop.game.Actions as Act
 import com.sdlpop.game.CharIds as CID
 import com.sdlpop.game.Seg002
 import com.sdlpop.game.Seg004
 import com.sdlpop.game.Seg003
-import com.sdlpop.game.Seg005
 import com.sdlpop.game.Seg006
 import com.sdlpop.game.Seg007
 import com.sdlpop.game.SoundIds as Snd
-import com.sdlpop.game.SwordStatus as Sword
 import com.sdlpop.game.Tiles as T
 import com.sdlpop.game.TileGeometry as TG
 
@@ -254,111 +251,6 @@ object HeadlessFrameLifecycle {
                     com.sdlpop.game.ExternalStubs.playSound(Snd.BLINK)
                 }
             }
-        }
-    }
-
-    fun checkCanGuardSeeKid() {
-        if (gs.Guard.charid == CID.MOUSE) {
-            gs.canGuardSeeKid = 0
-            return
-        }
-
-        val kidFrame = gs.Kid.frame
-        if ((gs.Guard.charid != CID.SHADOW || gs.currentLevel == 12) &&
-            kidFrame != 0 &&
-            (kidFrame < 219 || kidFrame >= 229) &&
-            gs.Guard.direction != Directions.NONE &&
-            gs.Kid.alive < 0 &&
-            gs.Guard.alive < 0 &&
-            gs.Kid.room == gs.Guard.room &&
-            gs.Kid.currRow == gs.Guard.currRow
-        ) {
-            gs.canGuardSeeKid = 2
-            var leftPos = gs.xBump[gs.Kid.currCol + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_MIDX
-            if (gs.fixes.fixDoortopDisablingGuard != 0 &&
-                (gs.Kid.action == Act.HANG_CLIMB || gs.Kid.action == Act.HANG_STRAIGHT)
-            ) {
-                leftPos += TG.TILE_SIZEX
-            }
-
-            var rightPos = gs.xBump[gs.Guard.currCol + TG.FIRST_ONSCREEN_COLUMN] + TG.TILE_MIDX
-            if (leftPos > rightPos) {
-                val temp = leftPos
-                leftPos = rightPos
-                rightPos = temp
-            }
-
-            if (getTileAtKid(leftPos) == T.CHOMPER) {
-                leftPos += TG.TILE_SIZEX
-            }
-            if (getTileAtKid(rightPos) == T.GATE ||
-                (gs.fixes.fixDoortopDisablingGuard != 0 &&
-                    (gs.currTile2 == T.DOORTOP_WITH_FLOOR || gs.currTile2 == T.DOORTOP))
-            ) {
-                rightPos -= TG.TILE_SIZEX
-            }
-
-            while (leftPos <= rightPos) {
-                val tile = getTileAtKid(leftPos)
-                if (tile == T.WALL ||
-                    gs.currTile2 == T.DOORTOP_WITH_FLOOR ||
-                    gs.currTile2 == T.DOORTOP
-                ) {
-                    gs.canGuardSeeKid = 0
-                    return
-                }
-                if (gs.currTile2 == T.LOOSE ||
-                    gs.currTile2 == T.CHOMPER ||
-                    (gs.currTile2 == T.GATE && gs.currRoomModif[gs.currTilepos] < 112) ||
-                    Seg006.tileIsFloor(gs.currTile2) == 0
-                ) {
-                    gs.canGuardSeeKid = 1
-                }
-                leftPos += TG.TILE_SIZEX
-            }
-        } else {
-            gs.canGuardSeeKid = 0
-        }
-    }
-
-    fun bumpIntoOpponent() {
-        if (gs.canGuardSeeKid >= 2 &&
-            gs.Char.sword == Sword.SHEATHED &&
-            gs.Opp.sword != Sword.SHEATHED &&
-            gs.Opp.action < 2 &&
-            gs.Char.direction != gs.Opp.direction
-        ) {
-            val distance = Seg006.charOppDist()
-            if (kotlin.math.abs(distance) <= 15) {
-                if (gs.fixes.fixPainlessFallOnGuard != 0) {
-                    if (gs.Char.fallY >= 33) return
-                    if (gs.Char.fallY >= 22) {
-                        Seg006.takeHp(1)
-                        com.sdlpop.game.ExternalStubs.playSound(Snd.MEDIUM_LAND)
-                    }
-                }
-
-                if (gs.fixes.fixJumpingOverGuard != 0) {
-                    if ((gs.Char.direction == Directions.RIGHT && gs.Char.x > gs.Opp.x) ||
-                        (gs.Char.direction == Directions.LEFT && gs.Char.x < gs.Opp.x)
-                    ) {
-                        gs.Char.x = gs.Opp.x
-                    }
-                }
-
-                gs.Char.y = gs.yLand[gs.Char.currRow + 1].toInt()
-                gs.Char.fallY = 0
-                Seg005.seqtblOffsetChar(47)
-                Seg006.playSeq()
-            }
-        }
-    }
-
-    fun checkKnock() {
-        val knock = gs.knock.toInt()
-        if (knock != 0) {
-            Seg007.doKnock(gs.Char.room, gs.Char.currRow - if (knock > 0) 1 else 0)
-            gs.knock = 0
         }
     }
 

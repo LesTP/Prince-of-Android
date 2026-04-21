@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-16: Module 15 completion and Phase 15b/15c review
+Date: 2026-04-20 | Status: Closed
+Priority: Important
+Decision: Accept Module 15 as complete at 8/13 traces. Phase review found one should-fix (dead HeadlessFrameLifecycle methods superseded by Seg003) — applied. No must-fix issues. Remaining 5 divergences are root-caused and documented: 1 tile modifier init, 1 control dispatch, 2 grab detection (collision bounds edge case), 1 level restart lifecycle (outside headless scope). Module 16 entry criteria documented.
+Rationale: The 8 matching traces validate the game logic translation across movement, falling, combat, level transitions, guard AI, traps, RNG determinism, and room transitions. The 5 remaining failures have clear root causes that are either outside headless replay scope (level restart) or will be resolved when Module 16 loads real sprite assets (grab detection). Continuing to debug within the headless shim has diminishing returns.
+Revisit if: Module 16 sprite loading does not resolve the grab detection divergences, or if the `demo_suave_prince_level11` control dispatch bug indicates a Layer 1 translation error rather than a demo-level lifecycle issue.
+
 D-15: Phase 14b escalation boundary
 Date: 2026-04-15 | Status: Open
 Priority: Important
