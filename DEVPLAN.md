@@ -218,7 +218,9 @@ One-line: Provided sprite width/height data via hardcoded lookup table extracted
 - `sword_and_level_transition` f275: level restart — fundamentally outside headless replay scope; requires `start_game()`/`play_level()` lifecycle
 
 ### Module 16: Rendering — PENDING
-One-line: Translate seg008 + lighting.c rendering to Android Canvas/OpenGL. Load real sprite assets, replacing the headless dimension table.
+One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real sprite assets from DAT/PNG files, and get level 1 visually rendering on an Android emulator.
+
+**Environment:** Windows + Android Studio. Replaces Pi headless environment for rendering work. Replay regression suite continues to validate game logic correctness.
 
 **Entry criteria from Module 15:**
 - 8/13 replay traces match with headless shim + sprite dimension table
@@ -226,3 +228,215 @@ One-line: Translate seg008 + lighting.c rendering to Android Canvas/OpenGL. Load
 - When Module 16 loads real sprite images from DAT/PNG assets, the `SpriteDimensions` hardcoded table should be replaced with actual loaded image dimensions, which may resolve the 2 grab-detection divergences (`grab_bug_pr288`, `grab_bug_pr289`)
 - The `sword_and_level_transition` divergence requires level restart lifecycle (`start_game()`/`play_level()`) — this belongs to full game loop integration (Module 20), not rendering
 - The `falling_through_floor_pr274` tile modifier init and `demo_suave_prince_level11` control dispatch divergences may resolve when the full rendering + game loop pipeline replaces the headless shim
+
+**seg008.c decomposition (2,069 lines, 75 functions):**
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| Pure state logic | 30 | Zero SDL calls. Tile resolution, object tables, room loading, geometry, orchestration. |
+| Render table submission (mixed) | 31 | Compute what to draw and append to `backtable[]`/`foretable[]`/`midtable[]`. No direct SDL, but in the render pipeline. |
+| SDL rendering (direct) | 11 | `draw_tables`, `draw_back_fore`, `draw_mid`, `hflip`, `draw_image`, `draw_wipe`, `restore_peels`, `free_peels`, `display_text_bottom`, `erase_bottom_text`, `add_peel`. |
+| Asset loading | 1 | `get_image` — bridges chtab → image reference. |
+
+**lighting.c decomposition (120 lines, 3 functions):** All 3 functions (`init_lighting`, `redraw_lighting`, `update_lighting`) touch SDL directly. Entirely Refine.
+
+**seg009.c asset pipeline (relevant subset):**
+- 5 decompressors (`decompress_rle_lr/ud`, `decompress_lzg_lr/ud`) — 100% portable pure C
+- `conv_to_8bpp`, `decompr_img`, `calc_stride` — portable
+- `decode_image` — decompression portable, final step creates `SDL_Surface` → replace with `Bitmap`
+- `load_image` — DAT path portable, PNG path replaces `IMG_Load_RW` with `BitmapFactory`
+- `open_dat`, `load_from_opendats_*` — replace `fopen` with `AssetManager`
+
+**Build/Refine boundary:** The render tables (`backtable[]`, `midtable[]`, `foretable[]`, `wipetable[]`, `objtable[]`) are the clean split. Everything that produces table entries is Build (autonomous). Everything that consumes them to put pixels on screen is Refine (human-assisted).
+
+**Depends on:** Modules 6–15 (all game logic + game loop + replay pipeline)
+
+#### Phase 16a: Android project scaffold — PENDING
+
+**Regime:** Refine (human-driven).
+
+**Scope:** Create the Android Studio project, wire existing Kotlin game logic modules as a dependency, configure Gradle for Android, set up a minimal `Activity` + `SurfaceView`, package SDLPoP `data/` directory as Android assets.
+
+**Why Refine:** Architecture decisions (min SDK, SurfaceView vs GLSurfaceView, project structure, asset packaging strategy) are taste-dependent. Build must compile and launch on emulator — visual verification required.
+
+**Human work:**
+- Create Android project in Android Studio, configure SDK/Gradle
+- Choose rendering surface (recommended: `SurfaceView` + `Canvas` for 320×200 tile-based 2D)
+- Wire existing `com.sdlpop.game` and `com.sdlpop.replay` packages
+- Package `SDLPoP/data/` as Android assets
+- Verify blank Activity launches on emulator
+
+**Acceptance:** Android project builds and deploys to emulator. Existing Kotlin game logic compiles as part of the Android app. No rendering yet — just project structure.
+
+#### Phase 16b: Asset loading pipeline — PENDING
+
+**Regime:** Build (autonomous) with human visual verification at end.
+
+**Scope:** Port the DAT file decompression and image decode chain from seg009.c to Kotlin. Replace `SDL_Surface` output with Android `Bitmap` (ARGB_8888). Replace `fopen` DAT/PNG loading with Android `AssetManager`.
+
+**Functions to translate (autonomous — pure C, zero SDL):**
+- `decompress_rle_lr` — RLE decompressor, left-to-right scan
+- `decompress_rle_ud` — RLE decompressor, top-to-bottom scan
+- `decompress_lzg_lr` — LZG (LZ77-variant) decompressor, left-to-right
+- `decompress_lzg_ud` — LZG decompressor, column-major
+- `decompr_img` — dispatcher: routes to correct decompressor by `cmeth` flag
+- `conv_to_8bpp` — expands packed pixels (1/2/4bpp) to 1-byte-per-pixel
+- `calc_stride` — bytes per row calculation
+
+**Functions to translate (Refine — SDL→Android bridge):**
+- `decode_image` — keep decompression; replace `SDL_CreateRGBSurface` + `SDL_SetPaletteColors` with `Bitmap.createBitmap()` (ARGB_8888) and manual palette application (VGA 6-bit → 8-bit via `<< 2`, color 0 transparent)
+- `load_image` — DAT path uses portable decompressor; PNG path replaces `IMG_Load_RW()` with `BitmapFactory.decodeStream()` via `AssetManager`
+- `open_dat` / `load_from_opendats_alloc` / `load_from_opendats_to_area` / `load_from_opendats_metadata` — replace `fopen`/`fread` with `AssetManager.open()`
+
+**Test oracle:** Decode known sprites, verify pixel dimensions match `SpriteDimensions.kt` hardcoded values. For decompressors: round-trip or golden-output tests against known DAT resource bytes.
+
+**Human work:** Visually verify decoded sprites look correct (palette, transparency, orientation). ~1 session.
+
+**Acceptance:** `chtab_addrs[2]` (KID, 219 sprites) and `chtab_addrs[5]` (GUARD, 34 sprites) load from DAT/PNG assets with correct dimensions. Unit tests pass for all decompressors.
+
+#### Phase 16c: Render table pure logic (seg008 state functions) — PENDING
+
+**Regime:** Build (autonomous).
+
+**Scope:** Translate the 30 pure-state functions from seg008.c. Zero SDL calls. Pure array/struct manipulation identical in character to Modules 8–12.
+
+**Functions (grouped by subsystem):**
+
+Room/tile loading:
+- `load_room_links` (already done as `loadRoomAddress` — verify/extend)
+- `load_leftroom`, `load_rowbelow`, `load_curr_and_left_tile`
+
+Tile resolution:
+- `get_tile_to_draw` — 104 lines of branching logic for fake tiles, button states, loose floors
+- `can_see_bottomleft` — single tile-type comparison
+- `get_spike_frame`, `get_loose_frame` — modifier-to-frame converters
+- `calc_gate_pos` — gate geometry arithmetic
+
+Object table management:
+- `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`
+- `load_obj_from_objtable`, `mark_obj_tile_redraw`
+- `sort_curr_objs`, `compare_curr_objs` — object draw-order sort
+- `load_frame_to_obj` — computes object position from frame data
+
+Tile preprocessing:
+- `alter_mods_allrm` — iterates all rooms preprocessing tile modifiers
+- `load_alter_mod` — 143-line per-tile modifier logic (gates, loose, potions, walls, torches)
+
+Geometry:
+- `calc_screen_x_coord` — `x * 320 / 280` (fix existing identity stub)
+- `add_drect` — dirty-rect intersection/union tracking
+
+Orchestrators:
+- `draw_room`, `draw_tile`, `draw_tile_aboveroom`
+- `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`
+- `draw_moving`
+
+**Test oracle:** Unit tests comparing computed render tables and object tables against expected values for known room layouts. Same pattern as Modules 8–12.
+
+**Human work:** None during translation. Review at phase boundary.
+
+**Acceptance:** All 30 functions translated. Existing game logic tests still pass. New unit tests cover tile resolution, object table population, and modifier preprocessing.
+
+#### Phase 16d: Render table submission (seg008 mixed functions) — PENDING
+
+**Regime:** Build (autonomous).
+
+**Scope:** Translate the 31 functions that compute render commands and append to `backtable[]`/`foretable[]`/`midtable[]`/`wipetable[]`. These functions don't draw pixels — they populate render queues consumed downstream by Phase 16e.
+
+**Functions (grouped by subsystem):**
+
+Tile rendering submissions:
+- `draw_tile_floorright`, `draw_tile_topright`, `draw_tile_anim_topright`
+- `draw_tile_right`, `draw_tile_anim_right`
+- `draw_tile_bottom`, `draw_tile_base`
+- `draw_tile_anim`, `draw_tile_fore`
+- `draw_loose`, `draw_tile2`, `draw_tile_wipe`
+
+Table append helpers:
+- `add_backtable`, `add_foretable`, `add_midtable`, `add_wipetable`
+
+Structures:
+- `draw_gate_back`, `draw_gate_fore`, `draw_leveldoor`
+- `draw_floor_overlay`, `draw_other_overlay`
+
+Characters/objects:
+- `draw_people`, `draw_kid`, `draw_guard`
+- `draw_objtable_items_at_tile`, `draw_objtable_item`
+
+Wall generation:
+- `wall_pattern` — 111-line PRNG-deterministic wall stone algorithm
+- `draw_left_mark`, `draw_right_mark` — brick decal placement
+
+Timer/text:
+- `show_time` — 84-line timer countdown + text string building
+- `show_level` — level number formatting
+
+**Test oracle:** Unit tests verifying render table entries (sprite id, position, blitter mode) for known tile configurations.
+
+**Human work:** None during translation. Review at phase boundary.
+
+**Acceptance:** All 31 functions translated. Render tables populate correctly for test room configurations. Existing tests still pass.
+
+#### Phase 16e: Android rendering backend — PENDING
+
+**Regime:** Refine (human-driven).
+
+**Scope:** Replace the SDL draw pipeline with Android `Canvas` drawing. This is the core visual implementation phase.
+
+**Functions to replace (11 SDL rendering functions → Android Canvas):**
+- `draw_tables` → iterate `backtable[]`/`midtable[]`/`foretable[]`, draw `Bitmap` sprites via `Canvas.drawBitmap()`
+- `draw_back_fore` → resolve sprite from chtab, draw to Canvas
+- `draw_mid` → horizontal flip via `Matrix.preScale(-1, 1)`, clip rect, peel save, draw
+- `draw_image` → dispatcher to appropriate Canvas draw call
+- `hflip` → `Matrix` transform or pre-flipped Bitmap cache
+- `draw_wipe` / `draw_wipes` → `Canvas.drawRect()` with `Paint`
+- `restore_peels` / `add_peel` / `free_peels` → `Canvas.save()`/`Canvas.restore()` or manual Bitmap snapshots
+- `display_text_bottom` / `erase_bottom_text` → `Canvas.drawText()` with `Paint`
+
+**Lighting (3 functions):**
+- `init_lighting` → load `light.png` via `BitmapFactory`, create overlay Bitmap
+- `redraw_lighting` → fill overlay with ambient color, stamp light mask at torch positions
+- `update_lighting` → composite overlay onto frame buffer with `PorterDuff.Mode.MULTIPLY`
+
+**Screen present pipeline:**
+- `SurfaceView.surfaceCreated` → get `Canvas` from `SurfaceHolder`
+- Per frame: lock Canvas → draw 320×200 offscreen buffer scaled to screen → unlock and post
+- Frame pacing: `Choreographer` callback or `Thread.sleep` targeting 60fps
+
+**Why Refine:** No replay oracle for rendering correctness. Visual output requires human eyes. Layer ordering, transparency, clipping, palette correctness — all need visual inspection.
+
+**Human work:**
+1. Implement `Canvas`-based `draw_tables` flush loop
+2. Wire frame loop: game tick → render table population (Phase 16c/d) → Canvas flush → present
+3. Debug layer ordering, transparency, clipping issues visually
+4. Verify: level 1 room 1 renders correctly on emulator
+5. Iterate on visual issues until rooms look right
+
+**Acceptance:** Level 1 renders visually correct on Android emulator. Tiles, sprites, gates, potions, torches, and wall patterns are recognizable and correctly layered. Timer text displays. Guard and Kid sprites render in correct positions with correct frames.
+
+#### Phase 16f: Real sprites → replay regression — PENDING
+
+**Regime:** Build (autonomous) with human verification.
+
+**Scope:** Replace `SpriteDimensions.kt` hardcoded lookup table with real image dimensions from the Phase 16b asset pipeline. Wire `ExternalStubs.getImage()` to return actual loaded `Bitmap` dimensions. Re-run 13-trace replay regression to check for improvements.
+
+**Expected impact:** Loading real sprite images (including sword-overlay sprites in additional chtabs) may resolve the 2 grab-detection divergences (`grab_bug_pr288` f17, `grab_bug_pr289` f16) where `checkGrab()` fails to detect ledges, possibly due to missing sword-overlay sprite dimensions in the hardcoded table.
+
+**Human work:** Run replay regression, verify match count. Triage any new divergences.
+
+**Acceptance:** `SpriteDimensions.kt` hardcoded table replaced. `ExternalStubs.getImage()` returns dimensions from loaded assets. Replay regression re-run with results documented. Target: ≥8/13 (no regressions), ideally 10/13 if grab bugs resolve.
+
+---
+
+**Module 16 summary:**
+
+| Phase | Scope | Regime | Human Assistance | Est. Effort |
+|-------|-------|--------|-----------------|-------------|
+| 16a | Android project scaffold | Refine | Create project, configure SDK, verify build | Half day |
+| 16b | Asset loading pipeline | Build + human check | Visually verify decoded sprites | 2–3 iters + 1 session |
+| 16c | Render table pure logic (30 fn) | Build | Review at boundary | 3–4 iters |
+| 16d | Render table submission (31 fn) | Build | Review at boundary | 3–4 iters |
+| 16e | Android rendering backend | Refine | Core visual debugging | 2–3 sessions |
+| 16f | Real sprites → replay regression | Build + human check | Run regression, verify | 1 iter + 1 verify |
+
+**Build/Refine boundary:** Render tables (`backtable[]`, `midtable[]`, `foretable[]`, `wipetable[]`, `objtable[]`) are the clean split. Everything producing table entries is Build. Everything consuming them to put pixels on screen is Refine.
