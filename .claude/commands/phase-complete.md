@@ -12,5 +12,12 @@ Execute the phase completion protocol:
 5. DEVPLAN cleanup — reduce completed phase to a one-line summary with DEVLOG reference. Deduplicate between DEVPLAN and DEVLOG, keeping DEVPLAN minimal.
 6. Update the current module's Status in ARCHITECTURE.md's Implementation Sequence table. Format: "Phase N complete" after each phase, or "Complete" if this was the module's final phase.
 7. Commit all documentation updates.
+8. Verify all documents were updated before committing:
+   - [ ] DEVPLAN: completed phase reduced to one-line summary with DEVLOG reference
+   - [ ] DEVLOG: phase completion entry added
+   - [ ] ARCHITECTURE.md: Implementation Sequence table status updated
+   - [ ] DECISIONS.md: any Open decisions resolved by this phase → Closed
+   - [ ] PROJECT.md: any Open risks resolved by this phase → Closed
+   If any item was skipped, fix it before committing.
 
 Under autonomous execution: exit with ESCALATE after phase completion. Human audits before next phase begins.
