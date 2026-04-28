@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-04-28 — Step 16b.1: Asset codec contract and golden fixtures
+
+**Mode:** Code | **Outcome:** Complete — JVM asset metadata contract and golden fixtures added
+**Contract changes:** `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/assets/` — new Android-independent asset metadata boundary for DAT archives, sprite palette resources, image-data headers, PNG metadata, and VGA palette color conversion.
+
+Audited the relevant `seg009.c` asset path (`load_sprites_from_file`, DAT table lookup, `image_data_type`, `dat_pal_type`, `decode_image`, and decompressor dispatch) and added a pure Kotlin `com.sdlpop.assets` package that keeps byte parsing and metadata separate from later Android `Bitmap` creation. The contract models DAT resource locations, DAT archive tables, packed image headers (`height`, `width`, `flags`, depth, compression method, stride), sprite palette resources, 6-bit VGA palette entries, and PNG IHDR metadata.
+
+Added golden fixture tests against the packaged Android assets under `app/src/main/assets`: KID palette `res400.pal` verifies 219 images and VGA palette parsing, KID/GUARD/VDUNGEON PNG fixtures verify dimensions and indexed-color metadata, and `GUARD.DAT` verifies DAT table parsing plus compressed image header metadata for resource 751. These tests establish the byte-level oracle that Step 16b.2 can use when translating decompression and pixel expansion.
+
+Verification: attempted `gradle test --tests 'com.sdlpop.assets.AssetParsersTest'` from `SDLPoP-kotlin/`, but Gradle failed during project configuration because `SDLPoP-kotlin/build.gradle.kts` now requests a JDK 21 toolchain and this container only has OpenJDK 17. No test code executed.
+
 ### 2026-04-28 — Phase 16a: Android project scaffold
 
 **Mode:** Code (human-driven) | **Outcome:** Complete — Android app builds and deploys, game logic module linked

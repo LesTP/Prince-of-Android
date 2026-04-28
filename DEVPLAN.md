@@ -22,6 +22,7 @@
 - **C struct sizes:** Always verify struct byte sizes against `typedef` definitions in `types.h`/`data.h`. Don't trust field counts — check each type (`byte`=1, `word`=2, `dword`=4, `short`=2). `char_type` is 16 bytes (not 17), `start_level` is `word` (2 bytes, not 4).
 - **Gradle 9.x JUnit:** Add `testRuntimeOnly("org.junit.platform:junit-platform-launcher")` to `build.gradle.kts` or test executor fails to start with "Failed to load JUnit Platform."
 - **Gradle native services on this container:** Fresh `gradle` runs currently fail before task execution with `Failed to load native library 'libnative-platform.so' for Linux aarch64`. Existing test artifacts remain reviewable, but new Gradle verification is blocked until the environment is repaired or a working Gradle distribution is provided.
+- **JDK 21 toolchain required after Phase 16a:** `SDLPoP-kotlin/build.gradle.kts` now requests JVM toolchain 21 for root multi-module/Android compatibility. This container currently has OpenJDK 17 only, so fresh Gradle verification fails during project configuration with "Cannot find a Java installation ... languageVersion=21" until JDK 21 is installed or toolchain download is configured.
 - **SDLPoP replay invocation (Linux):** Run from `/tmp/sdlpop/` (binary copied there for execute permission). Use `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345`. Output: `state_trace.bin`.
 - **SDL headless mode:** Pi has no display. Use `SDL_VIDEODRIVER=offscreen` (not `dummy` — dummy hangs). Requires `xvfb` package installed but `offscreen` driver doesn't need it.
 - **NTFS execute permissions:** USB drive is NTFS — `chmod +x` is silently ignored. Workaround: copy binaries to `/tmp/sdlpop/` with symlinks to data/replays/doc/SDLPoP.ini.
@@ -45,7 +46,7 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16b — Asset loading pipeline — **IN PROGRESS**
-**Next:** Step 16b.1 (Asset codec contract and golden fixtures)
+**Next:** Step 16b.2 (Pure decompression and pixel expansion)
 
 **Replay regression:** 8/13 MATCH, 573 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -181,7 +182,7 @@ One-line: Multi-module Gradle project with Android `app` module (SDK 24–34, `G
 **Human work:** Visually verify decoded sprites look correct (palette, transparency, orientation). ~1 session.
 
 **Steps:**
-- **16b.1** Asset codec contract and golden fixtures — PENDING: Audit the relevant `seg009.c` structs/functions, define Kotlin asset model boundaries that keep pure decompression independent from Android `Bitmap` output, and add small golden fixture tests from packaged KID/GUARD/tileset resources for dimensions, palette parsing, and compressed-byte metadata.
+- **16b.1** Asset codec contract and golden fixtures — COMPLETE: Audited the relevant `seg009.c` structs/functions, added an Android-independent `com.sdlpop.assets` metadata boundary for DAT tables, palette resources, image headers, PNG metadata, and 6-bit VGA colors, and added golden fixture tests from packaged KID/GUARD/VDUNGEON resources for dimensions, palette parsing, and compressed-byte metadata. Verification is blocked locally because Gradle now requires JDK 21 and the container has OpenJDK 17.
 - **16b.2** Pure decompression and pixel expansion — PENDING: Translate `decompress_rle_lr`, `decompress_rle_ud`, `decompress_lzg_lr`, `decompress_lzg_ud`, `decompr_img`, `calc_stride`, and `conv_to_8bpp` into JVM-testable Kotlin with focused golden-output tests and C-equivalent unsigned byte handling.
 - **16b.3** DAT and PNG resource loading — PENDING: Implement Android/JVM asset-source abstractions for `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and PNG resource fallback using the packaged `app/src/main/assets` layout, with tests proving KID/GUARD resources are discoverable without SDL or filesystem-specific assumptions.
 - **16b.4** Bitmap decode and sprite catalog integration — PENDING: Implement `decode_image` palette-to-ARGB conversion and `load_image`/chtab catalog loading, then verify chtab 2 KID and chtab 5 GUARD image dimensions match `SpriteDimensions.kt`; document the human visual verification handoff for palette, transparency, and orientation.
