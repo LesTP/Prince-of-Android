@@ -16,7 +16,7 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 application {
@@ -29,8 +29,8 @@ tasks.test {
         excludeTags("layer1-regression")
     }
     forkEvery = 1
-    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("../SDLPoP/traces/reference").absolutePath)
-    systemProperty("sdlpop.replayRoot", rootProject.file("../SDLPoP").absolutePath)
+    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("SDLPoP/traces/reference").absolutePath)
+    systemProperty("sdlpop.replayRoot", rootProject.file("SDLPoP").absolutePath)
     systemProperty("sdlpop.kotlinTraceOutput", layout.buildDirectory.dir("oracle/layer1-regression/test").get().asFile.absolutePath)
 }
 
@@ -42,8 +42,8 @@ tasks.register<Test>("layer1ReplayRegression") {
     useJUnitPlatform {
         includeTags("layer1-regression")
     }
-    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("../SDLPoP/traces/reference").absolutePath)
-    systemProperty("sdlpop.replayRoot", rootProject.file("../SDLPoP").absolutePath)
+    systemProperty("sdlpop.referenceTraceRoot", rootProject.file("SDLPoP/traces/reference").absolutePath)
+    systemProperty("sdlpop.replayRoot", rootProject.file("SDLPoP").absolutePath)
     systemProperty("sdlpop.kotlinTraceOutput", layout.buildDirectory.dir("oracle/layer1-regression/workflow").get().asFile.absolutePath)
     shouldRunAfter(tasks.test)
 }

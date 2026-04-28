@@ -1,3 +1,18 @@
 .idea/
 autonomous_loop_analysis.md
 logs/
+
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android
+app/build/
+*.apk
+*.aab
+
+# IDE
+*.iml
+.idea/
+.DS_Store
