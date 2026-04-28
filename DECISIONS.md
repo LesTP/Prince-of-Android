@@ -8,14 +8,14 @@ Rationale: The 8 matching traces validate the game logic translation across move
 Revisit if: Module 16 sprite loading does not resolve the grab detection divergences, or if the `demo_suave_prince_level11` control dispatch bug indicates a Layer 1 translation error rather than a demo-level lifecycle issue.
 
 D-15: Phase 14b escalation boundary
-Date: 2026-04-15 | Status: Open
+Date: 2026-04-15 | Status: Closed (resolved by Module 15)
 Priority: Important
 Decision: Escalate Phase 14b after the two allowed targeted replay fixes instead of translating additional `seg003` behavior or applying a third divergence fix inside Module 14.
 Rationale: Step 14b.3 improved the real trace workflow by resetting singleton state between manifest replays and adding replay-only current-room buffer preservation, but `layer1ReplayRegression` still fails. The clearest hard blocker is `original_level5_shadow_into_wall`, where frames 0-47 match and frame 48 enters `ExternalStubs.doPickup`, an unimplemented `seg003`/Layer 2 path. Additional failures remain in RNG, Kid animation, tile mutation, and guard HP fields. Continuing would expand Module 14 beyond replay plumbing and the pinned non-rendering shim into broader Module 15 game-loop/seg003 behavior.
 Revisit if: Human/orchestrator authorizes continuing Module 14 past the two-fix limit, or if Module 15 explicitly absorbs the remaining `seg003` lifecycle and pickup boundary.
 
 D-14: Phase 14b headless lifecycle boundary
-Date: 2026-04-15 | Status: Open
+Date: 2026-04-15 | Status: Closed (resolved by Module 15)
 Priority: Important
 Decision: Implement only the deterministic, non-rendering frame lifecycle needed for replay trace equivalence in Phase 14b: C-equivalent trace timing after `show_time()`, timer state updates, and the missing `seg000`/`seg003` frame calls that mutate game state before the trace snapshot.
 Rationale: Step 14b.1 found that the C reference writes `state_trace.bin` from `seg000.c::play_frame()` after `show_time()` runs, while the Kotlin runner currently serializes immediately after the narrower Layer 1 frame driver. This accounts for the systematic frame 0 `rem_tick` mismatch. The two guard-frame first divergences also sit in the gap between the current driver and C's non-rendering frame sequence: `check_can_guard_see_kid`, `bump_into_opponent`, `check_knock`, `check_sword_vs_sword`, `do_delta_hp`, `check_the_end`, and the narrower `saveshad()` guard save path.
@@ -31,7 +31,7 @@ Bypass: Human/orchestrator authorization on 2026-04-15 accepted the escalation a
 Revisit if: Phase 14b expands beyond the minimal lifecycle slice, or if the remaining divergence needs reassignment to Module 15.
 
 D-1: External dependency handling for seg006
-Date: 2026-04-04 | Status: Open
+Date: 2026-04-04 | Status: Closed (all stubs wired by Module 15)
 Priority: Important
 Decision: Use stub functions (throwing NotImplementedError) for cross-segment calls from seg006. Functions from seg000, seg002, seg003, seg005, seg007, seg008, and replay.c that seg006 calls will be defined as callable references in a stubs file. As each module is translated (Modules 9-12), stubs are replaced with real implementations.
 Rationale: seg006 cannot compile or be tested without these ~30 external function references. Interfaces add unnecessary abstraction for code that will be replaced module-by-module. Simple stubs keep the translation mechanical and close to the C structure.
@@ -52,7 +52,7 @@ Rationale: Review compared the translated Kotlin against `SDLPoP/src/seg002.c` a
 Revisit if: A fresh Gradle test run in this environment still fails with `Failed to load native library 'libnative-platform.so' for Linux aarch64`, or Module 13 replay integration exposes a behavioral divergence in these paths.
 
 D-4: Phase 12a boundary for Module 12 seg007
-Date: 2026-04-10 | Status: Open
+Date: 2026-04-10 | Status: Closed
 Priority: Important
 Decision: Start Module 12 with a phase centered on trob bookkeeping, redraw helpers, and the trap/button entry points already referenced by translated modules (`start_anim_spike`, `trigger_button`, `make_loose_fall`, `start_chompers`, `is_spike_harmful`). Defer loose-floor mob simulation and object-table/drawing code to later phases.
 Rationale: `seg007.c` mixes three concerns: animated tile state machines, trigger/gate plumbing, and falling-object simulation. Front-loading the shared trob pipeline and seg006-facing trap hooks reduces active `ExternalStubs` early and creates a tighter first validation slice. The deferred mob code touches room transitions, object tables, and rendering-oriented redraw paths, which is a broader surface better handled after the tile/trigger core is in place.
@@ -66,7 +66,7 @@ Rationale: Review compared the translated Kotlin slice against `SDLPoP/src/seg00
 Revisit if: Later seg007 loose-floor/mob phases or Module 13 replay integration expose a behavioral divergence in the Phase 12a paths.
 
 D-6: Phase 12b boundary for Module 12 seg007
-Date: 2026-04-15 | Status: Open
+Date: 2026-04-15 | Status: Closed
 Priority: Important
 Decision: Finish Module 12 with a Build-regime phase centered on the deferred loose-floor and falling-object subsystem. Split the work into loose-floor fall initiation, mob physics/collision, and draw/object-table bookkeeping. Leave the unused SDL-only `sub_9A8E` helper unported unless a live reference appears.
 Rationale: The remaining `seg007.c` functions form one coupled subsystem around loose floor removal, falling mob state, Kid collision, redraw bookkeeping, and object-table writes. Keeping this as one phase avoids an artificial module split, while the three-step breakdown keeps each iteration testable and keeps rendering-adjacent object-table writes behind the core simulation behavior.
@@ -87,7 +87,7 @@ Rationale: Module 12 has completed both planned phases, both reviews found no mu
 Revisit if: Module 13 phase planning finds a missing Layer 1 contract dependency that should have been completed in Module 12.
 
 D-9: Phase 13a boundary for Layer 1 replay regression harness
-Date: 2026-04-15 | Status: Open
+Date: 2026-04-15 | Status: Closed
 Priority: Important
 Decision: Start Module 13 with one Build-regime phase that establishes the Kotlin trace oracle foundation, writes 310-byte `GameState` snapshots, and wires the 13-reference-trace regression workflow. Keep full replay playback/game-loop translation outside this phase except for documenting the Module 14 boundary.
 Rationale: The translated Layer 1 files now compile and have focused unit tests, but replay-level validation needs a deterministic harness before game-loop work begins. Splitting trace comparison, snapshot serialization, and regression orchestration into three steps creates testable progress without expanding scope into Layer 2 or Android platform behavior.
@@ -108,7 +108,7 @@ Rationale: The review outcome is closed, the one should-fix was applied, and the
 Revisit if: Module 14 replay playback discovers that the Phase 13a harness contract must change before real Kotlin trace production can replace the copy producer.
 
 D-12: Phase 14a boundary for Kotlin replay runner
-Date: 2026-04-15 | Status: Open
+Date: 2026-04-15 | Status: Closed
 Priority: Important
 Decision: Start Module 14 with one Build-regime phase that replaces the Phase 13a copy producer with real Kotlin trace generation from `.P1R` replay inputs. Keep the implementation narrowly scoped to replay manifest resolution, replay state initialization, replay move consumption, a minimal deterministic Layer 1 frame driver, and `StateTraceFormat` output.
 Rationale: The Module 13 harness already proves trace comparison and artifact workflow. Module 14 should now supply real Kotlin traces without prematurely translating all of Layer 2 or introducing platform/render/audio behavior. A four-step plan keeps replay file plumbing, input decoding, frame orchestration, and workflow replacement independently testable.

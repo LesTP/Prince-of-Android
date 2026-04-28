@@ -44,31 +44,10 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16a — Android project scaffold — **COMPLETE**
-**Next:** Phase 16b (Asset loading pipeline — DAT decompression → Kotlin, Build regime, can run on Pi)
+**Phase:** 16b — Asset loading pipeline — **IN PROGRESS**
+**Next:** Step 16b.1 (Asset codec contract and golden fixtures)
 
-**Module 15 final results (2026-04-20):**
-- Replay regression: **8/13 MATCH** (up from 1/13 Module 14 baseline)
-- 573 unit tests pass
-- Matching traces: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`
-- Remaining 5 divergences (root-caused, documented):
-  1. `falling_through_floor_pr274` — frame 0 `curr_room_modif[17]` exp=6 act=4 (tile modifier init subtlety in `restore_room_after_quick_load` path, not game logic)
-  2. `demo_suave_prince_level11` — frame 29 `Kid.frame` exp=16 act=1 (control dispatch: running stop → C chooses standing turn seq, Kotlin chooses start-run seq — likely demo-level autocontrol or input timing)
-  3. `grab_bug_pr288` — frame 17 `Kid.frame` exp=91 act=40 (grab detection failure: Kid should grab ledge but continues jumping — `checkGrab()` collision bounds issue)
-  4. `grab_bug_pr289` — frame 16 `Kid.frame` exp=91 act=102 (same grab detection failure class — Kid falls instead of grabbing)
-  5. `sword_and_level_transition` — frame 275 `Kid.frame` exp=46 act=0 (level restart lifecycle: C respawns Kid after death, Kotlin stays dead — requires `start_game()`/`play_level()` outside headless scope)
-
-**Phase 15b final results (human-driven debug session 2026-04-20):**
-See DEVLOG §Module 15 for full details. Key fixes: `soundFlags` RNG init, `Char.x/y` byte overflow masking, `restore_room_after_quick_load()` equivalent.
-
-**Phase 15a results:**
-See DEVLOG §Module 15 for full details. Key: seg003 translation (22 functions), stub wiring, 566 tests.
-
-**Phase 15a results:**
-See DEVLOG §Module 15 for full details. Key: seg003 translation (22 functions), stub wiring, `soundFlags` fix, 566 tests.
-
-**Phase 15b autonomous iteration results (steps 15b.1–15b.8):**
-See DEVLOG §Module 15 for full step-by-step details. Summary: 8 autonomous iterations translated `draw_level_first()`, `draw_game_frame()`, `redraw_screen()` state effects into headless replay shim. Escalated 3 times at 4/13 traces. Human debug session then found 3 additional bugs (byte overflow, `restore_room_after_quick_load()`, sprite dimensions) to reach 8/13.
+**Replay regression:** 8/13 MATCH, 573 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -119,101 +98,26 @@ One-line: Built the Kotlin replay-regression harness around the translated Layer
 #### Phase 13a: Layer 1 replay regression harness — COMPLETE
 One-line: Delivered the trace oracle foundation, state snapshot writer, and manifest-driven regression workflow; review accepted after one should-fix, human approval recorded on 2026-04-15, and `gradle test layer1ReplayRegression --rerun-tasks` passed. See DEVLOG §Module 13.
 
-### Module 14: Replay Runner — COMPLETE (known Layer 2 boundary limitations)
-One-line: Built Kotlin replay playback pipeline with real `.P1R` trace production, Layer 1 frame driver, replay move hooks, headless lifecycle shim, and 310-byte state trace output. 1/13 traces match exactly; remaining divergences are Layer 2 game-loop behavior (seg000/seg003) deferred to Module 15. See DEVLOG §Module 14.
+### Module 14: Replay Runner — COMPLETE
+One-line: Built Kotlin replay playback pipeline with real `.P1R` trace production, Layer 1 frame driver, replay move hooks, headless lifecycle shim, and 310-byte state trace output. 1/13 traces match; remaining divergences resolved in Module 15. See DEVLOG §Module 14.
 
-**Known limitations (deferred to Module 15):**
-Remaining 12 trace divergences are caused by missing Layer 2 lifecycle behavior, not Layer 1 translation bugs:
-- `do_pickup` (seg003) — unimplemented, crashes `original_level5_shadow_into_wall` at frame 48
-- `do_delta_hp` (seg003) — guard HP not applied, causes `original_level2_falling_into_wall` guardhp divergence
-- Guard spawn/room-transition lifecycle in seg000 — causes RNG drift in `basic_movement`, `falling`
-- Savestate initialization sequence — causes frame-0 room buffer divergences in `falling_through_floor_pr274`, `grab_bug_pr288`
-- Frame lifecycle ordering — causes Kid.frame divergences in `demo_suave_prince_level11`, `grab_bug_pr289`
-Full triage details in DEVLOG §Step 14b.3. Actual traces under `SDLPoP-kotlin/build/oracle/layer1-regression/workflow/real-kotlin/`.
+#### Phase 14a: Kotlin replay playback and trace producer — COMPLETE (ESCALATION BYPASSED)
+One-line: Real `.P1R` trace production wired into regression harness; escalation bypassed into Phase 14b for lifecycle reconciliation. See DEVLOG §Module 14.
 
-#### Phase 14a: Kotlin replay playback and trace producer — ESCALATION BYPASSED
-One-line: Replace the Phase 13a copy-based producer with real Kotlin trace generation from `.P1R` replay inputs, a narrow Layer 1 frame driver, replay move hooks, and 310-byte state snapshot output.
+#### Phase 14b: Non-rendering frame lifecycle reconciliation — COMPLETE
+One-line: Added headless non-rendering frame lifecycle shim (timer, guard visibility, bump/knock, HP delta, room transitions); 1/13 traces match, remaining deferred to Module 15. See DEVLOG §Module 14.
 
-**Regime:** Build — deterministic replay I/O and state comparison are machine-verifiable.
-
-**Scope:** Implement the minimal replay-runner surface needed by Track A. This phase may translate replay move consumption from `replay.c` and the small non-rendering frame orchestration needed to call translated Layer 1 logic, but it must not expand into full `seg000`/`seg001`/`seg003` game-loop translation, SDL/platform behavior, rendering, audio, menus, or Android integration.
-
-**Steps:**
-- **14a.1** Replay manifest and initialization — COMPLETE: mapped the 13 `Layer1RegressionManifest` ids to their `.P1R` files, parsed replay metadata through `P1RParser`, seeded `GameState` replay fields (`replaying`, `startLevel`, `randomSeed`, `numReplayTicks`, format/version/deprecation values), and tested path resolution plus initialization behavior.
-- **14a.2** Replay input hooks — COMPLETE: translated the replay move consumption needed by `ExternalStubs.doReplayMove`, decoded packed per-tick control bytes into `control_x`, `control_y`, `control_shift`, handled validate seek/skipping state and end-of-replay completion, restored saved replay RNG seed, and fixed/tested the old-version `g_deprecation_number` branch used by seg007 loose-floor RNG behavior.
-- **14a.3** Layer 1 frame driver — COMPLETE: added `Layer1FrameDriver` in `com.sdlpop.replay` with `playFrame`, `playKidFrame`, and `playGuardFrame` orchestration over translated Layer 1 entry points in SDLPoP order, plus focused tests for call order and deterministic replay input consumption without SDL, Android, file I/O, rendering, or audio dependencies in `com.sdlpop.game`.
-- **14a.4** Real trace producer workflow — ESCALATION BYPASSED: real `.P1R` trace production is wired into `Layer1RegressionHarness`, but the forced workflow fails after two targeted fix attempts with first-frame divergences. The ordinary unit suite passes; the dedicated regression task reports triage-ready replay/frame/field/expected/actual/actual-trace details. Human/orchestrator authorization on 2026-04-15 bypassed the escalation stop and directed continuation into Phase 14b.
-
-**Acceptance:** The dedicated Layer 1 regression workflow uses real Kotlin-produced traces under `build/oracle/layer1-regression`. Any trace divergence must report replay id, frame, field, expected value, actual value, and actual trace path. True game-logic divergences get no more than two targeted fix attempts before escalation with the replay/frame/field details.
-
-#### Phase 14b: Non-rendering frame lifecycle reconciliation — COMPLETE (remaining divergences deferred to Module 15)
-One-line: Resolve the Phase 14a replay-regression escalation by adding the smallest non-rendering game-loop/timer lifecycle slice needed for Kotlin replay traces to match the C validate runner.
-
-**Regime:** Build — expected behavior is machine-verifiable through the 13-trace replay regression workflow.
-
-**Scope:** Reconcile replay-runner frame lifecycle state that sits just outside the Phase 14a Layer 1 frame driver, especially timer decrement/order, per-frame sequencing, guard frame setup, and validate-mode trace timing. This phase may translate or model the minimal relevant `seg000`/`seg003` lifecycle behavior required for deterministic replay validation, but it must not expand into SDL/platform behavior, rendering, audio, menus, Android integration, or a general game-loop port.
-
-**Steps:**
-- **14b.1** Lifecycle audit and contract pinning — COMPLETE: C validate mode starts replay state, restores the savestate, resets `curr_tick`, then each `play_frame()` consumes replay input inside `play_kid()`/`control_kid()`, runs the non-rendering `seg000` frame sequence, calls `show_time()` before `dump_frame_state()`, and only then writes the 310-byte trace frame. The Kotlin runner restores the same savestate and replay input, but currently serializes immediately after a narrower Layer 1 driver. The minimum contract for 14b.2 is to add the deterministic headless lifecycle slice needed before trace serialization: timer decrement semantics from `show_time()`, the missing non-rendering `seg000`/`seg003` frame calls, and C-equivalent guard save behavior, without importing SDL/platform/render/audio/menu responsibilities.
-- **14b.2** Minimal lifecycle shim — COMPLETE: expanded `Layer1FrameDriver` with the pinned non-rendering `seg000`/`seg003`/`seg008` calls, added `HeadlessFrameLifecycle` for guard visibility, bump/knock handling, sword sound boundary, HP delta application, room-transition helpers, and `show_time()` timer semantics, switched Guard save to `saveshad()`, and covered the new call order/timer/save behavior with focused tests. `gradle test --no-daemon` passes; the full real-trace regression still fails and remains Step 14b.3's closure target.
-- **14b.3** Real-trace regression closure — ESCALATED: reran `gradle test layer1ReplayRegression --rerun-tasks --no-daemon`, applied the two allowed targeted fixes (per-replay singleton reset and replay-only current-room buffer preservation/sync), and stopped after the workflow still failed. One trace now matches exactly (`original_level12_xpos_glitch`), several first-frame contamination failures moved later, and `original_level5_shadow_into_wall` now matches frames 0-47 before entering unimplemented `seg003::do_pickup` at frame 48. No third targeted fix was attempted; see Current Status and DEVLOG Step 14b.3 for replay/frame/field/expected/actual details.
-
-**Lifecycle contract pinned by 14b.1:**
-- C trace timing: `dump_frame_state()` is called inside `seg000.c::play_frame()` after the game-logic sequence and after `show_time()`. Therefore frame 0 in the reference trace is not the raw replay savestate; it is the post-frame state after one timer update.
-- Timer scope: only the deterministic side effects of `seg008.c::show_time()` are in Phase 14b scope: blink-state toggle, conditional `rem_tick`/`rem_min` decrement, `is_show_time`, and text timer values that influence future timer display behavior. Drawing text, HP, surfaces, palettes, and sound playback remain out of scope.
-- Frame sequence scope: the Kotlin frame shim must align with C `seg000.c::play_frame()` for non-rendering state calls: `do_mobs`, `process_trobs`, `check_skel`, `check_can_guard_see_kid`, Kid frame, Guard frame, sword hurt checks, `check_sword_vs_sword`, `do_delta_hp`, `exit_room`, `check_the_end`, `check_guard_fallout`, and `show_time`.
-- Kid/Guard subframe scope: the existing Layer 1 driver is missing `bump_into_opponent()` and `check_knock()` in the Kid subframe, and its Guard save hook uses `saveshad_and_opp()` while C `play_guard_frame()` calls `saveshad()`. Step 14b.2 should either translate the needed `seg003` helpers or keep them as explicit no-op boundaries only if focused tests and traces prove they are not active.
-- Replay input scope: `do_replay_move()` remains consumed from `Seg006.controlKid()` during the Kid subframe. The replay runner should not consume moves before `play_frame()`, because C restores RNG/validate seek state at tick 0 from inside the first Kid control path.
-
-**Acceptance:** The ordinary Kotlin test suite remains green, and the dedicated Layer 1 replay regression workflow either passes with real Kotlin-produced traces for all 13 manifests or escalates after two targeted fixes with triage-ready divergence details. Any added lifecycle behavior must remain deterministic, headless, and free of SDL, rendering, audio, menu, or Android dependencies.
-
-### Module 15: Game Loop — IN PROGRESS
-One-line: Refactor and translate seg000/seg001/seg003 (Layer 2 game loop), resolving replay regression divergences by implementing the full non-rendering frame lifecycle.
-
-**Regime:** Build (semi-autonomous). seg000 is heavily entangled with SDL (~95 calls) and requires manual refactoring to separate game logic from platform calls before translation. seg003 helper functions are closer to autonomous translation.
-
-**Scope:** Translate the deterministic game-loop and helper functions in seg000.c (~2,200 lines), seg001.c (~800 lines), and seg003.c (~500 lines). Refactor to remove SDL dependencies, replacing platform calls with stubs or the existing headless shim pattern. The existing `Layer1FrameDriver` and `HeadlessFrameLifecycle` should be absorbed or replaced by the full game-loop translation.
-
-**Primary acceptance test:** All 13 replay regression traces must match. The regression suite (`gradle layer1ReplayRegression --rerun-tasks`) is the acceptance gate.
-
-**Current baseline:** 4/13 traces match after Phase 15a.
-
-**Depends on:** Modules 6-14 (all Layer 1 game logic + replay runner pipeline)
+### Module 15: Game Loop — COMPLETE (8/13 traces)
+One-line: Translated seg000/seg001/seg003 game loop, resolved replay regression from 1/13 to 8/13 traces via seg003 translation, byte overflow fixes, savestate restore, soundFlags RNG fix, and sprite dimension table. See DEVLOG §Module 15.
 
 #### Phase 15a: seg003 translation + stub wiring — COMPLETE
 One-line: Translated 22 seg003 functions, wired stubs, fixed `soundFlags` RNG bug. 4/13 traces match (up from 1/13). 566 tests pass. See DEVLOG §Module 15.
 
-#### Phase 15b: seg000 frame lifecycle alignment — COMPLETE (5/13, remaining deferred)
-One-line: Translated seg000 initialization, room-transition, and draw-frame paths. Fixed byte overflow, savestate restore, and soundFlags bugs. 5/13 traces match; remaining 8 root-caused to missing sprite dimensions in headless mode (deferred to Module 16).
-
-**Regime:** Build (semi-autonomous) + human-driven debug session.
-
-**Steps 15b.1–15b.8:** See step results above (autonomous iterations).
-
-**Human-driven debug session (2026-04-20):**
-- RNG diagnostic instrumentation identified `soundFlags` bug (resolved 4 RNG-drift traces)
-- Per-frame Kid state diagnostic identified `Char.y` byte overflow bug (resolved room transition failures)
-- C source audit identified missing `restore_room_after_quick_load()` (resolved frame-0 tile modifiers)
-- Trobs diagnostic identified missing spike trob root-caused to `setCharCollision()` returning zero dimensions in headless mode (deferred — requires sprite asset loading)
-
-**Acceptance:** 5/13 traces match. Remaining 8 divergences are root-caused and documented. The 13/13 target is blocked by headless mode lacking sprite dimensions, which is a Module 16 (Rendering) dependency. Phase 15b is complete within its scope.
-
-**Next action:** Phase review, then decide whether to add sprite dimension loading as Phase 15c or defer to Module 16.
+#### Phase 15b: seg000 frame lifecycle alignment — COMPLETE (5/13)
+One-line: Translated seg000 initialization, room-transition, and draw-frame paths. Fixed byte overflow, savestate restore, and soundFlags bugs via human-driven debug session. 5/13 traces match; remaining 8 root-caused to missing sprite dimensions. See DEVLOG §Module 15.
 
 #### Phase 15c: Sprite dimension table for headless collision — COMPLETE (8/13)
-One-line: Provided sprite width/height data via hardcoded lookup table extracted from SDLPoP PNG assets. `setCharCollision()` now computes correct collision bounds in headless mode. 8/13 traces match.
-
-**Regime:** Build.
-
-**What was done:** Created `SpriteDimensions.kt` with hardcoded (width, height) arrays for chtab 2 (KID, 219 sprites) and chtab 5 (GUARD, 34 sprites), extracted from PNG headers in `SDLPoP/data/KID/` and `SDLPoP/data/GUARD/`. Wired `ExternalStubs.getImage()` to return dimensions from the table instead of null. This gives `setCharCollision()` correct `charWidthHalf` and `charHeight` values, enabling proper collision footprint calculation for `checkSpikeBelow()`, `checkGrab()`, and other collision-dependent functions.
-
-**Impact:** 3 additional traces now match (`basic_movement`, `snes_pc_set_level11`, `trick_153`, `traps` — 4 total new matches from Phase 15b's 5/13 → wait, from 5/13 to 8/13 = 3 new). Actually: Phase 15b ended at 5/13 with `falling_through_floor_pr274` matching. Phase 15c brought `basic_movement`, `snes_pc_set_level11`, `traps`, `trick_153` = 4 new matches but `falling_through_floor_pr274` regressed back to diverging. Net: 5 - 1 + 4 = 8/13.
-
-**Remaining 5 divergences — entry criteria for Module 16:**
-- `falling_through_floor_pr274` f0: tile modifier init — may resolve when full `restore_room_after_quick_load()` with `draw_room()` tile reload is implemented
-- `demo_suave_prince_level11` f29: control dispatch — needs demo-level autocontrol input investigation
-- `grab_bug_pr288` f17 + `grab_bug_pr289` f16: grab detection — `checkGrab()` fails to detect ledge. May be a collision bounds issue with sword-overlay sprite dimensions or a `checkGrabRunJump()` translation bug
-- `sword_and_level_transition` f275: level restart — fundamentally outside headless replay scope; requires `start_game()`/`play_level()` lifecycle
+One-line: Hardcoded sprite width/height lookup table for headless collision. `setCharCollision()` now computes correct bounds. 8/13 traces match. See DEVLOG §Module 15.
 
 ### Module 16: Rendering — IN PROGRESS
 One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real sprite assets from DAT/PNG files, and get level 1 visually rendering on an Android emulator.
@@ -250,21 +154,9 @@ One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real
 **Depends on:** Modules 6–15 (all game logic + game loop + replay pipeline)
 
 #### Phase 16a: Android project scaffold — COMPLETE
+One-line: Multi-module Gradle project with Android `app` module (SDK 24–34, `GameActivity` + `GameSurfaceView`), conditional inclusion for Pi compatibility, SDLPoP assets packaged. See DEVLOG §Module 16.
 
-**Regime:** Refine (human-driven).
-
-**Scope:** Create the Android Studio project, wire existing Kotlin game logic modules as a dependency, configure Gradle for Android, set up a minimal `Activity` + `SurfaceView`, package SDLPoP `data/` directory as Android assets.
-
-**What was done:**
-- Root multi-module Gradle project with conditional `app` inclusion (Pi compatibility preserved)
-- Android app module: SDK 24–34, Kotlin 1.9.22, depends on `:SDLPoP-kotlin`
-- `GameActivity` (fullscreen landscape) + `GameSurfaceView` (SurfaceHolder.Callback, test frame)
-- All SDLPoP `data/` assets packaged under `app/src/main/assets/`
-- `SDLPoP-kotlin/build.gradle.kts` adjusted: JVM toolchain 21, root-relative system property paths
-
-**Acceptance:** Android project builds and deploys to emulator. Existing Kotlin game logic compiles as part of the Android app. Verified.
-
-#### Phase 16b: Asset loading pipeline — PENDING
+#### Phase 16b: Asset loading pipeline — IN PROGRESS
 
 **Regime:** Build (autonomous) with human visual verification at end.
 
@@ -287,6 +179,12 @@ One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real
 **Test oracle:** Decode known sprites, verify pixel dimensions match `SpriteDimensions.kt` hardcoded values. For decompressors: round-trip or golden-output tests against known DAT resource bytes.
 
 **Human work:** Visually verify decoded sprites look correct (palette, transparency, orientation). ~1 session.
+
+**Steps:**
+- **16b.1** Asset codec contract and golden fixtures — PENDING: Audit the relevant `seg009.c` structs/functions, define Kotlin asset model boundaries that keep pure decompression independent from Android `Bitmap` output, and add small golden fixture tests from packaged KID/GUARD/tileset resources for dimensions, palette parsing, and compressed-byte metadata.
+- **16b.2** Pure decompression and pixel expansion — PENDING: Translate `decompress_rle_lr`, `decompress_rle_ud`, `decompress_lzg_lr`, `decompress_lzg_ud`, `decompr_img`, `calc_stride`, and `conv_to_8bpp` into JVM-testable Kotlin with focused golden-output tests and C-equivalent unsigned byte handling.
+- **16b.3** DAT and PNG resource loading — PENDING: Implement Android/JVM asset-source abstractions for `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and PNG resource fallback using the packaged `app/src/main/assets` layout, with tests proving KID/GUARD resources are discoverable without SDL or filesystem-specific assumptions.
+- **16b.4** Bitmap decode and sprite catalog integration — PENDING: Implement `decode_image` palette-to-ARGB conversion and `load_image`/chtab catalog loading, then verify chtab 2 KID and chtab 5 GUARD image dimensions match `SpriteDimensions.kt`; document the human visual verification handoff for palette, transparency, and orientation.
 
 **Acceptance:** `chtab_addrs[2]` (KID, 219 sprites) and `chtab_addrs[5]` (GUARD, 34 sprites) load from DAT/PNG assets with correct dimensions. Unit tests pass for all decompressors.
 

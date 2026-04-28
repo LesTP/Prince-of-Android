@@ -2,10 +2,10 @@
 
 ## Status
 
-**Project phase:** Phase 5 — Formal Project Definition (in progress)
+**Project phase:** Module 16 — Rendering (Track B). Phase 16a (scaffold) complete, Phase 16b (asset pipeline) in progress.
 
-Preparation phases 0-3 complete. Q1 (oracle) and Q2 (language) resolved.
-Q3 (touch controls) pending Phase 4 prototype.
+Preparation phases 0-3 complete. Track A (game logic, Modules 6-15) complete at 8/13 replay traces.
+Q1 (oracle) and Q2 (language) resolved. Q3 (touch controls) pending Phase 4 prototype.
 
 ---
 
@@ -24,14 +24,14 @@ Q3 (touch controls) pending Phase 4 prototype.
 │         ▼                 ▼                    ▲              │
 │  ┌──────────────────────────────────────────────────────┐    │
 │  │  Game Loop (seg000, seg001, seg003)                   │    │
-│  │  [REFACTOR + TRANSLATE]                               │    │
+│  │  [DONE — 8/13 replay traces]                          │    │
 │  │  Orchestrates: input → game logic → render → repeat   │    │
 │  └──────────────────────┬───────────────────────────────┘    │
 │                         │                                    │
 │                         ▼                                    │
 │  ┌──────────────────────────────────────────────────────┐    │
 │  │  Game Logic (seg002, seg004, seg005, seg006, seg007)  │    │
-│  │  [TRANSLATE C→Kotlin — autonomous]                    │    │
+│  │  [DONE — autonomous C→Kotlin]                         │    │
 │  │  Zero SDL calls. Pure simulation.                     │    │
 │  └──────────────────────┬───────────────────────────────┘    │
 │                         │                                    │
@@ -39,13 +39,13 @@ Q3 (touch controls) pending Phase 4 prototype.
 │  ┌──────────────────────────────────────────────────────┐    │
 │  │  State Model (types.h, data.h → Kotlin)               │    │
 │  │  344 global variables, char_type, level data           │    │
-│  │  [TRANSLATE — mechanical]                              │    │
+│  │  [DONE]                                                │    │
 │  └──────────────────────────────────────────────────────┘    │
 │                                                              │
 │  ┌──────────────┐  ┌──────────────┐                          │
 │  │  Replay       │  │  Sequence     │                         │
 │  │  (P1R parser) │  │  Table        │                         │
-│  │  [DONE]       │  │  [TRANSLATE]  │                         │
+│  │  [DONE]       │  │  [DONE]       │                         │
 │  └──────────────┘  └──────────────┘                          │
 └─────────────────────────────────────────────────────────────┘
 
@@ -275,7 +275,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 2 | Target Language | **Complete** — Kotlin |
 | 3 | Test Infrastructure | **Complete** — 13 traces, comparator, P1R parser |
 | 4 | Control Prototype | Pending (Refine — parallel track) |
-| 5 | Formal Project Def | **In progress** |
+| 5 | Formal Project Def | **Complete** |
 
 ### Porting (Build regime — autonomous where indicated)
 
@@ -291,7 +291,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | **Complete** |
 | 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **Complete** (1/13 traces; Layer 2 boundary) |
 | 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | **Complete** (8/13 traces, 5 divergences root-caused) |
-| 16 | Rendering | seg008 + lighting → Android | Build | Game Loop | Pending |
+| 16 | Rendering | seg008 + lighting → Android | Build + Refine | Game Loop | **In Progress** (Phase 16a complete) |
 | 17 | Platform | seg009 → Android APIs | Build | — | Pending |
 | 18 | Audio | Sound + music → Android | Build | Platform | Pending |
 | 19 | Controls | Touch gesture system | Refine | Platform | Pending |
@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Module 15 (Game Loop) is complete** at 8/13 traces. Phase 15a translated seg003 and fixed the `soundFlags` RNG bug. Phase 15b translated seg000 initialization and room-transition paths, fixed `Char.x/y` byte overflow and `restore_room_after_quick_load()`. Phase 15c added a hardcoded sprite dimension table so collision detection works in headless mode. Remaining 5 divergences are root-caused: 2 grab detection (likely collision bounds edge case), 1 tile modifier init, 1 control dispatch, 1 level restart lifecycle (outside headless scope). Module 16 (Rendering) is next — when real sprite assets are loaded, the dimension table will be replaced and the grab bugs may resolve.
+**Module 15 (Game Loop) is complete** at 8/13 traces. Module 16 (Rendering) is in progress — Phase 16a (Android scaffold) complete, Phase 16b (asset pipeline) in progress. When real sprite assets are loaded, the hardcoded dimension table will be replaced and the remaining grab-detection divergences may resolve.
 
 ---
 

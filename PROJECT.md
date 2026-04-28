@@ -121,11 +121,11 @@ Ordered by call graph dependencies:
 | Replay oracle non-deterministic | Project-blocking | ~~Low~~ | ~~Phase 1 spike~~ | **Closed — oracle works (Phase 1)** |
 | Target language integer semantics mismatch | Delays, subtle bugs | ~~Medium~~ | ~~Phase 2 spike~~ | **Mitigated — Kotlin chosen, replay oracle validates (Phase 2)** |
 | Touch controls don't achieve acceptable feel | Port works but isn't playable | Medium | Phase 4 prototype; Oddmar precedent | **Open — Q3 unresolved** |
-| Global state coupling prevents incremental testing | Slows autonomous pipeline | High | Accept unit-of-translation = single file, unit-of-testing = integrated layer | Open |
+| Global state coupling prevents incremental testing | Slows autonomous pipeline | High | Accept unit-of-translation = single file, unit-of-testing = integrated layer | **Closed — Layer 1 translated with 573 tests, 0 escalations (Modules 8-12)** |
 | Agent produces wrong code that passes some replays | Silent correctness bugs | Medium | 13-replay regression suite covering 5 mechanics categories | Open |
 | Rendering bugs undetected by game logic oracle | Silent visual regressions, no automated regression net | Medium | Tiered validation: golden screenshots → render command assertions → manual inspection (see ARCHITECTURE.md Layer 3 contract) | Open |
 | Android frame pacing affects control quality | Controls feel bad despite correct logic | Medium | Use Android frame pacing libraries; test on multiple devices | Open |
-| seg000 (main loop) too entangled to port cleanly | Requires refactoring before translation | High | Accept manual refactoring to separate SDL calls from game logic | Open |
+| seg000 (main loop) too entangled to port cleanly | Requires refactoring before translation | High | Accept manual refactoring to separate SDL calls from game logic | **Closed — seg000/seg001/seg003 translated in Module 15, headless shim pattern (8/13 traces)** |
 
 ---
 
