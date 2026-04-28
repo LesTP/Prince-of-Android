@@ -1,5 +1,18 @@
 # DEVLOG — Prince of Persia Android Port
 
+## Module 16: Rendering
+
+### 2026-04-28 — Phase 16a: Android project scaffold
+
+**Mode:** Code (human-driven) | **Outcome:** Complete — Android app builds and deploys, game logic module linked
+**Contract changes:** `settings.gradle.kts` — new root-level multi-module build replacing `SDLPoP-kotlin/settings.gradle.kts`. `SDLPoP-kotlin/build.gradle.kts` — JVM toolchain 21, system property paths adjusted for root-relative layout.
+
+Created Android project scaffold as a multi-module Gradle project. Root `settings.gradle.kts` conditionally includes the `app` module only when `local.properties` exists (Android SDK present), so the Pi can still run `gradle build`/`gradle test` on `:SDLPoP-kotlin` without AGP or the Android SDK.
+
+Android `app` module: `com.sdlpop.android` namespace, SDK 24–34, Kotlin 1.9.22, depends on `:SDLPoP-kotlin` for game logic. `GameActivity` sets up fullscreen landscape mode. `GameSurfaceView` implements `SurfaceHolder.Callback` and draws a test frame confirming the rendering pipeline is wired. All SDLPoP `data/` assets (KID/GUARD/SHADOW/SKEL/VIZIER sprites, LEVELS, VDUNGEON/VPALACE tilesets, sound DATs, font, music) packaged under `app/src/main/assets/`.
+
+Decisions: `SurfaceView` + `Canvas` chosen over `GLSurfaceView` for the 320×200 tile-based 2D rendering (no 3D needed). Min SDK 24 (Android 7.0, covers 98%+ of devices). Conditional module inclusion pattern keeps Pi and Windows builds independent.
+
 ## Module 15: Game Loop
 
 ### 2026-04-20 — Phase 15c: Sprite dimension table for headless collision

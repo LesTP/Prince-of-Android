@@ -42,12 +42,10 @@
 
 ## Current Status
 
-**Track:** A → B transition — Game Loop Translation (Build regime, semi-autonomous)
-**Module:** 15 — Game Loop (seg000/seg001/seg003 refactor + translate) — **COMPLETE (8/13 traces)**
-**Phase:** 15a — seg003 translation + stub wiring — **COMPLETE**
-**Phase:** 15b — seg000 frame lifecycle alignment — **COMPLETE (5/13)**
-**Phase:** 15c — Sprite dimension table for headless collision — **COMPLETE (8/13)**
-**Next:** Module 16 (Rendering). Remaining 5 trace divergences documented as known limitations with root causes.
+**Track:** B — Android Platform (Rendering)
+**Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
+**Phase:** 16a — Android project scaffold — **COMPLETE**
+**Next:** Phase 16b (Asset loading pipeline — DAT decompression → Kotlin, Build regime, can run on Pi)
 
 **Module 15 final results (2026-04-20):**
 - Replay regression: **8/13 MATCH** (up from 1/13 Module 14 baseline)
@@ -217,7 +215,7 @@ One-line: Provided sprite width/height data via hardcoded lookup table extracted
 - `grab_bug_pr288` f17 + `grab_bug_pr289` f16: grab detection — `checkGrab()` fails to detect ledge. May be a collision bounds issue with sword-overlay sprite dimensions or a `checkGrabRunJump()` translation bug
 - `sword_and_level_transition` f275: level restart — fundamentally outside headless replay scope; requires `start_game()`/`play_level()` lifecycle
 
-### Module 16: Rendering — PENDING
+### Module 16: Rendering — IN PROGRESS
 One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real sprite assets from DAT/PNG files, and get level 1 visually rendering on an Android emulator.
 
 **Environment:** Windows + Android Studio. Replaces Pi headless environment for rendering work. Replay regression suite continues to validate game logic correctness.
@@ -251,22 +249,20 @@ One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real
 
 **Depends on:** Modules 6–15 (all game logic + game loop + replay pipeline)
 
-#### Phase 16a: Android project scaffold — PENDING
+#### Phase 16a: Android project scaffold — COMPLETE
 
 **Regime:** Refine (human-driven).
 
 **Scope:** Create the Android Studio project, wire existing Kotlin game logic modules as a dependency, configure Gradle for Android, set up a minimal `Activity` + `SurfaceView`, package SDLPoP `data/` directory as Android assets.
 
-**Why Refine:** Architecture decisions (min SDK, SurfaceView vs GLSurfaceView, project structure, asset packaging strategy) are taste-dependent. Build must compile and launch on emulator — visual verification required.
+**What was done:**
+- Root multi-module Gradle project with conditional `app` inclusion (Pi compatibility preserved)
+- Android app module: SDK 24–34, Kotlin 1.9.22, depends on `:SDLPoP-kotlin`
+- `GameActivity` (fullscreen landscape) + `GameSurfaceView` (SurfaceHolder.Callback, test frame)
+- All SDLPoP `data/` assets packaged under `app/src/main/assets/`
+- `SDLPoP-kotlin/build.gradle.kts` adjusted: JVM toolchain 21, root-relative system property paths
 
-**Human work:**
-- Create Android project in Android Studio, configure SDK/Gradle
-- Choose rendering surface (recommended: `SurfaceView` + `Canvas` for 320×200 tile-based 2D)
-- Wire existing `com.sdlpop.game` and `com.sdlpop.replay` packages
-- Package `SDLPoP/data/` as Android assets
-- Verify blank Activity launches on emulator
-
-**Acceptance:** Android project builds and deploys to emulator. Existing Kotlin game logic compiles as part of the Android app. No rendering yet — just project structure.
+**Acceptance:** Android project builds and deploys to emulator. Existing Kotlin game logic compiles as part of the Android app. Verified.
 
 #### Phase 16b: Asset loading pipeline — PENDING
 
