@@ -206,7 +206,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 
 **Regression safety:** Whichever tier works, wire it into the replay regression suite so the 13 replays protect rendering as well as logic. Without this, rendering changes have no regression net.
 
-**Source files:** `seg008.c` (~2,200 lines), `lighting.c` (~600 lines)
+**Source files:** `seg008.c` (~2,200 lines), `lighting.c` (~120 lines)
 
 ### Layer 4 — Platform
 
@@ -255,8 +255,8 @@ The state model is the foundation. Every other module depends on it. It must be 
 
 | File | Lines | Strategy | Priority |
 |------|------:|----------|----------|
-| seqtbl.c | 1,228 | Translate (pure data) | High — needed for animation |
-| replay.c | ~1,500 | Translate (P1R parser done, need replay runner) | High — needed for oracle |
+| seqtbl.c | 1,228 | Translate (pure data) | **Complete** — Module 7 |
+| replay.c | ~1,500 | Translate (P1R parser + replay runner) | **Complete** — Modules 3, 14 |
 | menu.c | ~3,200 | Rewrite for Android touch UI | Medium |
 | midi.c | ~800 | Rewrite for Android audio | Low |
 | options.c | ~700 | Translate + adapt for Android prefs | Low |
@@ -419,7 +419,7 @@ The game must be deterministic given the same seed and input sequence. This is i
 | seg007.c | 1 | ~1,400 | 0 |
 | seg008.c | 3 | ~2,200 | 15+ |
 | seg009.c | 4 | ~4,250 | 506 |
-| lighting.c | 3 | ~600 | ~5 |
+| lighting.c | 3 | ~120 | ~5 |
 | seqtbl.c | ext | 1,228 | 0 |
 | menu.c | ext | ~3,200 | varies |
 | replay.c | ext | ~1,500 | varies |

@@ -13,7 +13,9 @@ Execute the phase completion protocol:
 6. Update the current module's Status in ARCHITECTURE.md's Implementation Sequence table. Format: "Phase N complete" after each phase, or "Complete" if this was the module's final phase.
 7. Commit all documentation updates.
 8. Verify all documents were updated before committing:
+   - [ ] DEVPLAN Current Status: Track/Module/Phase/Next updated to reflect new active work
    - [ ] DEVPLAN: completed phase reduced to one-line summary with DEVLOG reference
+   - [ ] DEVPLAN Gotchas: any new lessons from step 3 promoted to Gotchas section
    - [ ] DEVLOG: phase completion entry added
    - [ ] ARCHITECTURE.md: Implementation Sequence table status updated
    - [ ] DECISIONS.md: any Open decisions resolved by this phase → Closed
