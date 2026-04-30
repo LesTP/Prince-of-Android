@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Step 16c.4 — Pure orchestration with render-submission hooks
+**Next:** Phase 16c review
 
-**Replay regression:** 8/13 MATCH, 613 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 620 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -227,11 +227,11 @@ Orchestrators:
    - Add tests for Kid/Guard object insertion, frame-to-object coordinate calculation, sort order, tile redraw marking, and dirty-rect merge/intersection behavior.
    - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (613 tests).
 
-4. **16c.4 — Pure orchestration with render-submission hooks**
+4. **16c.4 — Pure orchestration with render-submission hooks — COMPLETE (2026-04-30)**
    - Translate `draw_room`, `draw_tile`, `draw_tile_aboveroom`, `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`, and `draw_moving`.
    - Keep Phase 16d submission functions behind no-op or test-capturable render hooks so this step establishes C-equivalent traversal/order without appending real render-table entries yet.
    - Add call-order and state-mutation tests for room traversal, above-room traversal, redraw counters, tile-object redraw clearing, and moving-object orchestration.
-   - Verification target: full `gradle test`; if the environment hits the known native-platform Gradle failure, record the blocker and rely on focused compile/test artifacts available from the working distribution.
+   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (620 tests).
 
 #### Phase 16d: Render table submission (seg008 mixed functions) — PENDING
 

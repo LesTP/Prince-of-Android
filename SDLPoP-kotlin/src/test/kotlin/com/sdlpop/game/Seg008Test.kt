@@ -73,6 +73,14 @@ class Seg008Test {
         }
         gs.tableCounts.fill(0)
         gs.tileObjectRedraw.fill(0)
+        gs.wipeFrames.fill(0)
+        gs.wipeHeights.fill(0)
+        gs.redrawFramesAnim.fill(0)
+        gs.redrawFrames2.fill(0)
+        gs.redrawFramesFloorOverlay.fill(0)
+        gs.redrawFramesFull.fill(0)
+        gs.redrawFramesFore.fill(0)
+        gs.redrawFramesAbove.fill(0)
         gs.drects.forEach {
             it.top = 0
             it.left = 0
@@ -89,6 +97,7 @@ class Seg008Test {
         ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
         ExternalStubs.getImage = { _, _ -> null }
         ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
+        Seg008.resetRenderHooks()
     }
 
     @Test
@@ -567,6 +576,202 @@ class Seg008Test {
         assertEquals(50, gs.drects[1].left.toInt())
         assertEquals(60, gs.drects[1].bottom.toInt())
         assertEquals(60, gs.drects[1].right.toInt())
+    }
+
+    @Test
+    fun drawTileAndAboveRoomUseCSubmissionOrder() {
+        val calls = mutableListOf<String>()
+        installTileCallRecorder(calls)
+
+        Seg008.drawTile()
+        assertEquals(
+            listOf("floorright", "anim_topright", "right", "anim_right", "bottom:0", "loose:0", "base", "anim", "fore"),
+            calls,
+        )
+
+        calls.clear()
+        Seg008.drawTileAboveroom()
+        assertEquals(
+            listOf("floorright", "anim_topright", "right", "bottom:0", "loose:0", "fore"),
+            calls,
+        )
+    }
+
+    @Test
+    fun redrawNeededDecrementsCountersAndClearsTileObjectRedraw() {
+        val calls = mutableListOf<String>()
+        installTileCallRecorder(calls)
+        gs.wipeFrames[4] = 1
+        gs.wipeHeights[4] = 7
+        gs.redrawFramesAnim[4] = 1
+        gs.redrawFrames2[4] = 1
+        gs.redrawFramesFore[4] = 1
+        gs.tileObjectRedraw[4] = 0xFF
+
+        Seg008.redrawNeeded(4)
+
+        assertEquals(
+            listOf(
+                "wipe:7",
+                "anim_topright",
+                "anim_right",
+                "anim",
+                "fore",
+                "bottom:0",
+                "other_overlay",
+                "obj_at:3",
+                "obj_at:4",
+                "fore",
+            ),
+            calls,
+        )
+        assertEquals(0, gs.wipeFrames[4])
+        assertEquals(0, gs.redrawFramesAnim[4])
+        assertEquals(0, gs.redrawFrames2[4])
+        assertEquals(0, gs.redrawFramesFore[4])
+        assertEquals(0, gs.tileObjectRedraw[4])
+    }
+
+    @Test
+    fun redrawNeededPrefersFullRedrawAndFloorOverlayFallback() {
+        val calls = mutableListOf<String>()
+        installTileCallRecorder(calls)
+        gs.redrawFramesFull[6] = 1
+        gs.redrawFramesAnim[6] = 1
+        gs.redrawFramesFloorOverlay[6] = 1
+
+        Seg008.redrawNeeded(6)
+
+        assertEquals(
+            listOf(
+                "floorright",
+                "anim_topright",
+                "right",
+                "anim_right",
+                "bottom:0",
+                "loose:0",
+                "base",
+                "anim",
+                "fore",
+                "floor_overlay",
+            ),
+            calls,
+        )
+        assertEquals(0, gs.redrawFramesFull[6])
+        assertEquals(1, gs.redrawFramesAnim[6])
+        assertEquals(0, gs.redrawFramesFloorOverlay[6])
+    }
+
+    @Test
+    fun redrawNeededAboveMatchesAboveRoomOrderAndBigPillarFix() {
+        val calls = mutableListOf<String>()
+        installTileCallRecorder(calls)
+        gs.redrawFramesAbove[2] = 1
+        gs.currTile = Tiles.FLOOR
+
+        Seg008.redrawNeededAbove(2)
+
+        assertEquals(
+            listOf("wipe:3", "floorright", "anim_topright", "right", "bottom:1", "loose:1", "fore"),
+            calls,
+        )
+        assertEquals(0, gs.redrawFramesAbove[2])
+
+        calls.clear()
+        gs.redrawFramesAbove[2] = 1
+        gs.currTile = Tiles.BIGPILLAR_TOP
+        Seg008.redrawNeededAbove(2)
+        assertEquals(listOf("anim_topright", "right", "bottom:1", "loose:1", "fore"), calls)
+    }
+
+    @Test
+    fun drawRoomTraversesCurrentRoomThenAboveRoomAndRestoresDrawnRoom() {
+        val calls = mutableListOf<String>()
+        Seg008.drawTileBaseHook = {
+            calls += "base:${gs.drawnRoom}:${gs.drawnRow}:${gs.drawnCol}:${gs.drawBottomY}:${gs.currTile}"
+        }
+        Seg008.drawTileForeHook = {
+            calls += "fore:${gs.drawnRoom}:${gs.drawnRow}:${gs.drawnCol}:${gs.drawBottomY}:${gs.currTile}"
+        }
+        gs.drawnRoom = 1
+        gs.level.roomlinks[0] = LinkType(up = 2)
+        seedRoom(1, 20, Tiles.FLOOR, 0)
+        seedRoom(1, 0, Tiles.WALL, 0)
+        seedRoom(1, 9, Tiles.WALL, 0)
+        seedRoom(2, 20, Tiles.POTION, 1)
+
+        Seg008.loadRoomLinks()
+        Seg008.drawRoom()
+
+        assertEquals(1, gs.drawnRoom)
+        assertEquals(1, gs.loadedRoom)
+        assertEquals("base:1:2:0:191:1", calls.first())
+        assertEquals("base:1:0:9:65:20", calls.filter { it.startsWith("base:") }.last())
+        assertEquals("fore:2:2:0:2:10", calls.takeLast(10).first())
+    }
+
+    @Test
+    fun redrawNeededTilesTraversesRoomsAndSentinelObjectTiles() {
+        val calls = mutableListOf<String>()
+        Seg008.drawObjtableItemsAtTileHook = { tilepos -> calls += "obj:$tilepos" }
+        Seg008.drawTileWipeHook = { height -> calls += "wipe:${gs.drawnRoom}:${gs.drawnRow}:${gs.drawnCol}:$height" }
+        gs.drawnRoom = 1
+        gs.level.roomlinks[0] = LinkType(up = 2)
+        seedRoom(1, 20, Tiles.FLOOR, 0)
+        seedRoom(2, 20, Tiles.POTION, 0)
+        gs.wipeFrames[20] = 1
+        gs.wipeHeights[20] = 5
+        gs.redrawFramesAbove[0] = 1
+
+        Seg008.loadRoomLinks()
+        Seg008.redrawNeededTiles()
+
+        assertEquals("obj:30", calls.first())
+        assertEquals("obj:-1", calls.last())
+        assertEquals(1, gs.drawnRoom)
+        assertEquals(1, gs.loadedRoom)
+        assertEquals(0, gs.wipeFrames[20])
+        assertEquals(0, gs.redrawFramesAbove[0])
+        assertEquals(true, calls.contains("wipe:1:2:0:5"))
+        assertEquals(true, calls.contains("wipe:2:2:0:3"))
+    }
+
+    @Test
+    fun drawMovingAddsMobsPeopleAndThenProcessesRedraws() {
+        val calls = mutableListOf<String>()
+        Seg008.drawPeopleHook = { calls += "people" }
+        Seg008.drawObjtableItemsAtTileHook = { tilepos -> calls += "obj:$tilepos" }
+        Seg008.drawTileWipeHook = { height -> calls += "wipe:$height" }
+        gs.drawnRoom = 1
+        seedRoom(1, 0, Tiles.FLOOR, 0)
+        gs.mobsCount = 1
+        gs.mobs[0] = MobType(xh = 16, y = 80, room = 1, type = 0, row = 1)
+        gs.wipeFrames[0] = 1
+        gs.wipeHeights[0] = 4
+
+        Seg008.loadRoomLinks()
+        Seg008.drawMoving()
+
+        assertEquals("people", calls.first())
+        assertEquals(true, gs.tableCounts[4].toInt() > 0)
+        assertEquals(true, calls.contains("wipe:4"))
+        assertEquals("obj:-1", calls.last())
+    }
+
+    private fun installTileCallRecorder(calls: MutableList<String>) {
+        Seg008.drawTileFloorrightHook = { calls += "floorright" }
+        Seg008.drawTileAnimToprightHook = { calls += "anim_topright" }
+        Seg008.drawTileRightHook = { calls += "right" }
+        Seg008.drawTileAnimRightHook = { calls += "anim_right" }
+        Seg008.drawTileBottomHook = { redrawTop -> calls += "bottom:$redrawTop" }
+        Seg008.drawLooseHook = { redrawTop -> calls += "loose:$redrawTop" }
+        Seg008.drawTileBaseHook = { calls += "base" }
+        Seg008.drawTileAnimHook = { calls += "anim" }
+        Seg008.drawTileForeHook = { calls += "fore" }
+        Seg008.drawTileWipeHook = { height -> calls += "wipe:$height" }
+        Seg008.drawOtherOverlayHook = { calls += "other_overlay" }
+        Seg008.drawFloorOverlayHook = { calls += "floor_overlay" }
+        Seg008.drawObjtableItemsAtTileHook = { tilepos -> calls += "obj_at:$tilepos" }
     }
 
     private fun seedRoom(room: Int, tilepos: Int, tile: Int, modifier: Int) {

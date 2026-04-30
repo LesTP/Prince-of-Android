@@ -13,7 +13,180 @@ object Seg008 {
     private val ext: ExternalStubs
         get() = ExternalStubs
 
+    var drawTileFloorrightHook: () -> Unit = {}
+    var drawTileAnimToprightHook: () -> Unit = {}
+    var drawTileRightHook: () -> Unit = {}
+    var drawTileAnimRightHook: () -> Unit = {}
+    var drawTileBottomHook: (Int) -> Unit = {}
+    var drawLooseHook: (Int) -> Unit = {}
+    var drawTileBaseHook: () -> Unit = {}
+    var drawTileAnimHook: () -> Unit = {}
+    var drawTileForeHook: () -> Unit = {}
+    var drawTileWipeHook: (Int) -> Unit = {}
+    var drawOtherOverlayHook: () -> Unit = {}
+    var drawFloorOverlayHook: () -> Unit = {}
+    var drawObjtableItemsAtTileHook: (Int) -> Unit = {}
+    var drawPeopleHook: () -> Unit = {}
+
     val colXh = intArrayOf(0, 4, 8, 12, 16, 20, 24, 28, 32, 36)
+
+    fun resetRenderHooks() {
+        drawTileFloorrightHook = {}
+        drawTileAnimToprightHook = {}
+        drawTileRightHook = {}
+        drawTileAnimRightHook = {}
+        drawTileBottomHook = {}
+        drawLooseHook = {}
+        drawTileBaseHook = {}
+        drawTileAnimHook = {}
+        drawTileForeHook = {}
+        drawTileWipeHook = {}
+        drawOtherOverlayHook = {}
+        drawFloorOverlayHook = {}
+        drawObjtableItemsAtTileHook = {}
+        drawPeopleHook = {}
+    }
+
+    fun drawRoom() {
+        loadLeftroom()
+        for (row in 2 downTo 0) {
+            gs.drawnRow = row.toShort()
+            loadRowbelow()
+            gs.drawBottomY = (63 * row + 65).toShort()
+            gs.drawMainY = (gs.drawBottomY.toInt() - 3).toShort()
+            for (column in 0 until 10) {
+                gs.drawnCol = column.toShort()
+                loadCurrAndLeftTile()
+                drawTile()
+            }
+        }
+
+        val savedRoom = gs.drawnRoom
+        gs.drawnRoom = gs.roomA
+        loadRoomLinks()
+        loadLeftroom()
+        gs.drawnRow = 2
+        loadRowbelow()
+        for (column in 0 until 10) {
+            gs.drawnCol = column.toShort()
+            loadCurrAndLeftTile()
+            gs.drawMainY = (-1).toShort()
+            gs.drawBottomY = 2
+            drawTileAboveroom()
+        }
+        gs.drawnRoom = savedRoom
+        loadRoomLinks()
+    }
+
+    fun drawTile() {
+        drawTileFloorrightHook()
+        drawTileAnimToprightHook()
+        drawTileRightHook()
+        drawTileAnimRightHook()
+        drawTileBottomHook(0)
+        drawLooseHook(0)
+        drawTileBaseHook()
+        drawTileAnimHook()
+        drawTileForeHook()
+    }
+
+    fun drawTileAboveroom() {
+        drawTileFloorrightHook()
+        drawTileAnimToprightHook()
+        drawTileRightHook()
+        drawTileBottomHook(0)
+        drawLooseHook(0)
+        drawTileForeHook()
+    }
+
+    fun redrawNeeded(tilepos: Int) {
+        if (gs.wipeFrames[tilepos] != 0) {
+            gs.wipeFrames[tilepos]--
+            drawTileWipeHook(gs.wipeHeights[tilepos])
+        }
+        if (gs.redrawFramesFull[tilepos] != 0) {
+            gs.redrawFramesFull[tilepos]--
+            drawTile()
+        } else if (gs.redrawFramesAnim[tilepos] != 0) {
+            gs.redrawFramesAnim[tilepos]--
+            drawTileAnimToprightHook()
+            drawTileAnimRightHook()
+            drawTileAnimHook()
+            drawTileForeHook()
+            drawTileBottomHook(0)
+        }
+        if (gs.redrawFrames2[tilepos] != 0) {
+            gs.redrawFrames2[tilepos]--
+            drawOtherOverlayHook()
+        } else if (gs.redrawFramesFloorOverlay[tilepos] != 0) {
+            gs.redrawFramesFloorOverlay[tilepos]--
+            drawFloorOverlayHook()
+        }
+        if (gs.tileObjectRedraw[tilepos] != 0) {
+            if (gs.tileObjectRedraw[tilepos] == 0xFF) {
+                drawObjtableItemsAtTileHook(tilepos - 1)
+            }
+            drawObjtableItemsAtTileHook(tilepos)
+            gs.tileObjectRedraw[tilepos] = 0
+        }
+        if (gs.redrawFramesFore[tilepos] != 0) {
+            gs.redrawFramesFore[tilepos]--
+            drawTileForeHook()
+        }
+    }
+
+    fun redrawNeededAbove(column: Int) {
+        if (gs.redrawFramesAbove[column] == 0) return
+        gs.redrawFramesAbove[column]--
+        if (gs.currTile != Tiles.BIGPILLAR_TOP) {
+            drawTileWipeHook(3)
+            drawTileFloorrightHook()
+        }
+        drawTileAnimToprightHook()
+        drawTileRightHook()
+        drawTileBottomHook(1)
+        drawLooseHook(1)
+        drawTileForeHook()
+    }
+
+    fun drawMoving() {
+        Seg007.drawMobs()
+        drawPeopleHook()
+        redrawNeededTiles()
+    }
+
+    fun redrawNeededTiles() {
+        loadLeftroom()
+        drawObjtableItemsAtTileHook(30)
+        for (row in 2 downTo 0) {
+            gs.drawnRow = row.toShort()
+            loadRowbelow()
+            gs.drawBottomY = (63 * row + 65).toShort()
+            gs.drawMainY = (gs.drawBottomY.toInt() - 3).toShort()
+            for (column in 0 until 10) {
+                gs.drawnCol = column.toShort()
+                loadCurrAndLeftTile()
+                redrawNeeded(gs.tblLine[row] + column)
+            }
+        }
+
+        val savedRoom = gs.drawnRoom
+        gs.drawnRoom = gs.roomA
+        loadRoomLinks()
+        loadLeftroom()
+        gs.drawnRow = 2
+        loadRowbelow()
+        for (column in 0 until 10) {
+            gs.drawnCol = column.toShort()
+            loadCurrAndLeftTile()
+            gs.drawMainY = (-1).toShort()
+            gs.drawBottomY = 2
+            redrawNeededAbove(column)
+        }
+        gs.drawnRoom = savedRoom
+        loadRoomLinks()
+        drawObjtableItemsAtTileHook(-1)
+    }
 
     fun canSeeBottomleft(): Int {
         return if (

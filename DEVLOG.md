@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16c.4: Pure orchestration with render-submission hooks
+
+**Mode:** Code | **Outcome:** Complete — draw/redraw traversal translated behind no-op/test-capturable render hooks
+**Contract changes:** `Seg008` now exposes render-submission hook callbacks for Phase 16d functions while keeping the actual render-table appenders unimplemented.
+
+Translated the pure orchestration slice from `seg008.c` into `Seg008.kt`: `draw_room`, `draw_tile`, `draw_tile_aboveroom`, `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`, and `draw_moving`. The implementation preserves the C traversal order for visible rows, above-room traversal, current-room restoration, draw Y temporaries, redraw counter decrement order, tile-object redraw clearing, and the compile-time `FIX_ABOVE_GATE` / `FIX_BIGPILLAR_JUMP_UP` behavior used by the reference build.
+
+Kept Phase 16d render submission functions behind no-op hook callbacks so this step can validate orchestration without creating real `backtable[]`/`foretable[]`/`midtable[]`/`wipetable[]` entries yet. `draw_moving()` reuses the translated `Seg007.drawMobs()` for loose-floor object production, then calls a hook for the not-yet-translated people renderer before processing redraw tiles.
+
+Expanded `Seg008Test` with call-order and state-mutation coverage for full tile draw order, above-room tile order, redraw counter priority/fallback behavior, object-redraw sentinel handling, above-room redraw behavior, current/above-room traversal, sentinel object-table flushes, and moving-object orchestration.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test` passed; full `gradle test` passed in `SDLPoP-kotlin` with 620 tests.
+
 ### 2026-04-30 — Step 16c.3: Object table and dirty-rect bookkeeping
 
 **Mode:** Code | **Outcome:** Complete — object-table state, draw-order sorting, frame-to-object conversion, and dirty-rect merging translated and verified
