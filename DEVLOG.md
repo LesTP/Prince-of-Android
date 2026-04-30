@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16b.3: DAT and PNG resource loading
+
+**Mode:** Code | **Outcome:** Complete — DAT/directory asset lookup ported and verified
+**Contract changes:** `com.sdlpop.assets` now includes a source-neutral `AssetByteSource` plus `AssetRepository` APIs corresponding to `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and `load_from_opendats_to_area`.
+
+Added a JVM-testable asset loading boundary that mirrors the relevant `seg009.c` DAT chain behavior: opened archives are searched newest-first, DAT table entries take precedence, checksum bytes are skipped before payload reads, empty DAT PNG markers can fall through to directory resources, and missing `.DAT` files can still resolve through sibling asset directories such as `KID/`.
+
+Added `AndroidAssetSource` in the app module as the Android bridge from `AssetManager` to the shared byte-source interface. The JVM tests use the same interface against the packaged `app/src/main/assets` tree, proving KID directory-backed palette/PNG resources and GUARD.DAT-backed image resources are discoverable without SDL file APIs.
+
+Verification: `gradle test` passed with 583 tests.
+
 ### 2026-04-30 — Step 16b.2: Pure decompression and pixel expansion
 
 **Mode:** Code | **Outcome:** Complete — pure DAT image codecs translated and verified

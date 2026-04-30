@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class AssetParsersTest {
     private val assetsRoot = findAssetsRoot()
@@ -55,6 +56,62 @@ class AssetParsersTest {
         assertEquals(3, header.stride)
         assertEquals(6, header.compressedPayloadOffset)
         assertEquals(14, imageBytes.size - header.compressedPayloadOffset)
+    }
+
+    @Test
+    fun `asset repository opens DAT archives and directory-backed assets`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+
+        val missing = repository.openDat("KID.DAT", optional = true)
+        assertNotNull(missing)
+        assertEquals(false, missing.isDatBacked)
+
+        val palette = assertNotNull(repository.loadFromOpenDatsAlloc(400, "pal"))
+        assertEquals(AssetLocation.DIRECTORY, palette.location)
+        assertEquals("KID/res400.pal", palette.sourceName)
+        assertEquals(219, AssetParsers.parseSpritePaletteResource(palette.bytes).nImages)
+
+        repository.closeDat(missing)
+        assertNull(repository.loadFromOpenDatsAlloc(400, "pal"))
+    }
+
+    @Test
+    fun `asset repository loads GUARD DAT bytes before matching PNG directory resources`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        val guard = assertNotNull(repository.openDat("GUARD.DAT"))
+        assertEquals(true, guard.isDatBacked)
+
+        val datImage = assertNotNull(repository.loadFromOpenDatsMetadata(751, "png"))
+        assertEquals(AssetLocation.DAT, datImage.location)
+        assertEquals("GUARD.DAT", datImage.sourceName)
+        assertEquals(ImageDataHeader(height = 5, width = 6, flags = 0xB400), AssetParsers.parseImageDataHeader(datImage.bytes))
+
+        val secondDatImage = assertNotNull(repository.loadFromOpenDatsAlloc(752, "png"))
+        assertEquals(AssetLocation.DAT, secondDatImage.location)
+        assertEquals(ImageDataHeader(height = 26, width = 28, flags = 0xB300), AssetParsers.parseImageDataHeader(secondDatImage.bytes))
+    }
+
+    @Test
+    fun `asset repository falls back to PNG resources in directory-only archives`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        repository.openDat("KID.DAT", optional = true)
+
+        val directoryPng = assertNotNull(repository.loadFromOpenDatsAlloc(401, "png"))
+        assertEquals(AssetLocation.DIRECTORY, directoryPng.location)
+        assertEquals("KID/res401.png", directoryPng.sourceName)
+        assertEquals(PngMetadata(width = 12, height = 42, bitDepth = 4, colorType = 3), AssetParsers.parsePngMetadata(directoryPng.bytes))
+    }
+
+    @Test
+    fun `asset repository copies resource data into caller-owned area`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        repository.openDat("GUARD.DAT")
+
+        val destination = ByteArray(8)
+        val copied = repository.loadFromOpenDatsToArea(751, destination, "png")
+
+        assertEquals(8, copied)
+        assertContentEquals(byteArrayOf(5, 0, 6, 0, 0, 0xB4.toByte(), 0xB7.toByte(), 0), destination)
     }
 
     @Test
@@ -159,5 +216,15 @@ class AssetParsersTest {
             if (Files.isDirectory(candidate)) return candidate
             current = current.parent ?: error("Cannot locate app/src/main/assets")
         }
+    }
+
+    private class FilesystemAssetByteSource(private val root: Path) : AssetByteSource {
+        override fun readBytes(path: String): ByteArray? {
+            val resolved = root.resolve(path)
+            return if (Files.isRegularFile(resolved)) Files.readAllBytes(resolved) else null
+        }
+
+        override fun isDirectory(path: String): Boolean =
+            Files.isDirectory(root.resolve(path))
     }
 }

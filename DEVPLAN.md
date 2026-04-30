@@ -46,9 +46,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16b — Asset loading pipeline — **IN PROGRESS**
-**Next:** Step 16b.3 (DAT and PNG resource loading)
+**Next:** Step 16b.4 (Bitmap decode and sprite catalog integration)
 
-**Replay regression:** 8/13 MATCH, 579 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 583 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -184,7 +184,7 @@ One-line: Multi-module Gradle project with Android `app` module (SDK 24–34, `G
 **Steps:**
 - **16b.1** Asset codec contract and golden fixtures — COMPLETE: Audited the relevant `seg009.c` structs/functions, added an Android-independent `com.sdlpop.assets` metadata boundary for DAT tables, palette resources, image headers, PNG metadata, and 6-bit VGA colors, and added golden fixture tests from packaged KID/GUARD/VDUNGEON resources for dimensions, palette parsing, and compressed-byte metadata. Verification is blocked locally because Gradle now requires JDK 21 and the container has OpenJDK 17.
 - **16b.2** Pure decompression and pixel expansion — COMPLETE: Translated `decompress_rle_lr`, `decompress_rle_ud`, `decompress_lzg_lr`, `decompress_lzg_ud`, compression dispatch, `calc_stride`, and `conv_to_8bpp` into `AssetCodecs.kt`; corrected DAT resource reads to skip the checksum byte; added synthetic RLE, GUARD.DAT raw/RLE/LZG, decompressed-byte, and 1/2/4bpp pixel-expansion golden tests. Full `gradle test` passes with 579 tests.
-- **16b.3** DAT and PNG resource loading — PENDING: Implement Android/JVM asset-source abstractions for `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and PNG resource fallback using the packaged `app/src/main/assets` layout, with tests proving KID/GUARD resources are discoverable without SDL or filesystem-specific assumptions.
+- **16b.3** DAT and PNG resource loading — COMPLETE: Added source-neutral `AssetByteSource`/`AssetRepository` APIs for `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and `load_from_opendats_to_area`; added an Android `AssetManager` bridge; verified KID directory resources, GUARD.DAT resources, DAT precedence, PNG fallback, and caller-owned area copies against packaged assets. Full `gradle test` passes with 583 tests.
 - **16b.4** Bitmap decode and sprite catalog integration — PENDING: Implement `decode_image` palette-to-ARGB conversion and `load_image`/chtab catalog loading, then verify chtab 2 KID and chtab 5 GUARD image dimensions match `SpriteDimensions.kt`; document the human visual verification handoff for palette, transparency, and orientation.
 
 **Acceptance:** `chtab_addrs[2]` (KID, 219 sprites) and `chtab_addrs[5]` (GUARD, 34 sprites) load from DAT/PNG assets with correct dimensions. Unit tests pass for all decompressors.

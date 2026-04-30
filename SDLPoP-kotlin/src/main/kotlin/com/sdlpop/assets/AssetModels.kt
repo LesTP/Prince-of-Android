@@ -27,6 +27,16 @@ data class DatArchiveMetadata(
     fun resource(id: Int): DatResourceMetadata? = resources.firstOrNull { it.id == id }
 }
 
+data class LoadedAssetResource(
+    val id: Int,
+    val extension: String,
+    val sourceName: String,
+    val location: AssetLocation,
+    val bytes: ByteArray
+) {
+    val size: Int get() = bytes.size
+}
+
 data class Rgb6(val r: Int, val g: Int, val b: Int) {
     init {
         require(r in 0..0x3F && g in 0..0x3F && b in 0..0x3F) {
