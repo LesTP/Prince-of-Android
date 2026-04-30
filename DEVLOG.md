@@ -2,6 +2,21 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16b.4: Bitmap decode and sprite catalog integration
+
+**Mode:** Code | **Outcome:** Complete — DAT palette decode, Android Bitmap bridge, and KID/GUARD sprite catalogs verified
+**Contract changes:** `com.sdlpop.assets` now exposes decoded image models, `AssetImages.loadImage()`, and `AssetImages.loadSpriteCatalog()` for chtab-style sprite loading; the Android app module adds `BitmapImageDecoder` to convert decoded DAT pixels or PNG bytes into `Bitmap` instances.
+
+Translated the remaining `seg009.c` asset image boundary into Kotlin: DAT images now decompress through the existing codecs, expand packed pixels to 8bpp indices, apply the DAT VGA palette into ARGB_8888 pixels, and preserve color 0 as transparent. Directory PNG resources remain source-backed and carry parsed dimensions plus original bytes so Android can decode them through `BitmapFactory`.
+
+Added a sprite catalog model matching `load_sprites_from_file()` semantics: a `.pal` resource provides the image count and palette, then resources `pal_resource + 1` through `pal_resource + n_images` are loaded as the chtab image list. The catalog keeps SDLPoP's zero-based image storage but exposes one-based frame-ID lookups for integration with the translated game/render code.
+
+Added JVM tests for DAT ARGB palette conversion, KID chtab 2 loading from directory PNG assets, and GUARD chtab 5 loading from GUARD.DAT with the GUARD1 palette. The KID 219-sprite and GUARD 34-sprite catalogs now match every dimension in `SpriteDimensions.kt`, which provides the handoff point for replacing the headless hardcoded table with loaded asset dimensions later.
+
+Human visual verification handoff: palette correctness, color-0 transparency, PNG/DAT orientation, and apparent sprite alignment still need inspection on Android once the renderer consumes these catalogs.
+
+Verification: `gradle test` passed with 586 tests.
+
 ### 2026-04-30 — Step 16b.3: DAT and PNG resource loading
 
 **Mode:** Code | **Outcome:** Complete — DAT/directory asset lookup ported and verified

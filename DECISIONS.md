@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-18: Decoded asset image boundary for Android Bitmap creation
+Date: 2026-04-30 | Status: Closed
+Priority: Important
+Decision: Keep DAT decode, palette-to-ARGB conversion, PNG metadata, and chtab sprite catalog loading in the JVM-testable `com.sdlpop.assets` module, and keep actual `android.graphics.Bitmap` creation in the Android app module via `BitmapImageDecoder`.
+Rationale: Phase 16b needs objective JVM tests for DAT/PNG dimensions and palette conversion on the Pi, while `BitmapFactory` and `Bitmap.createBitmap()` belong to the Android runtime. Splitting decoded image data from Bitmap instantiation preserves the Android contract without making the core module depend on Android SDK classes or untestable platform APIs.
+Revisit if: The renderer needs Android-specific image metadata in the shared asset catalog, or Android-side bitmap allocation must be pooled/cached behind a different lifecycle boundary.
+
 D-17: DAT resource payload boundary for asset codecs
 Date: 2026-04-30 | Status: Closed
 Priority: Important

@@ -84,3 +84,48 @@ data class PngMetadata(
     val bitDepth: Int,
     val colorType: Int
 )
+
+sealed class DecodedAssetImage {
+    abstract val width: Int
+    abstract val height: Int
+    abstract val source: LoadedAssetResource
+}
+
+data class DatDecodedImage(
+    override val width: Int,
+    override val height: Int,
+    val argbPixels: IntArray,
+    override val source: LoadedAssetResource
+) : DecodedAssetImage() {
+    init {
+        require(argbPixels.size == width * height) {
+            "ARGB pixel count must match image dimensions"
+        }
+    }
+}
+
+data class PngDecodedImage(
+    override val width: Int,
+    override val height: Int,
+    val pngBytes: ByteArray,
+    override val source: LoadedAssetResource
+) : DecodedAssetImage()
+
+data class SpriteCatalog(
+    val chtabId: Int,
+    val paletteResourceId: Int,
+    val palette: DatPalette,
+    val images: List<DecodedAssetImage?>
+) {
+    val imageCount: Int get() = images.size
+
+    /**
+     * SDLPoP stores chtab images as zero-based pointers, while most translated
+     * game code still talks about one-based frame IDs.
+     */
+    fun imageByFrameId(frameId: Int): DecodedAssetImage? =
+        if (frameId in 1..images.size) images[frameId - 1] else null
+
+    fun dimensionsByFrameId(frameId: Int): Pair<Int, Int>? =
+        imageByFrameId(frameId)?.let { it.width to it.height }
+}

@@ -1,5 +1,7 @@
 package com.sdlpop.assets
 
+import com.sdlpop.game.Chtabs
+import com.sdlpop.game.SpriteDimensions
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -112,6 +114,65 @@ class AssetParsersTest {
 
         assertEquals(8, copied)
         assertContentEquals(byteArrayOf(5, 0, 6, 0, 0, 0xB4.toByte(), 0xB7.toByte(), 0), destination)
+    }
+
+    @Test
+    fun `DAT image decode converts indexed pixels through VGA palette to ARGB`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        repository.openDat("GUARD.DAT")
+        repository.openDat("GUARD1.DAT")
+        val paletteResource = AssetParsers.parseSpritePaletteResource(
+            assertNotNull(repository.loadFromOpenDatsAlloc(750, "pal")).bytes
+        )
+
+        val image = assertNotNull(AssetImages.loadImage(repository, 751, paletteResource.palette)) as DatDecodedImage
+
+        assertEquals(6, image.width)
+        assertEquals(5, image.height)
+        assertEquals(30, image.argbPixels.size)
+        assertEquals(0x00000000, image.argbPixels[0])
+        assertEquals(paletteResource.palette.vga[2].toArgb8888(), image.argbPixels[4])
+    }
+
+    @Test
+    fun `KID sprite catalog loads PNG dimensions matching headless table`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        repository.openDat("KID.DAT", optional = true)
+
+        val catalog = assertNotNull(
+            AssetImages.loadSpriteCatalog(
+                repository = repository,
+                chtabId = Chtabs.KID,
+                paletteResourceId = 400,
+                paletteBits = 1 shl 1
+            )
+        )
+
+        assertEquals(219, catalog.imageCount)
+        for (frameId in 1..catalog.imageCount) {
+            assertEquals(SpriteDimensions.getImageDimensions(Chtabs.KID, frameId), catalog.dimensionsByFrameId(frameId))
+        }
+    }
+
+    @Test
+    fun `GUARD sprite catalog loads DAT dimensions matching headless table`() {
+        val repository = AssetRepository(FilesystemAssetByteSource(assetsRoot))
+        repository.openDat("GUARD.DAT")
+        repository.openDat("GUARD1.DAT")
+
+        val catalog = assertNotNull(
+            AssetImages.loadSpriteCatalog(
+                repository = repository,
+                chtabId = Chtabs.GUARD,
+                paletteResourceId = 750,
+                paletteBits = 1 shl 1
+            )
+        )
+
+        assertEquals(34, catalog.imageCount)
+        for (frameId in 1..catalog.imageCount) {
+            assertEquals(SpriteDimensions.getImageDimensions(Chtabs.GUARD, frameId), catalog.dimensionsByFrameId(frameId))
+        }
     }
 
     @Test
