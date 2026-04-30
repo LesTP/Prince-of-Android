@@ -23,6 +23,8 @@
 - **Gradle 9.x JUnit:** Add `testRuntimeOnly("org.junit.platform:junit-platform-launcher")` to `build.gradle.kts` or test executor fails to start with "Failed to load JUnit Platform."
 - **Gradle native services on this container:** Fresh `gradle` runs currently fail before task execution with `Failed to load native library 'libnative-platform.so' for Linux aarch64`. Existing test artifacts remain reviewable, but new Gradle verification is blocked until the environment is repaired or a working Gradle distribution is provided.
 - **JDK 17 toolchain:** `SDLPoP-kotlin/build.gradle.kts` requests JVM toolchain 17, matching the Pi container's OpenJDK 17. The `app` module (Android) also targets Java 17. Both modules are JDK 17-compatible.
+- **DAT resource payloads skip checksum byte:** SDLPoP DAT table offsets point at a one-byte checksum; image/palette payload begins at `offset + 1` and is exactly `size` bytes. Kotlin asset parsers should expose checksum-stripped payload bytes to match `seg009.c::load_from_opendats_alloc()`.
+- **Keep asset decode JVM-testable:** DAT decompression, palette-to-ARGB conversion, PNG metadata parsing, and chtab catalog loading belong in `com.sdlpop.assets`; Android `Bitmap` creation stays in the app bridge. This keeps asset correctness covered by `gradle test` without Android runtime dependencies.
 - **SDLPoP replay invocation (Linux):** Run from `/tmp/sdlpop/` (binary copied there for execute permission). Use `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345`. Output: `state_trace.bin`.
 - **SDL headless mode:** Pi has no display. Use `SDL_VIDEODRIVER=offscreen` (not `dummy` — dummy hangs). Requires `xvfb` package installed but `offscreen` driver doesn't need it.
 - **NTFS execute permissions:** USB drive is NTFS — `chmod +x` is silently ignored. Workaround: copy binaries to `/tmp/sdlpop/` with symlinks to data/replays/doc/SDLPoP.ini.
@@ -45,53 +47,53 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16b — Asset loading pipeline — **REVIEW DONE**
-**Next:** Phase 16b complete
+**Phase:** 16b — Asset loading pipeline — **COMPLETE**
+**Next:** Human audit, then Phase 16c plan
 
 **Replay regression:** 8/13 MATCH, 586 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
 ### Phase 0: Environment Setup — COMPLETE
-One-line: Built SDLPoP on Windows via MSYS2/MinGW, verified gameplay, recorded first replay. See DEVLOG §Phase-0.
+One-line: Built SDLPoP on Windows via MSYS2/MinGW, verified gameplay, recorded first replay. See DEVLOG_archive.md §Phase-0.
 
 ### Phase 1: Replay Oracle Spike — COMPLETE
-One-line: Verified replay determinism (FC: no differences). Q1 closed — oracle works. See DEVLOG §Phase-1.
+One-line: Verified replay determinism (FC: no differences). Q1 closed — oracle works. See DEVLOG_archive.md §Phase-1.
 
 ### Phase 2: Target Language Decision — COMPLETE
-One-line: Decision: **Kotlin**. Rationale: native Android, predictable integer semantics (signed types wrap on overflow), explicit conversions. Validation deferred to first file translation in Phase 3 — replay oracle will catch semantic mismatches immediately. Q2 closed. See DEVLOG §Phase-2.
+One-line: Decision: **Kotlin**. Rationale: native Android, predictable integer semantics (signed types wrap on overflow), explicit conversions. Validation deferred to first file translation in Phase 3 — replay oracle will catch semantic mismatches immediately. Q2 closed. See DEVLOG_archive.md §Phase-2.
 
 ### Phase 3: Test Infrastructure — COMPLETE
-One-line: Built replay oracle toolchain: 13 reference traces, Python comparator, Kotlin P1R parser (Gradle, 9/9 tests pass). See DEVLOG §Phase-3.
+One-line: Built replay oracle toolchain: 13 reference traces, Python comparator, Kotlin P1R parser (Gradle, 9/9 tests pass). See DEVLOG_archive.md §Phase-3.
 
 **Deferred:** Game loop replay runner — build alongside first file translation.
 
 ### Module 6: State Model — COMPLETE
-One-line: Translated types.h + data.h → Kotlin (4 files, 27 tests pass). See DEVLOG §Module 6.
+One-line: Translated types.h + data.h → Kotlin (4 files, 27 tests pass). See DEVLOG_archive.md §Module 6.
 
 ### Module 7: Sequence Table — COMPLETE
-One-line: Translated seqtbl.c → Kotlin (SequenceTable.kt + enums, 2,310-byte array, 115 offsets, 50 new tests, 77 total pass). See DEVLOG §Module 7.
+One-line: Translated seqtbl.c → Kotlin (SequenceTable.kt + enums, 2,310-byte array, 115 offsets, 50 new tests, 77 total pass). See DEVLOG_archive.md §Module 7.
 
 ### Module 8: Layer 1 seg006 — COMPLETE
-One-line: Translated seg006.c → Kotlin (81 functions, 2,154 lines C → Seg006.kt + ExternalStubs.kt, 190 tests pass, zero escalations). See DEVLOG §Module 8.
+One-line: Translated seg006.c → Kotlin (81 functions, 2,154 lines C → Seg006.kt + ExternalStubs.kt, 190 tests pass, zero escalations). See DEVLOG_archive.md §Module 8.
 
 ### Module 9: Layer 1 seg004 — COMPLETE
-One-line: Translated seg004.c → Kotlin (26 functions, 621 lines C → Seg004.kt, 42 new tests, 232 total pass, zero escalations). See DEVLOG §Module 9.
+One-line: Translated seg004.c → Kotlin (26 functions, 621 lines C → Seg004.kt, 42 new tests, 232 total pass, zero escalations). See DEVLOG_archive.md §Module 9.
 
 ### Module 10: Layer 1 seg005 — COMPLETE
-One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005.kt, 75 new tests, 307 total pass, zero escalations). See DEVLOG §Module 10.
+One-line: Translated seg005.c → Kotlin (38 functions, 1,172 lines C → Seg005.kt, 75 new tests, 307 total pass, zero escalations). See DEVLOG_archive.md §Module 10.
 
 ### Module 11: Layer 1 seg002 — COMPLETE
-One-line: Translated seg002.c → Seg002.kt across phases 11a-11c, including guard AI, room transitions, sword combat detection, skeleton/shadow logic, and stub wire-up; review clean. See DEVLOG §Module 11.
+One-line: Translated seg002.c → Seg002.kt across phases 11a-11c, including guard AI, room transitions, sword combat detection, skeleton/shadow logic, and stub wire-up; review clean. See DEVLOG_archive.md §Module 11.
 
 ### Module 12: Layer 1 seg007 — COMPLETE
 Human audit approved on 2026-04-15; proceed to Module 13.
 
 #### Phase 12a: Trob core, redraw helpers, trap/button animation — COMPLETE
-One-line: Translated trob pipeline, animated-tile state machines (torch/potion/sword/chomper/spike/button/gate/leveldoor), trigger plumbing, and 6 ExternalStubs wire-ups into Seg007.kt (3 steps, 70 tests, 519 total pass, zero escalations). See DEVLOG §Module 12.
+One-line: Translated trob pipeline, animated-tile state machines (torch/potion/sword/chomper/spike/button/gate/leveldoor), trigger plumbing, and 6 ExternalStubs wire-ups into Seg007.kt (3 steps, 70 tests, 519 total pass, zero escalations). See DEVLOG_archive.md §Module 12.
 
 #### Phase 12b: Loose-floor mobs and remaining seg007 functions — COMPLETE
-One-line: Translated loose-floor fall initiation, falling-object simulation, Kid collision/death handling, row/room transitions, redraw bookkeeping, and mob object-table writes into Seg007.kt (3 steps, 21 new tests, 540 total pass, zero escalations). See DEVLOG §Module 12.
+One-line: Translated loose-floor fall initiation, falling-object simulation, Kid collision/death handling, row/room transitions, redraw bookkeeping, and mob object-table writes into Seg007.kt (3 steps, 21 new tests, 540 total pass, zero escalations). See DEVLOG_archive.md §Module 12.
 
 ### Module 13: Layer 1 integration test — COMPLETE
 One-line: Built the Kotlin replay-regression harness around the translated Layer 1 game logic: 310-byte trace parsing/comparison, `GameState` snapshot serialization, all-13-trace manifest coverage, Gradle workflow, triage-ready divergence reports, and explicit Module 14 handoff for real replay playback. See DEVLOG §Module 13.
@@ -157,37 +159,8 @@ One-line: Translate seg008.c + lighting.c rendering to Android Canvas, load real
 #### Phase 16a: Android project scaffold — COMPLETE
 One-line: Multi-module Gradle project with Android `app` module (SDK 24–34, `GameActivity` + `GameSurfaceView`), conditional inclusion for Pi compatibility, SDLPoP assets packaged. See DEVLOG §Module 16.
 
-#### Phase 16b: Asset loading pipeline — IN PROGRESS
-
-**Regime:** Build (autonomous) with human visual verification at end.
-
-**Scope:** Port the DAT file decompression and image decode chain from seg009.c to Kotlin. Replace `SDL_Surface` output with Android `Bitmap` (ARGB_8888). Replace `fopen` DAT/PNG loading with Android `AssetManager`.
-
-**Functions to translate (autonomous — pure C, zero SDL):**
-- `decompress_rle_lr` — RLE decompressor, left-to-right scan
-- `decompress_rle_ud` — RLE decompressor, top-to-bottom scan
-- `decompress_lzg_lr` — LZG (LZ77-variant) decompressor, left-to-right
-- `decompress_lzg_ud` — LZG decompressor, column-major
-- `decompr_img` — dispatcher: routes to correct decompressor by `cmeth` flag
-- `conv_to_8bpp` — expands packed pixels (1/2/4bpp) to 1-byte-per-pixel
-- `calc_stride` — bytes per row calculation
-
-**Functions to translate (Refine — SDL→Android bridge):**
-- `decode_image` — keep decompression; replace `SDL_CreateRGBSurface` + `SDL_SetPaletteColors` with `Bitmap.createBitmap()` (ARGB_8888) and manual palette application (VGA 6-bit → 8-bit via `<< 2`, color 0 transparent)
-- `load_image` — DAT path uses portable decompressor; PNG path replaces `IMG_Load_RW()` with `BitmapFactory.decodeStream()` via `AssetManager`
-- `open_dat` / `load_from_opendats_alloc` / `load_from_opendats_to_area` / `load_from_opendats_metadata` — replace `fopen`/`fread` with `AssetManager.open()`
-
-**Test oracle:** Decode known sprites, verify pixel dimensions match `SpriteDimensions.kt` hardcoded values. For decompressors: round-trip or golden-output tests against known DAT resource bytes.
-
-**Human work:** Visually verify decoded sprites look correct (palette, transparency, orientation). ~1 session.
-
-**Steps:**
-- **16b.1** Asset codec contract and golden fixtures — COMPLETE: Audited the relevant `seg009.c` structs/functions, added an Android-independent `com.sdlpop.assets` metadata boundary for DAT tables, palette resources, image headers, PNG metadata, and 6-bit VGA colors, and added golden fixture tests from packaged KID/GUARD/VDUNGEON resources for dimensions, palette parsing, and compressed-byte metadata. Verification is blocked locally because Gradle now requires JDK 21 and the container has OpenJDK 17.
-- **16b.2** Pure decompression and pixel expansion — COMPLETE: Translated `decompress_rle_lr`, `decompress_rle_ud`, `decompress_lzg_lr`, `decompress_lzg_ud`, compression dispatch, `calc_stride`, and `conv_to_8bpp` into `AssetCodecs.kt`; corrected DAT resource reads to skip the checksum byte; added synthetic RLE, GUARD.DAT raw/RLE/LZG, decompressed-byte, and 1/2/4bpp pixel-expansion golden tests. Full `gradle test` passes with 579 tests.
-- **16b.3** DAT and PNG resource loading — COMPLETE: Added source-neutral `AssetByteSource`/`AssetRepository` APIs for `open_dat`, `load_from_opendats_metadata`, `load_from_opendats_alloc`, and `load_from_opendats_to_area`; added an Android `AssetManager` bridge; verified KID directory resources, GUARD.DAT resources, DAT precedence, PNG fallback, and caller-owned area copies against packaged assets. Full `gradle test` passes with 583 tests.
-- **16b.4** Bitmap decode and sprite catalog integration — COMPLETE: Added decoded image models, DAT palette-to-ARGB conversion, source-backed PNG image loading, chtab sprite catalog loading, and an Android `BitmapImageDecoder` bridge; verified KID chtab 2 (219 sprites) and GUARD chtab 5 (34 sprites) dimensions against `SpriteDimensions.kt`; documented human visual verification handoff for palette, transparency, and orientation. Full `gradle test` passes with 586 tests.
-
-**Acceptance:** `chtab_addrs[2]` (KID, 219 sprites) and `chtab_addrs[5]` (GUARD, 34 sprites) load from DAT/PNG assets with correct dimensions. Unit tests pass for all decompressors.
+#### Phase 16b: Asset loading pipeline — COMPLETE
+One-line: Ported the `seg009.c` DAT/PNG asset pipeline into JVM-testable Kotlin plus Android bridges: DAT table parsing, checksum-stripped resource reads, RLE/LZG decompression, packed-pixel expansion, palette-to-ARGB decode, source-neutral asset lookup, chtab sprite catalogs, and Bitmap creation handoff. KID chtab 2 (219 sprites) and GUARD chtab 5 (34 sprites) match `SpriteDimensions.kt`; full `gradle test` passes with 586 tests. See DEVLOG §Module 16.
 
 #### Phase 16c: Render table pure logic (seg008 state functions) — PENDING
 
