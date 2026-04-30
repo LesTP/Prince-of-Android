@@ -24,7 +24,7 @@ object AssetParsers {
             val id = readLe16(bytes, pos)
             val offset = readLe32(bytes, pos + 2)
             val size = readLe16(bytes, pos + 6)
-            require(offset >= 0 && offset + size <= bytes.size) {
+            require(offset >= 0 && offset + 1 + size <= bytes.size) {
                 "DAT resource $id points outside archive"
             }
             DatResourceMetadata(id = id, offset = offset, size = size)
@@ -94,7 +94,8 @@ object AssetParsers {
 
     fun readResourceBytes(datBytes: ByteArray, metadata: DatResourceMetadata): ByteArray {
         require(metadata.location == AssetLocation.DAT)
-        return datBytes.copyOfRange(metadata.offset, metadata.offset + metadata.size)
+        val payloadOffset = metadata.offset + DAT_RESOURCE_CHECKSUM_SIZE
+        return datBytes.copyOfRange(payloadOffset, payloadOffset + metadata.size)
     }
 
     private fun readLe16(bytes: ByteArray, offset: Int): Int =
@@ -115,5 +116,6 @@ object AssetParsers {
     private fun u8(bytes: ByteArray, offset: Int): Int = bytes[offset].toInt() and 0xFF
 
     private const val DAT_PALETTE_SIZE = 99
+    private const val DAT_RESOURCE_CHECKSUM_SIZE = 1
     private const val SPRITE_PALETTE_RESOURCE_SIZE = 100
 }

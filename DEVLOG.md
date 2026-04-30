@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16b.2: Pure decompression and pixel expansion
+
+**Mode:** Code | **Outcome:** Complete — pure DAT image codecs translated and verified
+**Contract changes:** `AssetParsers.readResourceBytes()` now returns the checksum-stripped DAT resource payload, matching `seg009.c::load_from_opendats_alloc()`; callers receive bytes beginning at the resource's actual image/palette header.
+
+Translated the portable `seg009.c` asset codec slice into JVM-testable Kotlin in `AssetCodecs.kt`: RLE left-to-right, RLE up-to-down, LZG left-to-right, LZG up-to-down, the compression-method dispatcher, stride calculation, and packed 1/2/4bpp pixel expansion to one byte per pixel. The implementation keeps C-equivalent unsigned-byte handling for compressed stream bytes, LZG copy windows, packed nibbles, and column-major up/down writes.
+
+While wiring real DAT fixtures, corrected the Step 16b.1 DAT payload boundary: SDLPoP reads one checksum byte at the resource offset, then reads `size` bytes of payload. The Kotlin parser now validates `offset + 1 + size` and returns bytes after the checksum, so `ImageDataHeader` parsing sees the real little-endian `height`, `width`, and `flags`.
+
+Added golden-output tests covering a synthetic RLE left-to-right packet, GUARD.DAT raw/RLE/LZG resource fixtures for compression methods 0, 2, 3, and 4, decompressed byte prefixes and checksums, packed pixel expansion prefixes and checksums, and explicit 1/2/4bpp expansion behavior.
+
+Verification: `gradle test --tests com.sdlpop.assets.AssetParsersTest` passed. Full `gradle test` passed with 579 tests, 0 failures, 0 errors.
+
 ### 2026-04-28 — Step 16b.1: Asset codec contract and golden fixtures
 
 **Mode:** Code | **Outcome:** Complete — JVM asset metadata contract and golden fixtures added

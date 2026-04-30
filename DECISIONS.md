@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-17: DAT resource payload boundary for asset codecs
+Date: 2026-04-30 | Status: Closed
+Priority: Important
+Decision: Treat the DAT table `offset` as pointing at a one-byte checksum and expose resource payload bytes starting at `offset + 1` for Kotlin asset parsing and decompression.
+Rationale: `seg009.c::load_from_opendats_metadata()` reads the checksum byte first, then `load_from_opendats_alloc()` reads `size` bytes from the following position. Parsing from the raw table offset corrupts image headers, as seen with `GUARD.DAT` resource 751 (`0x66` checksum before the real `height=5,width=6,flags=0xB400` header). Matching the C payload boundary lets the pure decompression tests validate real DAT image resources.
+Revisit if: Step 16b.3 implements archive loading against a DAT variant whose resource table size includes the checksum byte differently.
+
 D-16: Module 15 completion and Phase 15b/15c review
 Date: 2026-04-20 | Status: Closed
 Priority: Important
