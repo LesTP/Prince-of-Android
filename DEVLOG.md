@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16c.2: Room links, adjacent tiles, and modifier preprocessing
+
+**Mode:** Code | **Outcome:** Complete — room-link loading and modifier preprocessing translated and verified
+**Contract changes:** `GameState` now includes `torchColors` render state for colored torch modifier preprocessing; `Seg008` now owns room-link/adjacent-tile loading and C-equivalent modifier preprocessing for render setup.
+
+Translated the next pure `seg008.c` slice into `Seg008.kt`: `load_room_links`, `load_leftroom`, `load_rowbelow`, `load_curr_and_left_tile`, `alter_mods_allrm`, and `load_alter_mod`. The implementation reuses `ExternalStubs.loadRoomAddress()` for room-buffer loading, computes direct and diagonal room neighbors, resolves current/left/below tiles through the existing `getTileToDraw()` rules, clamps `level.usedRooms` to 24, and preprocesses gate, loose-floor, potion, wall, fake-wall, CGA/Herc wall, and colored-torch modifiers.
+
+Because Kotlin room buffers are copied rather than C pointers into `level.fg[]`/`level.bg[]`, `loadAlterMod()` writes modifier changes to both `currRoomModif[]` and the corresponding `level.bg[]` slot for the loaded room. This preserves the C behavior where later room reloads see the preprocessed modifiers.
+
+Expanded `Seg008Test` with level-backed fixtures for room links, diagonal neighbor fallback, current/left/below tile loading, top/left edge tiles, all major modifier transformations, wall connection bits across neighbor rooms, fake wall connection modifiers, CGA/Herc wall behavior, torch color capture, and level-buffer sync.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test` passed; full `gradle test` passed in `SDLPoP-kotlin` with 606 tests.
+
 ### 2026-04-30 — Step 16c.1: Seg008 render-state scaffold and tile helpers
 
 **Mode:** Code | **Outcome:** Complete — pure Seg008 helper scaffold translated and verified

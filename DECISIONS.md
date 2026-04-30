@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-22: Sync Seg008 modifier preprocessing into level buffers
+Date: 2026-04-30 | Status: Open
+Priority: Important
+Decision: `Seg008.loadAlterMod()` writes modifier preprocessing results to both `GameState.currRoomModif[]` and the corresponding `GameState.level.bg[]` slot for the currently loaded room.
+Rationale: In C, `curr_room_modif` is a pointer into `level.bg`, so `load_alter_mod()` mutates persistent level data by writing through the current-room pointer. Kotlin models room buffers as copied arrays loaded by `ExternalStubs.loadRoomAddress()`. Without explicit sync, later room reloads would discard gate, loose-floor, potion, wall-connection, fake-wall, and torch preprocessing.
+Revisit if: Room buffers are later refactored to be true views into `LevelType.fg/bg`, or if Android rendering owns a separate immutable render-preprocessing cache.
+
 D-21: Phase 16c boundary for seg008 pure render logic
 Date: 2026-04-30 | Status: Open
 Priority: Important

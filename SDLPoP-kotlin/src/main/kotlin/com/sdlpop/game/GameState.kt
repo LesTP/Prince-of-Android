@@ -183,6 +183,7 @@ object GameState {
     var needRedrawBecauseFlipped: Int = 0       // word (need_redraw_because_flipped)
     var redrawHeight: Short = 0                // short (redraw_height)
     var needDrects: Int = 0                    // word (need_drects)
+    val torchColors = Array(25) { IntArray(30) } // byte[25][30] (torch_colors), indexed 1..24
 
     // === Object table ===
     var nCurrObjs: Short = 0                   // short (n_curr_objs)

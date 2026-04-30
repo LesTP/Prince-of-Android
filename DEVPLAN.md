@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Step 16c.2 — Room links, adjacent tiles, and modifier preprocessing
+**Next:** Step 16c.3 — Object table and dirty-rect bookkeeping
 
-**Replay regression:** 8/13 MATCH, 596 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 606 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -215,11 +215,11 @@ Orchestrators:
    - Wire `ExternalStubs.calcScreenXCoord` to the real helper while preserving test reset behavior.
    - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (596 tests).
 
-2. **16c.2 — Room links, adjacent tiles, and modifier preprocessing**
+2. **16c.2 — Room links, adjacent tiles, and modifier preprocessing — COMPLETE (2026-04-30)**
    - Translate `load_room_links`, `load_leftroom`, `load_rowbelow`, and `load_curr_and_left_tile`, reusing the existing `ExternalStubs.loadRoomAddress` room-buffer loader where it already matches C behavior.
    - Translate `alter_mods_allrm` and `load_alter_mod`, including gate, loose-floor, potion, wall, torch, and retained wall-modifier behavior.
    - Add tests that seed `level.fg[]`/`level.bg[]` rather than only room buffers, covering neighbor-room links, above/below/left edge cases, and all major modifier transformations.
-   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (606 tests).
 
 3. **16c.3 — Object table and dirty-rect bookkeeping**
    - Translate `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`, `load_obj_from_objtable`, `mark_obj_tile_redraw`, `sort_curr_objs`, `compare_curr_objs`, `load_frame_to_obj`, and `add_drect`.
