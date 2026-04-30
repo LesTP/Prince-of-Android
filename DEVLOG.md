@@ -2,6 +2,28 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Phase 16c Plan: Render table pure logic
+
+**Mode:** Discuss | **Outcome:** Phase planned
+**Contract changes:** DEVPLAN.md, DECISIONS.md — phase step breakdown and planning decision only; no source behavior changes.
+
+Planned Phase 16c as the Build-regime translation path for the pure `seg008.c` render-state functions. The phase keeps the rendering boundary at table production: no Android Canvas work, no SDL drawing, and no real render-table append implementation from Phase 16d.
+
+Phase 16c is split into four steps:
+- **16c.1** Add the `Seg008` scaffold, missing render-state support, tile helper functions, `get_tile_to_draw`, and real `calc_screen_x_coord` wiring.
+- **16c.2** Translate room-link/adjacent-tile loading and `alter_mods_allrm` / `load_alter_mod` modifier preprocessing.
+- **16c.3** Translate object-table, draw-order sorting, frame-to-object, tile-redraw marking, and dirty-rect bookkeeping.
+- **16c.4** Translate pure draw/redraw orchestration behind no-op or test-capturable render-submission hooks, leaving real table appenders to Phase 16d.
+
+Planning decision recorded in `DECISIONS.md` D-21. No source code changed in this iteration.
+
+### 2026-04-30 — Phase 16b Approval
+
+**Mode:** Review | **Outcome:** Reviewed and approved
+**Contract changes:** DEVPLAN.md, DECISIONS.md — approval status only; no interface or behavior contract changes
+
+Human approval recorded for Phase 16b after the completed review and phase-close entry. Module 16 remains in progress, and Phase 16c is now unblocked for planning.
+
 ### 2026-04-30 — Phase 16b complete
 
 **Mode:** Complete | **Outcome:** Phase complete — asset loading pipeline accepted for human audit

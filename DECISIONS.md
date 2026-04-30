@@ -1,5 +1,19 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-21: Phase 16c boundary for seg008 pure render logic
+Date: 2026-04-30 | Status: Open
+Priority: Important
+Decision: Start Phase 16c as a Build-regime translation of the pure `seg008.c` state/render-table preparation slice, split into four steps: render-state scaffold and tile helpers; room/adjacent-tile loading plus modifier preprocessing; object-table and dirty-rect bookkeeping; and pure draw/redraw orchestration behind no-op or test-capturable render-submission hooks.
+Rationale: `seg008.c` crosses the rendering Build/Refine boundary. The 30 pure-state functions can be translated and unit-tested without Android Canvas or SDL, but several orchestration functions call render-submission functions that belong to Phase 16d. Keeping those downstream calls behind hooks lets Phase 16c validate traversal, redraw counters, room loading, tile resolution, modifier preprocessing, object ordering, and dirty-rect state without pulling pixel drawing or render-table append semantics into the phase.
+Revisit if: A 16c function cannot be made meaningful without translating Phase 16d table append functions, or if render-table models must change in a way that affects the Android backend contract.
+
+D-20: Phase 16b human approval
+Date: 2026-04-30 | Status: Closed
+Priority: Important
+Decision: Mark Phase 16b as reviewed and human-approved. Module 16 stays in progress, and Phase 16c is unblocked for planning.
+Rationale: The Phase 16b review is closed, the one should-fix was applied, the phase-complete entry recorded acceptance for the asset loading pipeline, and the latest verification remains `gradle test` passing from the repo root with 586 tests.
+Revisit if: Phase 16c planning discovers a missing asset-pipeline contract dependency or a required change to the Phase 16b decode/catalog boundary before render-table work can begin.
+
 D-19: Collapse C metadata/alloc DAT loaders into one Kotlin entry point
 Date: 2026-04-30 | Status: Closed
 Priority: Nice-to-have

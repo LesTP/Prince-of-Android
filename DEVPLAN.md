@@ -47,8 +47,8 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16b — Asset loading pipeline — **COMPLETE**
-**Next:** Human audit, then Phase 16c plan
+**Phase:** 16c — Render table pure logic — **IN PROGRESS**
+**Next:** Step 16c.1 — Seg008 render-state scaffold and tile helpers
 
 **Replay regression:** 8/13 MATCH, 586 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -162,7 +162,9 @@ One-line: Multi-module Gradle project with Android `app` module (SDK 24–34, `G
 #### Phase 16b: Asset loading pipeline — COMPLETE
 One-line: Ported the `seg009.c` DAT/PNG asset pipeline into JVM-testable Kotlin plus Android bridges: DAT table parsing, checksum-stripped resource reads, RLE/LZG decompression, packed-pixel expansion, palette-to-ARGB decode, source-neutral asset lookup, chtab sprite catalogs, and Bitmap creation handoff. KID chtab 2 (219 sprites) and GUARD chtab 5 (34 sprites) match `SpriteDimensions.kt`; full `gradle test` passes with 586 tests. See DEVLOG §Module 16.
 
-#### Phase 16c: Render table pure logic (seg008 state functions) — PENDING
+Human audit approved on 2026-04-30; proceed to Phase 16c planning.
+
+#### Phase 16c: Render table pure logic (seg008 state functions) — IN PROGRESS
 
 **Regime:** Build (autonomous).
 
@@ -204,6 +206,32 @@ Orchestrators:
 **Human work:** None during translation. Review at phase boundary.
 
 **Acceptance:** All 30 functions translated. Existing game logic tests still pass. New unit tests cover tile resolution, object table population, and modifier preprocessing.
+
+**Phase plan (2026-04-30):**
+
+1. **16c.1 — Seg008 render-state scaffold and tile helpers**
+   - Add the Kotlin `Seg008` foundation needed by later rendering phases without drawing pixels: translated tile-table constants/data models as needed, render-state globals missing from `GameState`, `calc_screen_x_coord` replacing the current identity stub, and the small pure helpers `can_see_bottomleft`, `get_spike_frame`, `get_loose_frame`, and `calc_gate_pos`.
+   - Translate `get_tile_to_draw` with focused fixtures for fake tiles, room-0 edges, button states, loose-floor modifiers, and current/neighbor room lookups.
+   - Wire `ExternalStubs.calcScreenXCoord` to the real helper while preserving test reset behavior.
+   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+
+2. **16c.2 — Room links, adjacent tiles, and modifier preprocessing**
+   - Translate `load_room_links`, `load_leftroom`, `load_rowbelow`, and `load_curr_and_left_tile`, reusing the existing `ExternalStubs.loadRoomAddress` room-buffer loader where it already matches C behavior.
+   - Translate `alter_mods_allrm` and `load_alter_mod`, including gate, loose-floor, potion, wall, torch, and retained wall-modifier behavior.
+   - Add tests that seed `level.fg[]`/`level.bg[]` rather than only room buffers, covering neighbor-room links, above/below/left edge cases, and all major modifier transformations.
+   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+
+3. **16c.3 — Object table and dirty-rect bookkeeping**
+   - Translate `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`, `load_obj_from_objtable`, `mark_obj_tile_redraw`, `sort_curr_objs`, `compare_curr_objs`, `load_frame_to_obj`, and `add_drect`.
+   - Preserve C-equivalent byte/sbyte wrapping for object x/y/id fields and draw-order comparisons.
+   - Add tests for Kid/Guard object insertion, frame-to-object coordinate calculation, sort order, tile redraw marking, and dirty-rect merge/intersection behavior.
+   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+
+4. **16c.4 — Pure orchestration with render-submission hooks**
+   - Translate `draw_room`, `draw_tile`, `draw_tile_aboveroom`, `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`, and `draw_moving`.
+   - Keep Phase 16d submission functions behind no-op or test-capturable render hooks so this step establishes C-equivalent traversal/order without appending real render-table entries yet.
+   - Add call-order and state-mutation tests for room traversal, above-room traversal, redraw counters, tile-object redraw clearing, and moving-object orchestration.
+   - Verification target: full `gradle test`; if the environment hits the known native-platform Gradle failure, record the blocker and rely on focused compile/test artifacts available from the working distribution.
 
 #### Phase 16d: Render table submission (seg008 mixed functions) — PENDING
 
