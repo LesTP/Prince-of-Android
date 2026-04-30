@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16c.1: Seg008 render-state scaffold and tile helpers
+
+**Mode:** Code | **Outcome:** Complete — pure Seg008 helper scaffold translated and verified
+**Contract changes:** `GameState` now includes render-state globals needed by pure `seg008.c` helpers; `ExternalStubs.calcScreenXCoord` now defaults to the translated `calc_screen_x_coord` behavior.
+
+Added the initial `Seg008` Kotlin module for pure render-state logic without pixel drawing or render-table submission. The step translated `calc_screen_x_coord`, `can_see_bottomleft`, `get_spike_frame`, `get_loose_frame`, `calc_gate_pos`, and `get_tile_to_draw`, including pressed-button doorlink handling, fake tile display rules, room-0 edge tiles, left-room lookups, current room-buffer lookup, and the `fix_loose_left_of_potion` gate.
+
+Extended `GameState` with the missing render temporaries used by these helpers (`drawnCol`, `drawnRow`, `tileLeft`, `modifierLeft`, draw Y positions, and gate geometry fields), and wired `ExternalStubs.calcScreenXCoord` to `Seg008.calcScreenXCoord` by default while preserving the existing callable override pattern used by focused tests.
+
+Added `Seg008Test` coverage for screen-X scaling, bottom-left visibility, spike/loose frame conversion, gate geometry, room-buffer/left-room/room-0 tile resolution, pressed opener/closer conversion, fake tile transforms, and loose-floor fix behavior.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test` passed; full `gradle test` passed in `SDLPoP-kotlin` with 596 tests.
+
 ### 2026-04-30 — Phase 16c Plan: Render table pure logic
 
 **Mode:** Discuss | **Outcome:** Phase planned

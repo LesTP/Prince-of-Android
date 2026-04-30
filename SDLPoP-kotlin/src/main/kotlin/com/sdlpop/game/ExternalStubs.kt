@@ -58,7 +58,7 @@ object ExternalStubs {
     var getImage: (Int, Int) -> Pair<Int, Int>? = { chtab, imageId ->
         SpriteDimensions.getImageDimensions(chtab, imageId)
     }
-    var calcScreenXCoord: (Short) -> Short = { x -> x } // identity stub
+    var calcScreenXCoord: (Short) -> Short = { x -> Seg008.calcScreenXCoord(x) }
 
     // --- seg000 (game flow) ---
     var playSound: (Int) -> Unit = { _ -> /* sound stub */ }

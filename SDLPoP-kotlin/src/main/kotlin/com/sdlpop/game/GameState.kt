@@ -57,6 +57,12 @@ object GameState {
     var tileCol: Short = 0         // short (tile_col)
     var tileRow: Short = 0         // short (tile_row)
     var drawXh: Int = 0            // word (draw_xh)
+    var drawnCol: Short = 0        // short (drawn_col)
+    var drawnRow: Short = 0        // short (drawn_row)
+    var tileLeft: Int = 0          // byte (tile_left)
+    var modifierLeft: Int = 0      // byte (modifier_left)
+    var drawMainY: Short = 0       // short (draw_main_y)
+    var drawBottomY: Short = 0     // short (draw_bottom_y)
 
     // Tile lookup arrays
     val leftroom = Array(3) { TileAndMod() }       // leftroom_[3]
@@ -201,6 +207,9 @@ object GameState {
     var leveldoorRight: Int = 0    // word (leveldoor_right)
     var leveldoorYbottom: Int = 0  // word (leveldoor_ybottom)
     var leveldoorOpen: Int = 0     // word (leveldoor_open)
+    var gateTopY: Int = 0          // word (gate_top_y)
+    var gateOpenness: Int = 0      // word (gate_openness)
+    var gateBottomY: Int = 0       // word (gate_bottom_y)
 
     // Door link pointers (indices into level doorlinks arrays)
     var doorlink1Ad: Int = 0       // byte* → index

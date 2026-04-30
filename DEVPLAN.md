@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Step 16c.1 — Seg008 render-state scaffold and tile helpers
+**Next:** Step 16c.2 — Room links, adjacent tiles, and modifier preprocessing
 
-**Replay regression:** 8/13 MATCH, 586 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 596 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -209,11 +209,11 @@ Orchestrators:
 
 **Phase plan (2026-04-30):**
 
-1. **16c.1 — Seg008 render-state scaffold and tile helpers**
+1. **16c.1 — Seg008 render-state scaffold and tile helpers — COMPLETE (2026-04-30)**
    - Add the Kotlin `Seg008` foundation needed by later rendering phases without drawing pixels: translated tile-table constants/data models as needed, render-state globals missing from `GameState`, `calc_screen_x_coord` replacing the current identity stub, and the small pure helpers `can_see_bottomleft`, `get_spike_frame`, `get_loose_frame`, and `calc_gate_pos`.
    - Translate `get_tile_to_draw` with focused fixtures for fake tiles, room-0 edges, button states, loose-floor modifiers, and current/neighbor room lookups.
    - Wire `ExternalStubs.calcScreenXCoord` to the real helper while preserving test reset behavior.
-   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (596 tests).
 
 2. **16c.2 — Room links, adjacent tiles, and modifier preprocessing**
    - Translate `load_room_links`, `load_leftroom`, `load_rowbelow`, and `load_curr_and_left_tile`, reusing the existing `ExternalStubs.loadRoomAddress` room-buffer loader where it already matches C behavior.
