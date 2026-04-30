@@ -2,6 +2,22 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Phase 16b review
+
+- **Mode:** Review
+- **Outcome:** complete — one should-fix applied
+- **Contract changes:** `AssetRepository.loadFromOpenDatsMetadata` removed.
+
+Reviewed all phase 16b output (`com.sdlpop.assets` package: `AssetModels.kt`, `AssetParsers.kt`, `AssetCodecs.kt`, `AssetRepository.kt`, `AssetImages.kt`, `AssetParsersTest.kt`, plus `app/.../AndroidAssetSource.kt` and `app/.../BitmapImageDecoder.kt`) against the phase contract and the SDLPoP `seg009.c` source. Decompressors, header parsers, palette conversion, repository layering, decoded image models, and Android bridges line up with the C reference behavior.
+
+Should-fix applied: removed `AssetRepository.loadFromOpenDatsMetadata`, which was a delegating duplicate of `loadFromOpenDatsAlloc` whose name implied SDLPoP's metadata-only contract while the implementation actually returned full bytes. The single test caller now uses `loadFromOpenDatsAlloc`. The Kotlin port intentionally collapses the C `metadata`/`alloc` split into one `LoadedAssetResource`-returning entry point because Kotlin does not expose raw `FILE*` handles, so a separate metadata-only function adds no value.
+
+Optional findings logged but skipped per autonomous review remit:
+- `AssetImages.decodeDatImage` throws on zero-height DAT images instead of returning `null` like `seg009.c::decode_image()`. The path is unreachable in practice because `loadFromOpenDatsAlloc` already filters PNG-extension DAT entries with `metadata.size <= 2` (the SDLPoP empty-image marker), and no real fixture produces a non-marker zero-height resource.
+- `AssetCodecs.decompressLzgUd` keeps `destEnd` as a Kotlin `Int`, while C truncates `dest_end` to `short`. The discrepancy is observable only for LZG-UD images whose decompressed size exceeds 32,767 bytes; no SDLPoP DAT fixture in the asset tree triggers this.
+
+Verification: `gradle test` passes (full project) after the fix.
+
 ### 2026-04-30 — Step 16b.4: Bitmap decode and sprite catalog integration
 
 **Mode:** Code | **Outcome:** Complete — DAT palette decode, Android Bitmap bridge, and KID/GUARD sprite catalogs verified

@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-19: Collapse C metadata/alloc DAT loaders into one Kotlin entry point
+Date: 2026-04-30 | Status: Closed
+Priority: Nice-to-have
+Decision: `AssetRepository` exposes a single `loadFromOpenDatsAlloc()` (and a destination-area variant) instead of mirroring SDLPoP's `load_from_opendats_metadata` / `load_from_opendats_alloc` split. The phase 16b review removed the misnamed delegating `loadFromOpenDatsMetadata` wrapper that returned full bytes despite its name.
+Rationale: SDLPoP's metadata function returns a `FILE*` plus locator metadata so callers can stream bytes themselves; `_alloc` then layers byte allocation on top. Kotlin's asset boundary models `LoadedAssetResource` as bytes-already-read because `AssetByteSource` cannot expose a streaming handle for Android `AssetManager` or filesystem-backed test sources. A "metadata only" function on top of that abstraction would have to read or duplicate the bytes anyway, so keeping it as a wrapper added zero value while the name suggested the C contract.
+Revisit if: A future caller genuinely needs a streaming or metadata-only DAT lookup (for example, on-demand sprite paging or a per-resource size/checksum query without reading bytes).
+
 D-18: Decoded asset image boundary for Android Bitmap creation
 Date: 2026-04-30 | Status: Closed
 Priority: Important

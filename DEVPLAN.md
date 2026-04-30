@@ -45,8 +45,8 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16b — Asset loading pipeline — **IN PROGRESS**
-**Next:** Phase 16b review
+**Phase:** 16b — Asset loading pipeline — **REVIEW DONE**
+**Next:** Phase 16b complete
 
 **Replay regression:** 8/13 MATCH, 586 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 

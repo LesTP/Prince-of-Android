@@ -32,9 +32,6 @@ class AssetRepository(private val source: AssetByteSource) {
         openDats.remove(handle)
     }
 
-    fun loadFromOpenDatsMetadata(resourceId: Int, extension: String): LoadedAssetResource? =
-        loadFromOpenDatsAlloc(resourceId, extension)
-
     fun loadFromOpenDatsAlloc(resourceId: Int, extension: String): LoadedAssetResource? {
         val normalizedExtension = extension.trimStart('.')
         for (handle in openDats) {

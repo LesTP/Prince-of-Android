@@ -83,7 +83,7 @@ class AssetParsersTest {
         val guard = assertNotNull(repository.openDat("GUARD.DAT"))
         assertEquals(true, guard.isDatBacked)
 
-        val datImage = assertNotNull(repository.loadFromOpenDatsMetadata(751, "png"))
+        val datImage = assertNotNull(repository.loadFromOpenDatsAlloc(751, "png"))
         assertEquals(AssetLocation.DAT, datImage.location)
         assertEquals("GUARD.DAT", datImage.sourceName)
         assertEquals(ImageDataHeader(height = 5, width = 6, flags = 0xB400), AssetParsers.parseImageDataHeader(datImage.bytes))
