@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Step 16c.3 — Object table and dirty-rect bookkeeping
+**Next:** Step 16c.4 — Pure orchestration with render-submission hooks
 
-**Replay regression:** 8/13 MATCH, 606 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 613 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -221,11 +221,11 @@ Orchestrators:
    - Add tests that seed `level.fg[]`/`level.bg[]` rather than only room buffers, covering neighbor-room links, above/below/left edge cases, and all major modifier transformations.
    - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (606 tests).
 
-3. **16c.3 — Object table and dirty-rect bookkeeping**
+3. **16c.3 — Object table and dirty-rect bookkeeping — COMPLETE (2026-04-30)**
    - Translate `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`, `load_obj_from_objtable`, `mark_obj_tile_redraw`, `sort_curr_objs`, `compare_curr_objs`, `load_frame_to_obj`, and `add_drect`.
    - Preserve C-equivalent byte/sbyte wrapping for object x/y/id fields and draw-order comparisons.
    - Add tests for Kid/Guard object insertion, frame-to-object coordinate calculation, sort order, tile redraw marking, and dirty-rect merge/intersection behavior.
-   - Verification target: focused `Seg008Test` plus existing game/replay tests.
+   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (613 tests).
 
 4. **16c.4 — Pure orchestration with render-submission hooks**
    - Translate `draw_room`, `draw_tile`, `draw_tile_aboveroom`, `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`, and `draw_moving`.

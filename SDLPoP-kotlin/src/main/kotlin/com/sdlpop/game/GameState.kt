@@ -307,6 +307,7 @@ object GameState {
     // backtable_count = tableCounts[0], foretable_count = tableCounts[1],
     // wipetable_count = tableCounts[2], midtable_count = tableCounts[3],
     // objtable_count = tableCounts[4]
+    val drects = Array(30) { RectType() } // rect_type[30] (drects)
     var drectsCount: Short = 0            // short (drects_count)
     var peelsCount: Short = 0             // short (peels_count)
 

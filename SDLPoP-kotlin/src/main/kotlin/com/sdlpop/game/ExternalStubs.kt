@@ -54,7 +54,7 @@ object ExternalStubs {
     var drawGuardHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
     var drawKidHp: (Int, Int) -> Unit = { _, _ -> /* rendering stub */ }
     var eraseBottomText: (Int) -> Unit = { _ -> /* rendering stub */ }
-    var addObjtable: (Int) -> Unit = { _ -> /* rendering stub */ }
+    var addObjtable: (Int) -> Unit = { objType -> Seg008.addObjtable(objType) }
     var getImage: (Int, Int) -> Pair<Int, Int>? = { chtab, imageId ->
         SpriteDimensions.getImageDimensions(chtab, imageId)
     }

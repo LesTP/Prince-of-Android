@@ -48,6 +48,140 @@ object Seg008 {
         return (logicalX.toInt() * 320 / 280).toShort()
     }
 
+    fun addDrect(source: RectType) {
+        for (index in 0 until gs.drectsCount.toInt()) {
+            val expanded = shrink2Rect(source, deltaX = -1, deltaY = -1)
+            if (intersectRect(expanded, gs.drects[index]) != null) {
+                unionRectInto(gs.drects[index], gs.drects[index], source)
+                return
+            }
+        }
+        val count = gs.drectsCount.toInt()
+        if (count >= 30) return
+        copyRect(gs.drects[count], source)
+        gs.drectsCount = (count + 1).toShort()
+    }
+
+    fun sortCurrObjs() {
+        var swapped: Int
+        val last = gs.nCurrObjs.toInt() - 1
+        if (last <= 0) return
+        do {
+            swapped = 0
+            for (index in 0 until last) {
+                if (compareCurrObjs(index, index + 1) != 0) {
+                    val temp = gs.currObjs[index]
+                    gs.currObjs[index] = gs.currObjs[index + 1]
+                    gs.currObjs[index + 1] = temp
+                    swapped = 1
+                }
+            }
+        } while (swapped != 0)
+    }
+
+    fun compareCurrObjs(index1: Int, index2: Int): Int {
+        val objIndex1 = gs.currObjs[index1].toInt()
+        if (gs.objtable[objIndex1].objType == 1) return 1
+        val objIndex2 = gs.currObjs[index2].toInt()
+        if (gs.objtable[objIndex2].objType == 1) return 0
+        return if (gs.objtable[objIndex1].objType == 0x80 && gs.objtable[objIndex2].objType == 0x80) {
+            if (gs.objtable[objIndex1].y < gs.objtable[objIndex2].y) 1 else 0
+        } else {
+            if (gs.objtable[objIndex1].y > gs.objtable[objIndex2].y) 1 else 0
+        }
+    }
+
+    fun loadObjFromObjtable(index: Int): Int {
+        val currObj = gs.objtable[index]
+        gs.objXh = currObj.xh and 0xFF
+        gs.objX = currObj.xh.toShort()
+        gs.objXl = currObj.xl and 0xFF
+        gs.objY = currObj.y.toInt()
+        gs.objId = currObj.id and 0xFF
+        gs.objChtab = currObj.chtabId and 0xFF
+        gs.objDirection = currObj.direction.toByte().toInt()
+        gs.objClipTop = currObj.clip.top
+        gs.objClipBottom = currObj.clip.bottom
+        gs.objClipLeft = currObj.clip.left
+        gs.objClipRight = currObj.clip.right
+        return currObj.objType and 0xFF
+    }
+
+    fun addKidToObjtable() {
+        Seg006.loadkid()
+        Seg006.loadFramDetCol()
+        loadFrameToObj()
+        Seg006.stuckLower()
+        Seg006.setCharCollision()
+        Seg006.setObjtileAtChar()
+        Seg003.redrawAtChar()
+        Seg003.redrawAtChar2()
+        Seg006.clipChar()
+        addObjtable(0)
+    }
+
+    fun addGuardToObjtable() {
+        Seg006.loadshad()
+        Seg006.loadFramDetCol()
+        loadFrameToObj()
+        Seg006.stuckLower()
+        Seg006.setCharCollision()
+        Seg006.setObjtileAtChar()
+        Seg003.redrawAtChar()
+        Seg003.redrawAtChar2()
+        Seg006.clipChar()
+        val objType = if (gs.Char.charid == CharIds.SHADOW) {
+            if (gs.currentLevel == gs.custom.mirrorLevel && gs.Char.room == gs.custom.mirrorRoom) {
+                gs.objClipLeft = (137 + (gs.custom.mirrorColumn - 4) * 32).toShort()
+            }
+            1
+        } else {
+            2
+        }
+        addObjtable(objType)
+    }
+
+    fun addObjtable(objType: Int) {
+        val index = gs.tableCounts[4].toInt()
+        gs.tableCounts[4] = (index + 1).toShort()
+        if (index >= 50) return
+        val entry = gs.objtable[index]
+        entry.objType = objType and 0xFF
+        val (xh, xl) = Seg006.xToXhAndXl(gs.objX.toInt())
+        entry.xh = xh.toByte().toInt()
+        entry.xl = xl.toByte().toInt()
+        entry.y = gs.objY.toShort()
+        entry.clip.top = gs.objClipTop
+        entry.clip.bottom = gs.objClipBottom
+        entry.clip.left = gs.objClipLeft
+        entry.clip.right = gs.objClipRight
+        entry.chtabId = gs.objChtab and 0xFF
+        entry.id = gs.objId and 0xFF
+        entry.direction = gs.objDirection.toByte().toInt()
+        markObjTileRedraw(index)
+    }
+
+    fun markObjTileRedraw(index: Int) {
+        gs.objtable[index].tilepos = gs.objTilepos and 0xFF
+        if (gs.objTilepos in 0 until 30) {
+            gs.tileObjectRedraw[gs.objTilepos] = 1
+        }
+    }
+
+    fun loadFrameToObj() {
+        val chtabBase = Chtabs.KID
+        Seg006.resetObjClip()
+        Seg006.loadFrame()
+        gs.objDirection = gs.Char.direction
+        gs.objId = gs.curFrame.image and 0xFF
+        gs.objChtab = chtabBase + ((gs.curFrame.sword and 0xFF) shr 6)
+        gs.objX = ((Seg006.charDxForward(gs.curFrame.dx) shl 1) - 116).toShort()
+        gs.objY = gs.curFrame.dy + gs.Char.y
+        if (((gs.curFrame.flags xor gs.objDirection).toByte().toInt()) >= 0) {
+            gs.objX = (gs.objX + 1).toShort()
+        }
+    }
+
     fun loadRoomLinks() {
         gs.roomBR = 0
         gs.roomBL = 0
@@ -334,5 +468,41 @@ object Seg008 {
         if (gs.loadedRoom != 0) {
             gs.level.bg[(gs.loadedRoom - 1) * 30 + tilepos] = mod
         }
+    }
+
+    private fun shrink2Rect(source: RectType, deltaX: Int, deltaY: Int): RectType {
+        return RectType(
+            top = (source.top + deltaY).toShort(),
+            left = (source.left + deltaX).toShort(),
+            bottom = (source.bottom - deltaY).toShort(),
+            right = (source.right - deltaX).toShort(),
+        )
+    }
+
+    private fun intersectRect(input1: RectType, input2: RectType): RectType? {
+        val left = maxOf(input1.left.toInt(), input2.left.toInt())
+        val right = minOf(input1.right.toInt(), input2.right.toInt())
+        if (left < right) {
+            val top = maxOf(input1.top.toInt(), input2.top.toInt())
+            val bottom = minOf(input1.bottom.toInt(), input2.bottom.toInt())
+            if (top < bottom) {
+                return RectType(top.toShort(), left.toShort(), bottom.toShort(), right.toShort())
+            }
+        }
+        return null
+    }
+
+    private fun unionRectInto(output: RectType, input1: RectType, input2: RectType) {
+        output.top = minOf(input1.top, input2.top)
+        output.left = minOf(input1.left, input2.left)
+        output.bottom = maxOf(input1.bottom, input2.bottom)
+        output.right = maxOf(input1.right, input2.right)
+    }
+
+    private fun copyRect(output: RectType, input: RectType) {
+        output.top = input.top
+        output.left = input.left
+        output.bottom = input.bottom
+        output.right = input.right
     }
 }

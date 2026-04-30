@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-04-30 — Step 16c.3: Object table and dirty-rect bookkeeping
+
+**Mode:** Code | **Outcome:** Complete — object-table state, draw-order sorting, frame-to-object conversion, and dirty-rect merging translated and verified
+**Contract changes:** `GameState` now includes the `drects[30]` dirty-rectangle table; `ExternalStubs.addObjtable` now defaults to the translated `Seg008.addObjtable()` implementation instead of a rendering no-op.
+
+Translated the next pure `seg008.c` render-state slice into `Seg008.kt`: `add_drect`, `sort_curr_objs`, `compare_curr_objs`, `load_obj_from_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`, `add_objtable`, `mark_obj_tile_redraw`, and `load_frame_to_obj`. The implementation preserves the C table-count behavior, object x/y/id byte and sbyte wrapping, shadow/guard object type selection, C draw-order comparisons, tile-object redraw marking, and dirty-rect union when the expanded source rectangle intersects an existing dirty rectangle.
+
+Wired the shared `ExternalStubs.addObjtable` callback to the translated render-state implementation so existing sword, hurt-splash, mirror-image, and loose-floor object producers append to the real object table by default.
+
+Expanded `Seg008Test` with focused coverage for direct object-table insertion, object temporary reload, mixed object sorting, loose-floor sorting, Kid/Guard insertion through the translated character pipeline, frame-to-object coordinate calculation, and dirty-rect append/merge behavior.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test` passed; full `gradle test` passed in `SDLPoP-kotlin` with 613 tests.
+
 ### 2026-04-30 — Step 16c.2: Room links, adjacent tiles, and modifier preprocessing
 
 **Mode:** Code | **Outcome:** Complete — room-link loading and modifier preprocessing translated and verified

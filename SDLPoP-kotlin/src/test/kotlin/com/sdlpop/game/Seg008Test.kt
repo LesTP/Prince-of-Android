@@ -46,9 +46,49 @@ class Seg008Test {
         gs.gateTopY = 0
         gs.gateOpenness = 0
         gs.gateBottomY = 0
+        gs.objXh = 0
+        gs.objXl = 0
+        gs.objY = 0
+        gs.objChtab = 0
+        gs.objId = 0
+        gs.objTilepos = 0
+        gs.objX = 0
+        gs.objDirection = 0
+        gs.objClipLeft = 0
+        gs.objClipTop = 0
+        gs.objClipRight = 0
+        gs.objClipBottom = 0
+        gs.nCurrObjs = 0
+        gs.currObjs.fill(0)
+        gs.objtable.forEach {
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.chtabId = 0
+            it.id = 0
+            it.direction = 0
+            it.objType = 0
+            it.clip = RectType()
+            it.tilepos = 0
+        }
+        gs.tableCounts.fill(0)
+        gs.tileObjectRedraw.fill(0)
+        gs.drects.forEach {
+            it.top = 0
+            it.left = 0
+            it.bottom = 0
+            it.right = 0
+        }
+        gs.drectsCount = 0
+        gs.Kid = CharType()
+        gs.Guard = CharType()
+        gs.Char = CharType()
+        gs.curFrame = FrameType()
         gs.custom = CustomOptionsType()
         gs.fixes = FixesOptionsType()
         ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
+        ExternalStubs.getImage = { _, _ -> null }
+        ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
     }
 
     @Test
@@ -358,6 +398,175 @@ class Seg008Test {
         Seg008.loadAlterMod(4)
 
         assertEquals(3, gs.currRoomModif[4])
+    }
+
+    @Test
+    fun addObjtableStoresObjectTemporariesAndMarksTileRedraw() {
+        gs.objX = 267
+        gs.objY = 144
+        gs.objChtab = Chtabs.KID
+        gs.objId = 14
+        gs.objDirection = Directions.LEFT
+        gs.objTilepos = 12
+        gs.objClipTop = 3
+        gs.objClipLeft = 4
+        gs.objClipBottom = 150
+        gs.objClipRight = 260
+
+        Seg008.addObjtable(2)
+
+        assertEquals(1, gs.tableCounts[4].toInt())
+        assertEquals(2, gs.objtable[0].objType)
+        assertEquals(33, gs.objtable[0].xh)
+        assertEquals(3, gs.objtable[0].xl)
+        assertEquals(144, gs.objtable[0].y.toInt())
+        assertEquals(Chtabs.KID, gs.objtable[0].chtabId)
+        assertEquals(14, gs.objtable[0].id)
+        assertEquals(Directions.LEFT, gs.objtable[0].direction)
+        assertEquals(3, gs.objtable[0].clip.top.toInt())
+        assertEquals(4, gs.objtable[0].clip.left.toInt())
+        assertEquals(150, gs.objtable[0].clip.bottom.toInt())
+        assertEquals(260, gs.objtable[0].clip.right.toInt())
+        assertEquals(12, gs.objtable[0].tilepos)
+        assertEquals(1, gs.tileObjectRedraw[12])
+    }
+
+    @Test
+    fun loadObjFromObjtableRestoresObjectTemporaries() {
+        gs.objtable[3].xh = (-2).toByte().toInt()
+        gs.objtable[3].xl = 7
+        gs.objtable[3].y = 118
+        gs.objtable[3].chtabId = Chtabs.GUARD
+        gs.objtable[3].id = 12
+        gs.objtable[3].direction = Directions.LEFT
+        gs.objtable[3].objType = 0x80
+        gs.objtable[3].clip = RectType(1, 2, 3, 4)
+
+        val type = Seg008.loadObjFromObjtable(3)
+
+        assertEquals(0x80, type)
+        assertEquals(254, gs.objXh)
+        assertEquals((-2).toShort(), gs.objX)
+        assertEquals(7, gs.objXl)
+        assertEquals(118, gs.objY)
+        assertEquals(Chtabs.GUARD, gs.objChtab)
+        assertEquals(12, gs.objId)
+        assertEquals(Directions.LEFT, gs.objDirection)
+        assertEquals(1, gs.objClipTop.toInt())
+        assertEquals(4, gs.objClipRight.toInt())
+    }
+
+    @Test
+    fun sortCurrObjsMatchesCObjectDrawOrderRules() {
+        gs.nCurrObjs = 4
+        gs.currObjs[0] = 0
+        gs.currObjs[1] = 1
+        gs.currObjs[2] = 2
+        gs.currObjs[3] = 3
+        gs.objtable[0].objType = 2
+        gs.objtable[0].y = 90
+        gs.objtable[1].objType = 2
+        gs.objtable[1].y = 120
+        gs.objtable[2].objType = 1
+        gs.objtable[2].y = 40
+        gs.objtable[3].objType = 0x80
+        gs.objtable[3].y = 50
+
+        Seg008.sortCurrObjs()
+
+        assertEquals(3, gs.currObjs[0].toInt())
+        assertEquals(0, gs.currObjs[1].toInt())
+        assertEquals(1, gs.currObjs[2].toInt())
+        assertEquals(2, gs.currObjs[3].toInt())
+    }
+
+    @Test
+    fun sortCurrObjsUsesAscendingYForLooseFloors() {
+        gs.nCurrObjs = 2
+        gs.currObjs[0] = 0
+        gs.currObjs[1] = 1
+        gs.objtable[0].objType = 0x80
+        gs.objtable[0].y = 120
+        gs.objtable[1].objType = 0x80
+        gs.objtable[1].y = 80
+
+        Seg008.sortCurrObjs()
+
+        assertEquals(0, gs.currObjs[0].toInt())
+        assertEquals(1, gs.currObjs[1].toInt())
+    }
+
+    @Test
+    fun loadFrameToObjComputesStandingKidObjectCoordinates() {
+        gs.Char.charid = CharIds.KID
+        gs.Char.frame = FrameIds.frame_15_stand
+        gs.Char.direction = Directions.RIGHT
+        gs.Char.x = 140
+        gs.Char.y = 118
+
+        Seg008.loadFrameToObj()
+
+        assertEquals(14, gs.objId)
+        assertEquals(Chtabs.KID, gs.objChtab)
+        assertEquals(165, gs.objX.toInt())
+        assertEquals(118, gs.objY)
+        assertEquals(Directions.RIGHT, gs.objDirection)
+    }
+
+    @Test
+    fun addKidAndGuardPopulateObjectTableWhenInDrawnRoom() {
+        ExternalStubs.getImage = { _, _ -> 20 to 60 }
+        gs.drawnRoom = 1
+        gs.Kid = CharType(
+            charid = CharIds.KID,
+            room = 1,
+            x = 140,
+            y = 118,
+            frame = FrameIds.frame_15_stand,
+            direction = Directions.RIGHT,
+            currCol = 4,
+            currRow = 1,
+            action = Actions.STAND,
+            alive = 0,
+        )
+        gs.Guard = CharType(
+            charid = CharIds.GUARD,
+            room = 1,
+            x = 170,
+            y = 118,
+            frame = 150,
+            direction = Directions.LEFT,
+            currCol = 5,
+            currRow = 1,
+            action = Actions.STAND,
+            alive = 0,
+        )
+
+        Seg008.addKidToObjtable()
+        Seg008.addGuardToObjtable()
+
+        assertEquals(2, gs.tableCounts[4].toInt())
+        assertEquals(0, gs.objtable[0].objType)
+        assertEquals(2, gs.objtable[1].objType)
+        assertEquals(Chtabs.KID, gs.objtable[0].chtabId)
+        assertEquals(Chtabs.GUARD, gs.objtable[1].chtabId)
+    }
+
+    @Test
+    fun addDrectMergesExpandedIntersectingRectsAndAppendsSeparateRects() {
+        Seg008.addDrect(RectType(top = 10, left = 10, bottom = 20, right = 20))
+        Seg008.addDrect(RectType(top = 20, left = 20, bottom = 30, right = 30))
+        Seg008.addDrect(RectType(top = 50, left = 50, bottom = 60, right = 60))
+
+        assertEquals(2, gs.drectsCount.toInt())
+        assertEquals(10, gs.drects[0].top.toInt())
+        assertEquals(10, gs.drects[0].left.toInt())
+        assertEquals(30, gs.drects[0].bottom.toInt())
+        assertEquals(30, gs.drects[0].right.toInt())
+        assertEquals(50, gs.drects[1].top.toInt())
+        assertEquals(50, gs.drects[1].left.toInt())
+        assertEquals(60, gs.drects[1].bottom.toInt())
+        assertEquals(60, gs.drects[1].right.toInt())
     }
 
     private fun seedRoom(room: Int, tilepos: Int, tile: Int, modifier: Int) {
