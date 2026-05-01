@@ -7,6 +7,7 @@
 #   ./run-iteration.sh --backend codex       # single iteration, Codex backend
 #   ./run-iteration.sh -n 5                  # run up to 5 iterations (stops on ESCALATE)
 #   ./run-iteration.sh -n 5 --start 3        # start from iteration 3
+#   ./run-iteration.sh --model opus           # single iteration, Opus model
 #   ./run-iteration.sh --backend codex -n 3  # 3 Codex iterations
 #
 # Output:
@@ -28,12 +29,14 @@ SUMMARY_FILE="$LOG_DIR/summary.log"
 MAX_ITERATIONS=1
 START_ITER=""
 BACKEND="claude"
+MODEL="sonnet"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     -n|--iterations) MAX_ITERATIONS="$2"; shift 2 ;;
     --start)         START_ITER="$2"; shift 2 ;;
     --backend)       BACKEND="$2"; shift 2 ;;
+    --model)         MODEL="$2"; shift 2 ;;
     *)               echo "Unknown option: $1"; exit 2 ;;
   esac
 done
@@ -66,6 +69,8 @@ You are a stateless worker. You have no memory of previous iterations. Reconstru
 
 After reading ${ADAPTER_FILE} and its references, determine current state from DEVPLAN.md. Execute exactly one action per the Worker Spec.
 
+Your final output
+
 Your final output MUST end with exactly these four lines — no text after:
 LOOP_SIGNAL: CONTINUE | ESCALATE
 REASON: <one line — what was done or why stopping>
@@ -92,7 +97,7 @@ while [[ $ITER -le $END_ITER ]]; do
     claude)
       claude -p "$PROMPT" \
         --dangerously-skip-permissions \
-        --model opus \
+        --model "$MODEL" \
         --max-budget-usd 10.00 \
         --output-format stream-json \
         --verbose \
