@@ -48,6 +48,9 @@ class Seg008Test {
         gs.gateTopY = 0
         gs.gateOpenness = 0
         gs.gateBottomY = 0
+        gs.hitpDelta = 0
+        gs.guardhpDelta = 0
+        gs.unitedWithShadow = 0
         gs.objXh = 0
         gs.objXl = 0
         gs.objY = 0
@@ -133,6 +136,7 @@ class Seg008Test {
         ExternalStubs.getRoomAddress = { room -> ExternalStubs.loadRoomAddress(room) }
         ExternalStubs.getImage = { _, _ -> null }
         ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
+        ExternalStubs.playSound = { _ -> }
         Seg008.resetRenderHooks()
     }
 
@@ -984,6 +988,137 @@ class Seg008Test {
     }
 
     @Test
+    fun gateBackAndForeSubmitDoorSlicesFromModifierOpenness() {
+        installFixedImageSize()
+        gs.drawXh = 8
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+        gs.modifierLeft = 40
+        gs.currTile = Tiles.WALL
+
+        Seg008.drawGateBack()
+
+        assertEquals(8, gs.tableCounts[0].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 46, 8, 64, Blitters.NO_TRANSP)
+        assertBackEntry(2, Chtabs.ENVIRONMENT, 50, 8, 49, Blitters.TRANSP)
+        assertBackEntry(7, Chtabs.ENVIRONMENT, 54, 8, 7, Blitters.NO_TRANSP)
+
+        Seg008.drawGateFore()
+
+        assertEquals(5, gs.tableCounts[1].toInt())
+        assertForeEntry(0, Chtabs.ENVIRONMENT, 50, 8, 49, Blitters.TRANSP)
+        assertForeEntry(4, Chtabs.ENVIRONMENT, 51, 8, 15, Blitters.TRANSP)
+    }
+
+    @Test
+    fun leveldoorSubmitsStairsWipeSlidingSegmentsAndDoorTop() {
+        installFixedImageSize()
+        gs.drawXh = 4
+        gs.drawMainY = 100
+        gs.drawnRoom = 3
+        gs.level.startRoom = 3
+        gs.modifierLeft = 7
+
+        Seg008.drawLeveldoor()
+
+        assertEquals(14, gs.tableCounts[0].toInt())
+        assertEquals(1, gs.tableCounts[2].toInt())
+        assertEquals(80, gs.leveldoorRight)
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 98, 5, 87, Blitters.NO_TRANSP)
+        assertBackEntry(13, Chtabs.ENVIRONMENT, 33, 5, 36, Blitters.NO_TRANSP)
+        assertEquals(42, gs.wipetable[0].left.toInt())
+        assertEquals(84, gs.wipetable[0].bottom.toInt())
+        assertEquals(45, gs.wipetable[0].height)
+        assertEquals(39, gs.wipetable[0].width.toInt())
+    }
+
+    @Test
+    fun floorOverlaySwitchesBottomSubmissionToMidtableForClimbingKid() {
+        installFixedImageSize()
+        gs.tileLeft = Tiles.EMPTY
+        gs.currTile = Tiles.FLOOR
+        gs.Kid.frame = FrameIds.frame_137_climbing_3
+        gs.drawXh = 12
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+
+        Seg008.drawFloorOverlay()
+
+        assertEquals(2, gs.tableCounts[3].toInt())
+        assertEquals(Chtabs.ENVIRONMENT, gs.midtable[0].chtabId)
+        assertEquals(31, gs.midtable[0].id)
+        assertEquals(53, gs.midtable[0].y.toInt())
+        assertEquals(42, gs.midtable[1].id)
+        assertEquals(56, gs.midtable[1].y.toInt())
+        assertEquals(0, gs.tableCounts[0].toInt())
+    }
+
+    @Test
+    fun otherOverlayDrawsThroughMidtableAndBacktableWhenTileTwoLeftIsEmpty() {
+        installFixedImageSize()
+        gs.drawnRoom = 1
+        gs.drawnRow = 0
+        gs.drawnCol = 2
+        gs.drawXh = 8
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+        gs.currTile = Tiles.FLOOR
+        gs.tileLeft = Tiles.FLOOR
+        seedRoom(1, 0, Tiles.EMPTY, 0)
+
+        Seg008.drawOtherOverlay()
+
+        assertEquals(true, gs.tableCounts[3].toInt() > 0)
+        assertEquals(true, gs.tableCounts[0].toInt() > 0)
+        assertEquals(0xFF, gs.tileObjectRedraw[2])
+    }
+
+    @Test
+    fun objectFlushSortsVisibleObjectsAndDrawsMatchingTileOnly() {
+        installFixedImageSize()
+        putObj(index = 0, tilepos = 5, objType = 2, id = 4, y = 10, xh = 1)
+        putObj(index = 1, tilepos = 5, objType = 2, id = 8, y = 30, xh = 2)
+        putObj(index = 2, tilepos = 6, objType = 2, id = 12, y = 50, xh = 3)
+        gs.tableCounts[4] = 3
+
+        Seg008.drawObjtableItemsAtTile(5)
+
+        assertEquals(2, gs.tableCounts[3].toInt())
+        assertEquals(4, gs.midtable[0].id)
+        assertEquals(8, gs.midtable[1].id)
+        assertEquals(1, gs.midtable[0].xh)
+        assertEquals(2, gs.midtable[1].xh)
+    }
+
+    @Test
+    fun objectItemDrawsShadowBlendAndLooseFloorPieces() {
+        installFixedImageSize()
+        val sounds = mutableListOf<Int>()
+        ExternalStubs.playSound = { sound -> sounds += sound }
+        putObj(index = 0, tilepos = 255, objType = 1, id = 6, y = 40, xh = 4, direction = Directions.LEFT)
+        gs.tableCounts[4] = 1
+        gs.unitedWithShadow = 2
+
+        Seg008.drawObjtableItemsAtTile(-1)
+
+        assertEquals(listOf(SoundIds.END_LEVEL_MUSIC), sounds)
+        assertEquals(2, gs.tableCounts[3].toInt())
+        assertEquals(Blitters.OR, gs.midtable[0].blit)
+        assertEquals(Blitters.XOR, gs.midtable[1].blit)
+
+        gs.tableCounts.fill(0)
+        putObj(index = 0, tilepos = 4, objType = 0x80, id = 3, y = 70, xh = 6)
+        gs.tableCounts[4] = 1
+        Seg008.drawObjtableItemsAtTile(4)
+
+        assertEquals(3, gs.tableCounts[3].toInt())
+        assertEquals(69, gs.midtable[0].id)
+        assertEquals(73, gs.midtable[1].id)
+        assertEquals(71, gs.midtable[2].id)
+        assertEquals(10, gs.midtable[2].xh)
+    }
+
+    @Test
     fun drawRoomTraversesCurrentRoomThenAboveRoomAndRestoresDrawnRoom() {
         val calls = mutableListOf<String>()
         Seg008.drawTileBaseHook = {
@@ -1099,5 +1234,26 @@ class Seg008Test {
         val index = (room - 1) * 30 + tilepos
         gs.level.fg[index] = tile
         gs.level.bg[index] = modifier
+    }
+
+    private fun putObj(
+        index: Int,
+        tilepos: Int,
+        objType: Int,
+        id: Int,
+        y: Int,
+        xh: Int,
+        direction: Int = Directions.RIGHT,
+    ) {
+        val entry = gs.objtable[index]
+        entry.tilepos = tilepos
+        entry.objType = objType
+        entry.id = id
+        entry.y = y.toShort()
+        entry.xh = xh
+        entry.xl = 0
+        entry.chtabId = Chtabs.GUARD
+        entry.direction = direction
+        entry.clip = RectType(top = 1.toShort(), left = 2.toShort(), bottom = 3.toShort(), right = 4.toShort())
     }
 }

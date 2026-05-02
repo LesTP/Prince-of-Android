@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16d — Render table submission — **IN PROGRESS**
-**Next:** Step 16d.3 — Structures, overlays, people, and object-table flushing
+**Next:** Step 16d.4 — Wall pattern, marks, timer text, and phase integration
 
-**Replay regression:** 8/13 MATCH, 630 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 637 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -215,8 +215,8 @@ Timer/text:
 - **16d.2 — Tile render submissions — COMPLETE.**
   Replaced the Phase 16c tile hooks with real implementations for `draw_tile_floorright`, `draw_tile_topright`, `draw_tile_anim_topright`, `draw_tile_right`, `draw_tile_anim_right`, `draw_tile_bottom`, `draw_tile_base`, `draw_tile_anim`, `draw_tile_fore`, `draw_loose`, `draw_tile2`, and `draw_tile_wipe`; added the C `piece tile_table[31]` and frame lookup tables. Tests verify back/fore/mid/wipe entries for representative floors, walls, spikes, loose floors, potions, torches, sword, chompers, wall-pattern dispatch boundaries, and wipe geometry.
 
-- **16d.3 — Structures, overlays, people, and object-table flushing.**
-  Translate `draw_gate_back`, `draw_gate_fore`, `draw_leveldoor`, `draw_floor_overlay`, `draw_other_overlay`, `draw_people`, `draw_kid`, `draw_guard`, `draw_objtable_items_at_tile`, and `draw_objtable_item`. Tests verify gate/level-door command sequences, overlay table switching, Kid/Guard midtable entries, object sorting flush behavior, clip fields, sword/splash/loose-object table output, and tile-object redraw clearing.
+- **16d.3 — Structures, overlays, people, and object-table flushing — COMPLETE.**
+  Replaced the Phase 16c/16d hooks with real implementations for `draw_gate_back`, `draw_gate_fore`, `draw_leveldoor`, `draw_floor_overlay`, `draw_other_overlay`, `draw_people`, `draw_kid`, `draw_guard`, `draw_objtable_items_at_tile`, and `draw_objtable_item`; corrected `draw_tile2` to include loose-floor submission for overlay redraws. Tests verify gate/level-door command sequences, overlay table switching, object sorting/filtering behavior, shadow blend output, loose-object table output, and sentinel tile flushing.
 
 - **16d.4 — Wall pattern, marks, timer text, and phase integration.**
   Translate `wall_pattern`, `draw_left_mark`, `draw_right_mark`, `show_time`, and `show_level`; preserve deterministic PRNG save/restore and table switching. Add focused tests for wall command determinism, dungeon/palace branches where represented by existing state, mark placement, timer/level text state, and full `draw_room()`/`draw_moving()` render-table population. Run focused `Seg008Test` and full Gradle tests.

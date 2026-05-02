@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16d.3: Structures, overlays, people, and object-table flushing
+
+**Mode:** Code | **Outcome:** Complete — structure/overlay/people render command producers translated
+**Contract changes:** `Seg008` structure, overlay, people, and object-table hooks now default to real render-table submissions; wall-pattern and timer/level text callbacks remain Phase 16d.4 boundaries.
+
+Translated the next `seg008.c` render-submission slice into `Seg008.kt`: `draw_gate_back`, `draw_gate_fore`, `draw_leveldoor`, `draw_floor_overlay`, `draw_other_overlay`, `draw_people`, `draw_kid`, `draw_guard`, `draw_objtable_items_at_tile`, and `draw_objtable_item`. The implementation preserves gate openness/slice submission, level-door wipe and sliding segment generation, overlay table switching through `addTable`, object-table tile filtering with byte-style sentinel handling, C object sort order, shadow OR/XOR double-submit behavior, loose-floor three-piece output, and Kid/Guard object production through the existing frame/object pipeline.
+
+Also corrected `drawTile2()` to include `drawLoose(0)`, matching the C helper used by overlay redraws. `resetRenderHooks()` now restores real defaults for the translated structure, overlay, object, and people paths while leaving the Phase 16e pixel-flush hooks as no-ops.
+
+Expanded `Seg008Test` with focused coverage for gate back/fore command sequences, level-door stairs/wipe/segments, floor and other overlay table switching, object flush sorting and tile filtering, shadow blend output and end-level sound, and loose-floor object pieces.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 637 tests.
+
 ### 2026-05-02 — Step 16d.2: Tile render submissions
 
 **Mode:** Code | **Outcome:** Complete — tile render command producers translated

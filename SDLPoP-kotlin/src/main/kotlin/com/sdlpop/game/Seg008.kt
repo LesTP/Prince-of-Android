@@ -23,14 +23,14 @@ object Seg008 {
     var drawTileAnimHook: () -> Unit = ::drawTileAnim
     var drawTileForeHook: () -> Unit = ::drawTileFore
     var drawTileWipeHook: (Int) -> Unit = ::drawTileWipe
-    var drawGateBackHook: () -> Unit = {}
-    var drawGateForeHook: () -> Unit = {}
-    var drawLeveldoorHook: () -> Unit = {}
+    var drawGateBackHook: () -> Unit = ::drawGateBack
+    var drawGateForeHook: () -> Unit = ::drawGateFore
+    var drawLeveldoorHook: () -> Unit = ::drawLeveldoor
     var wallPatternHook: (Int, Int) -> Unit = { _, _ -> }
-    var drawOtherOverlayHook: () -> Unit = {}
-    var drawFloorOverlayHook: () -> Unit = {}
-    var drawObjtableItemsAtTileHook: (Int) -> Unit = {}
-    var drawPeopleHook: () -> Unit = {}
+    var drawOtherOverlayHook: () -> Unit = ::drawOtherOverlay
+    var drawFloorOverlayHook: () -> Unit = ::drawFloorOverlay
+    var drawObjtableItemsAtTileHook: (Int) -> Unit = ::drawObjtableItemsAtTile
+    var drawPeopleHook: () -> Unit = ::drawPeople
     var drawBackForeHook: (Int, Int) -> Unit = { _, _ -> }
     var drawMidHook: (Int) -> Unit = {}
     var drawWipeHook: (Int) -> Unit = {}
@@ -48,14 +48,14 @@ object Seg008 {
         drawTileAnimHook = ::drawTileAnim
         drawTileForeHook = ::drawTileFore
         drawTileWipeHook = ::drawTileWipe
-        drawGateBackHook = {}
-        drawGateForeHook = {}
-        drawLeveldoorHook = {}
+        drawGateBackHook = ::drawGateBack
+        drawGateForeHook = ::drawGateFore
+        drawLeveldoorHook = ::drawLeveldoor
         wallPatternHook = { _, _ -> }
-        drawOtherOverlayHook = {}
-        drawFloorOverlayHook = {}
-        drawObjtableItemsAtTileHook = {}
-        drawPeopleHook = {}
+        drawOtherOverlayHook = ::drawOtherOverlay
+        drawFloorOverlayHook = ::drawFloorOverlay
+        drawObjtableItemsAtTileHook = ::drawObjtableItemsAtTile
+        drawPeopleHook = ::drawPeople
         drawBackForeHook = { _, _ -> }
         drawMidHook = {}
         drawWipeHook = {}
@@ -113,6 +113,7 @@ object Seg008 {
 
     private val doortopFramTop = intArrayOf(0, 81, 83, 0)
     private val doorFramTop = intArrayOf(60, 61, 62, 63, 64, 65, 66, 67)
+    private val doorFramSlice = intArrayOf(67, 59, 58, 57, 56, 55, 54, 53, 52)
     private val bluelineFram1 = intArrayOf(0, 124, 125, 126)
     private val bluelineFramY = intArrayOf(0, -20, -20, 0)
     private val bluelineFram3 = intArrayOf(44, 44, 45, 45)
@@ -131,6 +132,7 @@ object Seg008 {
     private val spikesFramFore = intArrayOf(0, 139, 140, 141, 142, 143, 142, 140, 139, 0)
     private val chomperFramFore = intArrayOf(106, 107, 108, 109, 110, 0)
     private val wallFramMain = intArrayOf(8, 10, 6, 4)
+    private val floorLeftOverlay = intArrayOf(32, 151, 151, 150, 150, 151, 32, 32)
 
     private const val GM_CGA = 1
     private const val GM_HGA_HERC = 2
@@ -634,6 +636,127 @@ object Seg008 {
         drawTileBase()
         drawTileAnim()
         drawTileBottom(0)
+        drawLoose(0)
+    }
+
+    fun drawGateBack() {
+        calcGatePos()
+        if (gs.gateBottomY + 12 < gs.drawMainY.toInt()) {
+            addBacktable(Chtabs.ENVIRONMENT, 50, gs.drawXh, 0, gs.gateBottomY, Blitters.NO_TRANSP, 0)
+        } else {
+            addBacktable(
+                Chtabs.ENVIRONMENT,
+                tileTable[Tiles.GATE].rightId,
+                gs.drawXh,
+                0,
+                tileTable[Tiles.GATE].rightY + gs.drawMainY.toInt(),
+                Blitters.NO_TRANSP,
+                0,
+            )
+            if (canSeeBottomleft() != 0) drawTileTopright()
+            if (gs.fixes.fixGateDrawingBug != 0) drawTileAnimTopright()
+            drawTileBottom(0)
+            drawLoose(0)
+            drawTileBase()
+            addBacktable(Chtabs.ENVIRONMENT, 51, gs.drawXh, 0, gs.gateBottomY - 2, Blitters.TRANSP, 0)
+        }
+
+        var ybottom = gs.gateBottomY - 12
+        if (ybottom < 192) {
+            while (ybottom >= 0 && ybottom > 7 && ybottom - 7 > gs.gateTopY) {
+                addBacktable(Chtabs.ENVIRONMENT, 52, gs.drawXh, 0, ybottom, Blitters.NO_TRANSP, 0)
+                ybottom -= 8
+            }
+        }
+        val gateFrame = (ybottom - gs.gateTopY + 1) and 0xFFFF
+        if (gateFrame in 1..8) {
+            addBacktable(Chtabs.ENVIRONMENT, doorFramSlice[gateFrame], gs.drawXh, 0, ybottom, Blitters.NO_TRANSP, 0)
+        }
+    }
+
+    fun drawGateFore() {
+        calcGatePos()
+        addForetable(Chtabs.ENVIRONMENT, 51, gs.drawXh, 0, gs.gateBottomY - 2, Blitters.TRANSP, 0)
+        var ybottom = gs.gateBottomY - 12
+        if (ybottom < 192) {
+            while (ybottom >= 0 && ybottom > 7 && ybottom - 7 > gs.gateTopY) {
+                addForetable(Chtabs.ENVIRONMENT, 52, gs.drawXh, 0, ybottom, Blitters.TRANSP, 0)
+                ybottom -= 8
+            }
+        }
+    }
+
+    fun drawLeveldoor() {
+        val ybottom = gs.drawMainY.toInt() - 13
+        gs.leveldoorRight = (gs.drawXh shl 3) + 48
+        if (levelType() != 0) gs.leveldoorRight += 8
+        addBacktable(Chtabs.ENVIRONMENT, 99, gs.drawXh + 1, 0, ybottom, Blitters.NO_TRANSP, 0)
+        if (gs.modifierLeft != 0) {
+            if (gs.level.startRoom != gs.drawnRoom) {
+                addBacktable(Chtabs.ENVIRONMENT, 144, gs.drawXh + 1, 0, ybottom - 4, Blitters.NO_TRANSP, 0)
+            } else {
+                val width = if (levelType() == 0) 39 else 48
+                val xLow = if (levelType() == 0) 2 else 0
+                addWipetable(0, 8 * (gs.drawXh + 1) + xLow, ybottom - 4, 45, width, 0)
+            }
+        }
+        gs.leveldoorYbottom = ybottom - (gs.modifierLeft and 3) - 48
+        var y = ybottom - gs.modifierLeft
+        while (true) {
+            addBacktable(Chtabs.ENVIRONMENT, 33, gs.drawXh + 1, 0, gs.leveldoorYbottom, Blitters.NO_TRANSP, 0)
+            if (y > gs.leveldoorYbottom) {
+                gs.leveldoorYbottom += 4
+            } else {
+                break
+            }
+        }
+        addBacktable(Chtabs.ENVIRONMENT, 34, gs.drawXh + 1, 0, gs.drawMainY.toInt() - 64, Blitters.NO_TRANSP, 0)
+    }
+
+    fun drawFloorOverlay() {
+        val leftIsTransparent = gs.tileLeft == Tiles.EMPTY ||
+            (gs.fixes.fixBigpillarClimb != 0 && gs.tileLeft == Tiles.BIGPILLAR_TOP)
+        if (!leftIsTransparent) return
+
+        if (gs.currTile == Tiles.FLOOR ||
+            gs.currTile == Tiles.PILLAR ||
+            gs.currTile == Tiles.STUCK ||
+            gs.currTile == Tiles.TORCH
+        ) {
+            if (gs.Kid.frame in FrameIds.frame_137_climbing_3..FrameIds.frame_144_climbing_10) {
+                addMidtable(
+                    Chtabs.ENVIRONMENT,
+                    floorLeftOverlay[gs.Kid.frame - FrameIds.frame_137_climbing_3],
+                    gs.drawXh,
+                    0,
+                    if (gs.currTile == Tiles.STUCK) gs.drawMainY.toInt() + 1 else gs.drawMainY.toInt(),
+                    Blitters.TRANSP,
+                    0,
+                )
+            }
+            addTable = ::addMidtable
+            drawTileBottom(0)
+            addTable = ::addBacktable
+        } else {
+            drawOtherOverlay()
+        }
+    }
+
+    fun drawOtherOverlay() {
+        if (gs.tileLeft == Tiles.EMPTY) {
+            addTable = ::addMidtable
+            drawTile2()
+        } else if (gs.currTile != Tiles.EMPTY && gs.drawnCol.toInt() > 0) {
+            val tile = TileAndMod()
+            if (getTileToDraw(gs.drawnRoom, gs.drawnCol.toInt() - 2, gs.drawnRow.toInt(), tile, Tiles.EMPTY) == Tiles.EMPTY) {
+                addTable = ::addMidtable
+                drawTile2()
+                addTable = ::addBacktable
+                drawTile2()
+                gs.tileObjectRedraw[gs.tblLine[gs.drawnRow.toInt()] + gs.drawnCol.toInt()] = 0xFF
+            }
+        }
+        addTable = ::addBacktable
     }
 
     fun drawTileWipe(height: Int) {
@@ -781,6 +904,96 @@ object Seg008 {
         gs.objClipLeft = currObj.clip.left
         gs.objClipRight = currObj.clip.right
         return currObj.objType and 0xFF
+    }
+
+    fun drawObjtableItemsAtTile(tilepos: Int) {
+        val wantedTilepos = tilepos and 0xFF
+        val objCount = gs.tableCounts[4].toInt()
+        if (objCount == 0) return
+
+        gs.nCurrObjs = 0
+        for (objIndex in objCount - 1 downTo 0) {
+            if ((gs.objtable[objIndex].tilepos and 0xFF) == wantedTilepos) {
+                val currIndex = gs.nCurrObjs.toInt()
+                gs.currObjs[currIndex] = objIndex.toShort()
+                gs.nCurrObjs = (currIndex + 1).toShort()
+            }
+        }
+        if (gs.nCurrObjs.toInt() == 0) return
+
+        sortCurrObjs()
+        for (currIndex in 0 until gs.nCurrObjs.toInt()) {
+            drawObjtableItem(gs.currObjs[currIndex].toInt())
+        }
+    }
+
+    fun drawObjtableItem(index: Int) {
+        when (loadObjFromObjtable(index)) {
+            0, 4 -> {
+                if (gs.objId == 0xFF) return
+                if (gs.unitedWithShadow.toInt() != 0 && gs.unitedWithShadow.toInt() % 2 == 0) {
+                    drawShadowObjtableItem()
+                } else {
+                    addMidtable(gs.objChtab, gs.objId + 1, gs.objXh, gs.objXl, gs.objY, Blitters.TRANSP, 1)
+                }
+            }
+            2, 3, 5 -> addMidtable(gs.objChtab, gs.objId + 1, gs.objXh, gs.objXl, gs.objY, Blitters.TRANSP, 1)
+            1 -> drawShadowObjtableItem()
+            0x80 -> {
+                gs.objDirection = Directions.LEFT
+                addMidtable(gs.objChtab, looseFramLeft[gs.objId], gs.objXh, gs.objXl, gs.objY - 3, Blitters.TRANSP, 1)
+                addMidtable(gs.objChtab, looseFramBottom[gs.objId], gs.objXh, gs.objXl, gs.objY, Blitters.NO_TRANSP, 1)
+                addMidtable(gs.objChtab, looseFramRight[gs.objId], gs.objX.toInt() + 4, gs.objXl, gs.objY - 1, Blitters.TRANSP, 1)
+            }
+        }
+    }
+
+    private fun drawShadowObjtableItem() {
+        if (gs.unitedWithShadow.toInt() == 2) {
+            ext.playSound(SoundIds.END_LEVEL_MUSIC)
+        }
+        addMidtable(gs.objChtab, gs.objId + 1, gs.objXh, gs.objXl, gs.objY, Blitters.OR, 1)
+        addMidtable(gs.objChtab, gs.objId + 1, gs.objXh, gs.objXl + 1, gs.objY, Blitters.XOR, 1)
+    }
+
+    fun drawPeople() {
+        Seg003.checkMirror()
+        drawKid()
+        drawGuard()
+        Seg006.resetObjClip()
+        drawHp()
+    }
+
+    fun drawKid() {
+        if (gs.Kid.room != 0 && gs.Kid.room == gs.drawnRoom) {
+            addKidToObjtable()
+            if (gs.hitpDelta < 0) Seg006.drawHurtSplash()
+            Seg006.addSwordToObjtable()
+        }
+    }
+
+    fun drawGuard() {
+        if (gs.Guard.direction != Directions.NONE && gs.Guard.room == gs.drawnRoom) {
+            addGuardToObjtable()
+            if (gs.guardhpDelta < 0) Seg006.drawHurtSplash()
+            Seg006.addSwordToObjtable()
+        }
+    }
+
+    private fun drawHp() {
+        if (gs.hitpDelta.toInt() != 0) {
+            ext.drawKidHp(gs.hitpCurr, gs.hitpMax)
+        }
+        val blinkState = gs.remTick and 1
+        if (gs.hitpCurr == 1 && gs.currentLevel != 15) {
+            if (blinkState != 0) ext.drawKidHp(1, 0) else ext.drawKidHp(0, 1)
+        }
+        if (gs.guardhpDelta.toInt() != 0) {
+            ext.drawGuardHp(gs.guardhpCurr, gs.guardhpMax)
+        }
+        if (gs.guardhpCurr == 1) {
+            if (blinkState != 0) ext.drawGuardHp(1, 0) else ext.drawGuardHp(0, 1)
+        }
     }
 
     fun addKidToObjtable() {
