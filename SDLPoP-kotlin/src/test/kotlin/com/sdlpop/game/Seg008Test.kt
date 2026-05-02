@@ -45,6 +45,17 @@ class Seg008Test {
         gs.modifierLeft = 0
         gs.graphicsMode = 0
         gs.drawMode = 0
+        gs.remMin = 0
+        gs.remTick = 0
+        gs.isShowTime = 0
+        gs.textTimeRemaining = 0
+        gs.textTimeTotal = 0
+        gs.nextLevel = 0
+        gs.seamless = 0
+        gs.leveldoorOpen = 0
+        gs.randomSeed = 0
+        gs.seedWasInit = 1
+        gs.palaceWallColors.fill(0)
         gs.gateTopY = 0
         gs.gateOpenness = 0
         gs.gateBottomY = 0
@@ -137,6 +148,7 @@ class Seg008Test {
         ExternalStubs.getImage = { _, _ -> null }
         ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
         ExternalStubs.playSound = { _ -> }
+        ExternalStubs.displayTextBottom = { _ -> }
         Seg008.resetRenderHooks()
     }
 
@@ -257,6 +269,61 @@ class Seg008Test {
         assertEquals(160, Seg008.calcScreenXCoord(140).toInt())
         assertEquals(320, Seg008.calcScreenXCoord(280).toInt())
         assertEquals((-11).toShort(), Seg008.calcScreenXCoord((-10).toShort()))
+    }
+
+    @Test
+    fun showTimeDecrementsTimerAndDisplaysMinuteSecondAndExpiredText() {
+        val messages = mutableListOf<String>()
+        ExternalStubs.displayTextBottom = { text -> messages += text }
+        gs.Kid.alive = -1
+        gs.currentLevel = 1
+        gs.remMin = 6
+        gs.remTick = 1
+
+        Seg008.showTime()
+
+        assertEquals(5, gs.remMin.toInt())
+        assertEquals(719, gs.remTick.toInt())
+        assertEquals(listOf("5 MINUTES LEFT"), messages)
+        assertEquals(24, gs.textTimeRemaining)
+        assertEquals(0, gs.isShowTime)
+
+        messages.clear()
+        gs.remMin = 1
+        gs.remTick = 13
+        gs.textTimeRemaining = 0
+        Seg008.showTime()
+        assertEquals(listOf("1 SECOND LEFT"), messages)
+        assertEquals(12, gs.textTimeRemaining)
+
+        messages.clear()
+        gs.remMin = 0
+        gs.isShowTime = 1
+        gs.textTimeRemaining = 0
+        Seg008.showTime()
+        assertEquals(listOf("TIME HAS EXPIRED!"), messages)
+    }
+
+    @Test
+    fun showLevelDisplaysConfiguredLevelTextAndResetsSeamlessFlag() {
+        val messages = mutableListOf<String>()
+        ExternalStubs.displayTextBottom = { text -> messages += text }
+        gs.currentLevel = 13
+        gs.seamless = 0
+
+        Seg008.showLevel()
+
+        assertEquals(listOf("LEVEL 12"), messages)
+        assertEquals(24, gs.textTimeRemaining)
+        assertEquals(24, gs.textTimeTotal)
+        assertEquals(1, gs.isShowTime)
+
+        messages.clear()
+        gs.currentLevel = 2
+        gs.seamless = 1
+        Seg008.showLevel()
+        assertEquals(emptyList(), messages)
+        assertEquals(0, gs.seamless)
     }
 
     @Test
@@ -985,6 +1052,93 @@ class Seg008Test {
         assertBackEntry(0, Chtabs.ENVIRONMENTWALL, 4, 20, 65, Blitters.NO_TRANSP)
         assertForeEntry(0, Chtabs.ENVIRONMENTWALL, 5, 20, 62, Blitters.NO_TRANSP)
         assertEquals(listOf("0:0", "1:1"), wallCalls)
+    }
+
+    @Test
+    fun wallPatternPopulatesDungeonWallTablesDeterministicallyAndRestoresPrng() {
+        installFixedImageSize()
+        gs.currentLevel = 1
+        gs.drawnRoom = 3
+        gs.drawnRow = 1
+        gs.drawnCol = 4
+        gs.drawXh = 16
+        gs.drawBottomY = 128
+        gs.currModifier = 3
+        gs.randomSeed = 98765
+        val originalSeed = gs.randomSeed
+
+        Seg008.wallPattern(1, 0)
+
+        assertEquals(originalSeed, gs.randomSeed)
+        assertEquals(true, gs.tableCounts[0].toInt() >= 2)
+        val firstRun = (0 until gs.tableCounts[0].toInt()).map { index ->
+            val entry = gs.backtable[index]
+            listOf(entry.chtabId, entry.id, entry.xh, entry.xl, entry.y.toInt(), entry.blit)
+        }
+
+        gs.tableCounts.fill(0)
+        gs.backtable.forEach {
+            it.chtabId = 0
+            it.id = 0
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.blit = 0
+        }
+        gs.randomSeed = 24680
+        Seg008.wallPattern(1, 0)
+        val secondRun = (0 until gs.tableCounts[0].toInt()).map { index ->
+            val entry = gs.backtable[index]
+            listOf(entry.chtabId, entry.id, entry.xh, entry.xl, entry.y.toInt(), entry.blit)
+        }
+
+        assertEquals(firstRun, secondRun)
+    }
+
+    @Test
+    fun wallPatternPopulatesPalaceWipesAndForetableForVgaPalaceLevels() {
+        installFixedImageSize()
+        gs.currentLevel = 4
+        gs.graphicsMode = 5
+        gs.drawnRow = 1
+        gs.drawnCol = 2
+        gs.drawXh = 12
+        gs.drawMainY = 70
+        gs.drawBottomY = 100
+        gs.palaceWallColors[44 + 2] = 31
+        gs.palaceWallColors[44 + 11 + 2] = 32
+        gs.palaceWallColors[44 + 12 + 2] = 33
+        gs.palaceWallColors[44 + 22 + 2] = 34
+        gs.palaceWallColors[44 + 23 + 2] = 35
+        gs.palaceWallColors[44 + 33 + 2] = 36
+
+        Seg008.wallPattern(1, 1)
+
+        assertEquals(6, gs.tableCounts[2].toInt())
+        assertEquals(5, gs.tableCounts[1].toInt())
+        assertEquals(96, gs.wipetable[0].left.toInt())
+        assertEquals(31, gs.wipetable[0].color)
+        assertEquals(1, gs.wipetable[0].layer)
+        assertEquals(101, gs.wipetable[5].bottom.toInt())
+        assertEquals(36, gs.wipetable[5].color)
+        assertEquals(Chtabs.ENVIRONMENTWALL, gs.foretable[0].chtabId)
+        assertEquals(Blitters.MONO_6, gs.foretable[0].blit)
+    }
+
+    @Test
+    fun drawMarksSubmitExpectedWallDecals() {
+        installFixedImageSize()
+        gs.drawXh = 8
+        gs.drawBottomY = 100
+
+        Seg008.drawLeftMark(3, 2, 1)
+        Seg008.drawRightMark(2, 9)
+
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENTWALL, 14, 9, 80, Blitters.TRANSP)
+        assertEquals(8, gs.backtable[0].xl)
+        assertBackEntry(1, Chtabs.ENVIRONMENTWALL, 15, 9, 69, Blitters.TRANSP)
+        assertEquals(6, gs.backtable[1].xl)
     }
 
     @Test

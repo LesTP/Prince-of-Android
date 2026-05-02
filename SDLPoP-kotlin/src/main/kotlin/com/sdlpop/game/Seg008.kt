@@ -26,7 +26,7 @@ object Seg008 {
     var drawGateBackHook: () -> Unit = ::drawGateBack
     var drawGateForeHook: () -> Unit = ::drawGateFore
     var drawLeveldoorHook: () -> Unit = ::drawLeveldoor
-    var wallPatternHook: (Int, Int) -> Unit = { _, _ -> }
+    var wallPatternHook: (Int, Int) -> Unit = ::wallPattern
     var drawOtherOverlayHook: () -> Unit = ::drawOtherOverlay
     var drawFloorOverlayHook: () -> Unit = ::drawFloorOverlay
     var drawObjtableItemsAtTileHook: (Int) -> Unit = ::drawObjtableItemsAtTile
@@ -51,7 +51,7 @@ object Seg008 {
         drawGateBackHook = ::drawGateBack
         drawGateForeHook = ::drawGateFore
         drawLeveldoorHook = ::drawLeveldoor
-        wallPatternHook = { _, _ -> }
+        wallPatternHook = ::wallPattern
         drawOtherOverlayHook = ::drawOtherOverlay
         drawFloorOverlayHook = ::drawFloorOverlay
         drawObjtableItemsAtTileHook = ::drawObjtableItemsAtTile
@@ -137,6 +137,13 @@ object Seg008 {
     private const val GM_CGA = 1
     private const val GM_HGA_HERC = 2
     private const val GM_MCGA_VGA = 5
+    private const val DESIGN_PALACE = 1
+    private const val RSET_WALL = Chtabs.ENVIRONMENTWALL
+    private const val RES_WALL_RNDBLOCK = 13
+    private const val RES_WALL_MARK_TL = 14
+    private const val RES_WALL_MARK_BL = 15
+    private const val RES_WALL_MARK_TR = 16
+    private const val RES_WALL_MARK_BR = 17
 
     private var addTable: (Int, Int, Int, Int, Int, Int, Int) -> Int = ::addBacktable
 
@@ -845,6 +852,175 @@ object Seg008 {
 
     fun calcScreenXCoord(logicalX: Short): Short {
         return (logicalX.toInt() * 320 / 280).toShort()
+    }
+
+    fun showTime() {
+        if (gs.Kid.alive < 0 &&
+            !(gs.fixes.enableFreezeTimeDuringEndMusic != 0 && gs.nextLevel != gs.currentLevel) &&
+            gs.remMin.toInt() != 0 &&
+            (gs.currentLevel < gs.custom.victoryStopsTimeLevel ||
+                (gs.currentLevel == gs.custom.victoryStopsTimeLevel && gs.leveldoorOpen == 0)) &&
+            gs.currentLevel < 15
+        ) {
+            gs.remTick -= 1
+            if (gs.remTick.toInt() == 0) {
+                gs.remTick = 719
+                gs.remMin = (gs.remMin - 1).toShort()
+                val remMin = gs.remMin.toInt()
+                if (remMin != 0 && (remMin <= 5 || remMin % 5 == 0)) {
+                    gs.isShowTime = 1
+                }
+            } else if (gs.remMin.toInt() == 1 && gs.remTick.toInt() % 12 == 0) {
+                gs.isShowTime = 1
+                gs.textTimeRemaining = 0
+            }
+        }
+
+        if (gs.isShowTime != 0 && gs.textTimeRemaining == 0) {
+            gs.textTimeRemaining = 24
+            gs.textTimeTotal = 24
+            val remMin = gs.remMin.toInt()
+            if (remMin > 0) {
+                if (remMin == 1) {
+                    val remSec = (gs.remTick.toInt() + 1) / 12
+                    if (remSec == 1) {
+                        gs.textTimeRemaining = 12
+                        gs.textTimeTotal = 12
+                        ext.displayTextBottom("1 SECOND LEFT")
+                    } else {
+                        ext.displayTextBottom("$remSec SECONDS LEFT")
+                    }
+                } else {
+                    ext.displayTextBottom("$remMin MINUTES LEFT")
+                }
+            } else {
+                ext.displayTextBottom("TIME HAS EXPIRED!")
+            }
+            gs.isShowTime = 0
+        }
+    }
+
+    fun showLevel() {
+        var dispLevel = gs.currentLevel and 0xFF
+        if (dispLevel != 0 && dispLevel < gs.custom.hideLevelNumberFromLevel && gs.seamless == 0) {
+            if (dispLevel == 13) {
+                dispLevel = gs.custom.level13LevelNumber
+            }
+            gs.textTimeRemaining = 24
+            gs.textTimeTotal = 24
+            ext.displayTextBottom("LEVEL $dispLevel")
+            gs.isShowTime = 1
+        }
+        gs.seamless = 0
+    }
+
+    fun wallPattern(whichPart: Int, whichTable: Int) {
+        val savedAddTable = addTable
+        addTable = if (whichTable == 0) ::addBacktable else ::addForetable
+        val savedSeed = gs.randomSeed
+        val savedSeedWasInit = gs.seedWasInit
+        gs.randomSeed = (gs.drawnRoom + gs.tblLine[gs.drawnRow.toInt()] + gs.drawnCol.toInt()).toLong() and 0xFFFFFFFFL
+        gs.seedWasInit = 1
+        Seg002.prandom(1)
+
+        val isDungeon = levelType() < DESIGN_PALACE || gs.custom.enableWdaInPalace != 0
+        if (!isDungeon && gs.graphicsMode == GM_MCGA_VGA) {
+            palaceWallPattern(whichPart, whichTable)
+        } else {
+            dungeonWallPattern(whichPart, isDungeon)
+        }
+
+        gs.randomSeed = savedSeed
+        gs.seedWasInit = savedSeedWasInit
+        addTable = savedAddTable
+    }
+
+    private fun palaceWallPattern(whichPart: Int, whichTable: Int) {
+        val rowBase = 44 * gs.drawnRow.toInt()
+        if (whichPart != 0) {
+            addWipetable(whichTable, 8 * gs.drawXh, gs.drawMainY.toInt() - 40, 20, 4 * 8, gs.palaceWallColors[rowBase + gs.drawnCol.toInt()])
+            addWipetable(whichTable, 8 * gs.drawXh, gs.drawMainY.toInt() - 19, 21, 2 * 8, gs.palaceWallColors[rowBase + 11 + gs.drawnCol.toInt()])
+            addWipetable(whichTable, 8 * (gs.drawXh + 2), gs.drawMainY.toInt() - 19, 21, 2 * 8, gs.palaceWallColors[rowBase + 12 + gs.drawnCol.toInt()])
+            addWipetable(whichTable, 8 * gs.drawXh, gs.drawMainY.toInt(), 19, 1 * 8, gs.palaceWallColors[rowBase + 22 + gs.drawnCol.toInt()])
+            addWipetable(whichTable, 8 * (gs.drawXh + 1), gs.drawMainY.toInt(), 19, 3 * 8, gs.palaceWallColors[rowBase + 23 + gs.drawnCol.toInt()])
+
+            addTable(RSET_WALL, Seg002.prandom(2) + 3, gs.drawXh + 3, 0, gs.drawMainY.toInt() - 53, Blitters.MONO_6, 0)
+            addTable(RSET_WALL, Seg002.prandom(2) + 6, gs.drawXh, 0, gs.drawMainY.toInt() - 34, Blitters.MONO_6, 0)
+            addTable(RSET_WALL, Seg002.prandom(2) + 9, gs.drawXh, 0, gs.drawMainY.toInt() - 13, Blitters.MONO_6, 0)
+            addTable(RSET_WALL, Seg002.prandom(2) + 12, gs.drawXh, 0, gs.drawMainY.toInt(), Blitters.MONO_6, 0)
+        }
+        addWipetable(whichTable, 8 * gs.drawXh, gs.drawBottomY.toInt(), 3, 4 * 8, gs.palaceWallColors[rowBase + 33 + gs.drawnCol.toInt()])
+        addTable(RSET_WALL, Seg002.prandom(2) + 15, gs.drawXh, 0, gs.drawBottomY.toInt(), Blitters.MONO_6, 0)
+    }
+
+    private fun dungeonWallPattern(whichPart: Int, isDungeon: Boolean) {
+        val middleDivider = Seg002.prandom(1)
+        val middleDividerOffset = Seg002.prandom(4)
+        val bottomDivider = Seg002.prandom(1)
+        val bottomDividerOffset = Seg002.prandom(4)
+
+        when (gs.currModifier and 0x7F) {
+            3 -> {
+                if (whichPart != 0) {
+                    if (Seg002.prandom(4) == 0) {
+                        addTable(RSET_WALL, RES_WALL_RNDBLOCK, gs.drawXh, 0, gs.drawBottomY.toInt() - 42, Blitters.NO_TRANSP, 0)
+                    }
+                    addTable(RSET_WALL, 11 + middleDivider, gs.drawXh + 1, middleDividerOffset, gs.drawBottomY.toInt() - 21, Blitters.TRANSP, 0)
+                }
+                addTable(RSET_WALL, 11 + bottomDivider, gs.drawXh, bottomDividerOffset, gs.drawBottomY.toInt(), Blitters.TRANSP, 0)
+                if (whichPart != 0 && isDungeon) {
+                    if (Seg002.prandom(4) == 0) drawRightMark(Seg002.prandom(3), middleDividerOffset)
+                    if (Seg002.prandom(4) == 0) drawLeftMark(Seg002.prandom(4), middleDividerOffset - middleDivider, bottomDividerOffset - bottomDivider)
+                }
+            }
+            0 -> {
+                if (whichPart != 0 && isDungeon && Seg002.prandom(6) == 0) {
+                    drawLeftMark(Seg002.prandom(1), middleDividerOffset - middleDivider, bottomDividerOffset - bottomDivider)
+                }
+            }
+            1 -> {
+                if (whichPart != 0) {
+                    if (Seg002.prandom(4) == 0) {
+                        addTable(RSET_WALL, RES_WALL_RNDBLOCK, gs.drawXh, 0, gs.drawBottomY.toInt() - 42, Blitters.NO_TRANSP, 0)
+                    }
+                    addTable(RSET_WALL, 11 + middleDivider, gs.drawXh + 1, middleDividerOffset, gs.drawBottomY.toInt() - 21, Blitters.TRANSP, 0)
+                    if (isDungeon) {
+                        if (Seg002.prandom(4) == 0) drawRightMark(Seg002.prandom(3), middleDividerOffset)
+                        if (Seg002.prandom(4) == 0) drawLeftMark(Seg002.prandom(3), middleDividerOffset - middleDivider, bottomDividerOffset - bottomDivider)
+                    }
+                }
+            }
+            2 -> {
+                if (whichPart != 0) {
+                    addTable(RSET_WALL, 11 + middleDivider, gs.drawXh + 1, middleDividerOffset, gs.drawBottomY.toInt() - 21, Blitters.TRANSP, 0)
+                }
+                addTable(RSET_WALL, 11 + bottomDivider, gs.drawXh, bottomDividerOffset, gs.drawBottomY.toInt(), Blitters.TRANSP, 0)
+                if (whichPart != 0 && isDungeon) {
+                    if (Seg002.prandom(4) == 0) drawRightMark(Seg002.prandom(1) + 2, middleDividerOffset)
+                    if (Seg002.prandom(4) == 0) drawLeftMark(Seg002.prandom(4), middleDividerOffset - middleDivider, bottomDividerOffset - bottomDivider)
+                }
+            }
+        }
+    }
+
+    fun drawLeftMark(decalVariant: Int, arg2: Int, arg1: Int) {
+        val lpos = intArrayOf(58, 41, 37, 20, 16)
+        val imageId = if (decalVariant % 2 != 0) RES_WALL_MARK_BL else RES_WALL_MARK_TL
+        val lv2 = when {
+            decalVariant > 3 -> arg1 + 6
+            decalVariant > 1 -> arg2 + 6
+            else -> 0
+        }
+        val xh = gs.drawXh + if (decalVariant == 2 || decalVariant == 3) 1 else 0
+        addTable(RSET_WALL, imageId, xh, lv2, gs.drawBottomY.toInt() - lpos[decalVariant], Blitters.TRANSP, 0)
+    }
+
+    fun drawRightMark(decalVariant: Int, arg1: Int) {
+        val rpos = intArrayOf(52, 42, 31, 21)
+        val imageId = if (decalVariant % 2 != 0) RES_WALL_MARK_BR else RES_WALL_MARK_TR
+        val xl = if (decalVariant < 2) 24 else arg1 - 3
+        val xh = gs.drawXh + if (decalVariant > 1) 1 else 0
+        addTable(RSET_WALL, imageId, xh, xl, gs.drawBottomY.toInt() - rpos[decalVariant], Blitters.TRANSP, 0)
     }
 
     fun addDrect(source: RectType) {

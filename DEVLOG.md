@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16d.4: Wall pattern, marks, timer text, and phase integration
+
+**Mode:** Code | **Outcome:** Complete — final Phase 16d render-submission functions translated
+**Contract changes:** `Seg008` wall-pattern hook now defaults to real render-table submissions; timer/level text functions now update shared game text state and dispatch through the existing text stub. No Android/SDL pixel drawing contract added.
+
+Translated the remaining `seg008.c` render-submission/text slice into `Seg008.kt`: `wall_pattern`, `draw_left_mark`, `draw_right_mark`, `show_time`, and `show_level`. The wall-pattern port preserves the C table-switching behavior for back/fore submissions, deterministic seed derivation from room/row/column, PRNG save/restore, dungeon divider/decal branches, palace VGA wipe-color blocks, and palace wall decal submissions. The Kotlin implementation also guards the existing `Seg002.prandom()` seed-init wrapper by temporarily marking the deterministic wall seed initialized, then restoring both seed fields.
+
+Ported timer and level text state updates behind `ExternalStubs.displayTextBottom`, preserving minute rollover, one-minute second countdown messages, expired-time text, level 13 display remapping, seamless-level suppression, and text duration state. `resetRenderHooks()` now restores the real wall-pattern implementation.
+
+Expanded `Seg008Test` with focused coverage for timer/level text messages, dungeon wall-pattern determinism and PRNG restoration, palace wall wipe/foretable submissions, and left/right wall mark placement.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 641 tests.
+
 ### 2026-05-02 — Step 16d.3: Structures, overlays, people, and object-table flushing
 
 **Mode:** Code | **Outcome:** Complete — structure/overlay/people render command producers translated
