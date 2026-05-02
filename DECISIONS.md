@@ -1,5 +1,19 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-25: Phase 16d build boundary
+Date: 2026-05-02 | Status: Open
+Priority: Important
+Decision: Plan Phase 16d as a Build-regime render-command phase split into four steps: table data/append helpers, tile submissions, structures/overlays/people/object flushing, and wall/timer integration.
+Rationale: Phase 16c already translated pure render-state traversal behind hooks. The next clean autonomous boundary is to replace those hooks with deterministic render-table producers while still deferring actual pixel drawing, Canvas operations, text rendering details, peel restoration, and lighting to Phase 16e Refine work. Starting with table data and append helpers gives later tile/object functions a testable command sink, and ending with wall/timer integration captures the highest-risk PRNG and text-state behavior after the common submission paths exist.
+Revisit if: A Phase 16d implementation step requires Android `Canvas`, SDL-equivalent pixel output, or a visual judgment that cannot be represented as render-table command state.
+
+D-24: Phase 16c human approval
+Date: 2026-05-02 | Status: Closed
+Priority: Important
+Decision: Mark Phase 16c as audited and human-approved. Module 16 stays in progress, and Phase 16d is unblocked as the next planning/build step.
+Rationale: The Phase 16c review is closed with no must-fix or should-fix findings, the phase-complete entry already recorded acceptance of the pure `seg008.c` render-state translation, and verification remains the passing focused `Seg008Test` run plus full `gradle test --no-daemon` at 620 tests.
+Revisit if: Phase 16d planning discovers a required boundary adjustment between render-state orchestration and render-table submission.
+
 D-23: Phase 16c review outcome
 Date: 2026-05-02 | Status: Closed
 Priority: Important

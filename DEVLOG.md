@@ -2,9 +2,31 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Phase 16d plan: Render table submission
+
+**Mode:** Discuss | **Outcome:** Phase planned
+**Contract changes:** DEVPLAN.md, DECISIONS.md — phase plan only; no source behavior changes.
+
+Planned Phase 16d as the Build-regime translation of `seg008.c` render-table submission functions. The phase will replace the Phase 16c no-op render hooks with deterministic command producers for `backtable[]`, `foretable[]`, `midtable[]`, and `wipetable[]`, while keeping actual pixel drawing, Android Canvas, peel restoration, lighting, and visual judgment deferred to Phase 16e.
+
+Phase 16d is split into four steps:
+- **16d.1** Add render-table data/state and translate append helpers.
+- **16d.2** Translate tile render-submission functions.
+- **16d.3** Translate structures, overlays, people, and object-table flushing.
+- **16d.4** Translate wall pattern/marks, timer/level text state, and integration tests.
+
+Planning decision recorded in `DECISIONS.md` D-25. No source code changed in this iteration.
+
+### 2026-05-02 — Phase 16c approval
+
+**Mode:** Approval | **Outcome:** Human audit accepted; proceed to Phase 16d planning
+**Contract changes:** DEVPLAN.md — current status advanced to audited/complete; no source behavior changes.
+
+Recorded human approval for Phase 16c after the completed review and phase-close entry. Module 16 remains in progress, and Phase 16d is now the active next step.
+
 ### 2026-05-02 — Phase 16c complete
 
-**Mode:** Complete | **Outcome:** Phase complete — render table pure logic accepted for human audit
+**Mode:** Complete | **Outcome:** Phase complete — render table pure logic ready for human audit
 **Contract changes:** DEVPLAN.md, ARCHITECTURE.md, DECISIONS.md — phase status and completion metadata only; no source behavior changes.
 
 Completed Phase 16c closure after review. The phase delivered the pure `seg008.c` render-state translation in `Seg008.kt`: tile resolution, room-link and adjacent-tile loading, modifier preprocessing, object table insertion/sorting/loading, dirty-rect merging, and draw/redraw orchestration behind Phase 16d render-submission hooks.

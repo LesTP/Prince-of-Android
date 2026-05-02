@@ -47,8 +47,8 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16c — Render table pure logic — **COMPLETE (pending human audit)**
-**Next:** Human audit of Phase 16c, then Phase 16d planning
+**Phase:** 16d — Render table submission — **IN PROGRESS**
+**Next:** Step 16d.1 — Render table data model and append helpers
 
 **Replay regression:** 8/13 MATCH, 620 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -167,7 +167,7 @@ Human audit approved on 2026-04-30; proceed to Phase 16c planning.
 #### Phase 16c: Render table pure logic (seg008 state functions) — COMPLETE
 One-line: Translated the 30 pure `seg008.c` render-state functions into `Seg008.kt`, covering tile resolution, room/adjacent-tile loading, modifier preprocessing, object-table and dirty-rect bookkeeping, and draw/redraw orchestration behind Phase 16d render-submission hooks; review found no must-fix or should-fix issues, and `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` plus full `gradle test --no-daemon` pass with 620 tests. See DEVLOG §Module 16.
 
-#### Phase 16d: Render table submission (seg008 mixed functions) — PENDING
+#### Phase 16d: Render table submission (seg008 mixed functions) — IN PROGRESS
 
 **Regime:** Build (autonomous).
 
@@ -206,6 +206,20 @@ Timer/text:
 **Human work:** None during translation. Review at phase boundary.
 
 **Acceptance:** All 31 functions translated. Render tables populate correctly for test room configurations. Existing tests still pass.
+
+**Step plan:**
+
+- **16d.1 — Render table data model and append helpers.**
+  Add Kotlin state/types for `backtable[]`, `foretable[]`, `midtable[]`, and `wipetable[]`; translate `add_backtable`, `add_foretable`, `add_midtable`, and `add_wipetable`; preserve C count/overflow/id-minus-one behavior, image-height-derived y coordinates, midtable clipping/peel fields, and draw-mode deferral to Phase 16e no-op flush hooks. Tests pin append success/failure, count changes, field mapping, sprite-height y calculation, and table limits.
+
+- **16d.2 — Tile render submissions.**
+  Replace the Phase 16c tile hooks with real implementations for `draw_tile_floorright`, `draw_tile_topright`, `draw_tile_anim_topright`, `draw_tile_right`, `draw_tile_anim_right`, `draw_tile_bottom`, `draw_tile_base`, `draw_tile_anim`, `draw_tile_fore`, `draw_loose`, `draw_tile2`, and `draw_tile_wipe`. Tests use seeded room/tile fixtures to verify back/fore/wipe entries for representative floors, walls, gates, spikes, loose floors, potions, torches, chompers, and top/above-room redraw cases.
+
+- **16d.3 — Structures, overlays, people, and object-table flushing.**
+  Translate `draw_gate_back`, `draw_gate_fore`, `draw_leveldoor`, `draw_floor_overlay`, `draw_other_overlay`, `draw_people`, `draw_kid`, `draw_guard`, `draw_objtable_items_at_tile`, and `draw_objtable_item`. Tests verify gate/level-door command sequences, overlay table switching, Kid/Guard midtable entries, object sorting flush behavior, clip fields, sword/splash/loose-object table output, and tile-object redraw clearing.
+
+- **16d.4 — Wall pattern, marks, timer text, and phase integration.**
+  Translate `wall_pattern`, `draw_left_mark`, `draw_right_mark`, `show_time`, and `show_level`; preserve deterministic PRNG save/restore and table switching. Add focused tests for wall command determinism, dungeon/palace branches where represented by existing state, mark placement, timer/level text state, and full `draw_room()`/`draw_moving()` render-table population. Run focused `Seg008Test` and full Gradle tests.
 
 #### Phase 16e: Android rendering backend — PENDING
 
