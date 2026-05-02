@@ -48,9 +48,9 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16d — Render table submission — **IN PROGRESS**
-**Next:** Step 16d.1 — Render table data model and append helpers
+**Next:** Step 16d.2 — Tile render submissions
 
-**Replay regression:** 8/13 MATCH, 620 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 625 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -209,8 +209,8 @@ Timer/text:
 
 **Step plan:**
 
-- **16d.1 — Render table data model and append helpers.**
-  Add Kotlin state/types for `backtable[]`, `foretable[]`, `midtable[]`, and `wipetable[]`; translate `add_backtable`, `add_foretable`, `add_midtable`, and `add_wipetable`; preserve C count/overflow/id-minus-one behavior, image-height-derived y coordinates, midtable clipping/peel fields, and draw-mode deferral to Phase 16e no-op flush hooks. Tests pin append success/failure, count changes, field mapping, sprite-height y calculation, and table limits.
+- **16d.1 — Render table data model and append helpers — COMPLETE.**
+  Added Kotlin state/types for `backtable[]`, `foretable[]`, `midtable[]`, and `wipetable[]`; translated `add_backtable`, `add_foretable`, `add_midtable`, and `add_wipetable`; preserved C count/overflow/id-minus-one behavior, image-height-derived y coordinates, midtable clipping/peel fields, and draw-mode deferral to Phase 16e no-op flush hooks. Tests pin append success/failure, count changes, field mapping, sprite-height y calculation, and table limits.
 
 - **16d.2 — Tile render submissions.**
   Replace the Phase 16c tile hooks with real implementations for `draw_tile_floorright`, `draw_tile_topright`, `draw_tile_anim_topright`, `draw_tile_right`, `draw_tile_anim_right`, `draw_tile_bottom`, `draw_tile_base`, `draw_tile_anim`, `draw_tile_fore`, `draw_loose`, `draw_tile2`, and `draw_tile_wipe`. Tests use seeded room/tile fixtures to verify back/fore/wipe entries for representative floors, walls, gates, spikes, loose floors, potions, torches, chompers, and top/above-room redraw cases.

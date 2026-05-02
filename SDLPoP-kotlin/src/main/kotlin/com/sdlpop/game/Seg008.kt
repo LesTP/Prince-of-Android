@@ -27,6 +27,9 @@ object Seg008 {
     var drawFloorOverlayHook: () -> Unit = {}
     var drawObjtableItemsAtTileHook: (Int) -> Unit = {}
     var drawPeopleHook: () -> Unit = {}
+    var drawBackForeHook: (Int, Int) -> Unit = { _, _ -> }
+    var drawMidHook: (Int) -> Unit = {}
+    var drawWipeHook: (Int) -> Unit = {}
 
     val colXh = intArrayOf(0, 4, 8, 12, 16, 20, 24, 28, 32, 36)
 
@@ -45,6 +48,82 @@ object Seg008 {
         drawFloorOverlayHook = {}
         drawObjtableItemsAtTileHook = {}
         drawPeopleHook = {}
+        drawBackForeHook = { _, _ -> }
+        drawMidHook = {}
+        drawWipeHook = {}
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun addBacktable(chtabId: Int, id: Int, xh: Int, xl: Int, ybottom: Int, blit: Int, peel: Int): Int {
+        if (id == 0) return 0
+        val index = gs.tableCounts[0].toInt()
+        if (index >= 200) return 0
+        val item = gs.backtable[index]
+        populateBackTable(item, chtabId, id, xh, xl)
+        val image = ext.getImage(chtabId, id - 1) ?: return 0
+        item.y = (ybottom - image.second + 1).toShort()
+        item.blit = blit
+        if (gs.drawMode != 0) drawBackForeHook(0, index)
+        gs.tableCounts[0] = (index + 1).toShort()
+        return 1
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun addForetable(chtabId: Int, id: Int, xh: Int, xl: Int, ybottom: Int, blit: Int, peel: Int): Int {
+        if (id == 0) return 0
+        val index = gs.tableCounts[1].toInt()
+        if (index >= 200) return 0
+        val item = gs.foretable[index]
+        populateBackTable(item, chtabId, id, xh, xl)
+        val image = ext.getImage(chtabId, id - 1) ?: return 0
+        item.y = (ybottom - image.second + 1).toShort()
+        item.blit = blit
+        if (gs.drawMode != 0) drawBackForeHook(1, index)
+        gs.tableCounts[1] = (index + 1).toShort()
+        return 1
+    }
+
+    fun addMidtable(chtabId: Int, id: Int, xh: Int, xl: Int, ybottom: Int, blit: Int, peel: Int): Int {
+        if (id == 0) return 0
+        val index = gs.tableCounts[3].toInt()
+        if (index >= 50) return 0
+        val item = gs.midtable[index]
+        item.xh = xh.toByte().toInt()
+        item.xl = xl.toByte().toInt()
+        item.chtabId = chtabId and 0xFF
+        item.id = (id - 1) and 0xFF
+        val image = ext.getImage(chtabId, id - 1) ?: return 0
+        item.y = (ybottom - image.second + 1).toShort()
+        item.blit = blit + if (gs.objDirection == Directions.RIGHT && (gs.chtabFlipClip.getOrNull(chtabId) ?: 0) != 0) 0x80 else 0
+        item.peel = peel and 0xFF
+        item.clip.left = gs.objClipLeft
+        item.clip.right = gs.objClipRight
+        item.clip.top = gs.objClipTop
+        item.clip.bottom = gs.objClipBottom
+        if (gs.drawMode != 0) drawMidHook(index)
+        gs.tableCounts[3] = (index + 1).toShort()
+        return 1
+    }
+
+    fun addWipetable(layer: Int, left: Int, bottom: Int, height: Int, width: Int, color: Int) {
+        val index = gs.tableCounts[2].toInt()
+        if (index >= 300) return
+        val item = gs.wipetable[index]
+        item.left = left.toShort()
+        item.bottom = (bottom + 1).toShort()
+        item.height = height.toByte().toInt()
+        item.width = width.toShort()
+        item.color = color.toByte().toInt()
+        item.layer = layer.toByte().toInt()
+        if (gs.drawMode != 0) drawWipeHook(index)
+        gs.tableCounts[2] = (index + 1).toShort()
+    }
+
+    private fun populateBackTable(item: BackTableType, chtabId: Int, id: Int, xh: Int, xl: Int) {
+        item.xh = xh.toByte().toInt()
+        item.xl = xl.toByte().toInt()
+        item.chtabId = chtabId and 0xFF
+        item.id = (id - 1) and 0xFF
     }
 
     fun drawRoom() {

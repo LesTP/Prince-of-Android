@@ -183,3 +183,35 @@ data class ObjtableType(
     var clip: RectType = RectType(),
     var tilepos: Int = 0       // byte
 )
+
+// back_table_type: queued background/foreground sprite draw command.
+data class BackTableType(
+    var xh: Int = 0,       // sbyte
+    var xl: Int = 0,       // sbyte
+    var y: Short = 0,      // short
+    var chtabId: Int = 0,  // byte (chtab_id)
+    var id: Int = 0,       // byte, stored as one less than call-site id
+    var blit: Int = 0
+)
+
+// midtable_type: queued character/object sprite draw command with clipping.
+data class MidtableType(
+    var xh: Int = 0,       // sbyte
+    var xl: Int = 0,       // sbyte
+    var y: Short = 0,      // short
+    var chtabId: Int = 0,  // byte (chtab_id)
+    var id: Int = 0,       // byte, stored as one less than call-site id
+    var peel: Int = 0,     // byte
+    var clip: RectType = RectType(),
+    var blit: Int = 0
+)
+
+// wipetable_type: queued rectangle fill/wipe command.
+data class WipetableType(
+    var left: Short = 0,
+    var bottom: Short = 0,
+    var height: Int = 0, // sbyte
+    var width: Short = 0,
+    var color: Int = 0,  // sbyte
+    var layer: Int = 0   // sbyte
+)

@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16d.1: Render table data model and append helpers
+
+**Mode:** Code | **Outcome:** Complete — render table queues and append helpers implemented
+**Contract changes:** Added Kotlin render-table state/types consumed by later Phase 16d submission functions and Phase 16e draw flushing; no Android/SDL drawing contract added.
+
+Added Kotlin equivalents for `back_table_type`, `midtable_type`, and `wipetable_type`, plus `GameState` storage for `backtable[]`, `foretable[]`, `midtable[]`, and `wipetable[]` with the C table limits. Translated `add_backtable`, `add_foretable`, `add_midtable`, and `add_wipetable` into `Seg008`, preserving zero-id rejection, table-limit rejection, `id - 1` storage, signed byte-style coordinate truncation, image-height-derived top Y, midtable clipping/peel capture, right-facing flip blit adjustment, and draw-mode deferral through no-op hooks for Phase 16e.
+
+Added focused `Seg008Test` coverage for successful back/fore/mid/wipe appends, count changes, field mapping, table limits, missing images, midtable clip fields, and draw-mode hook dispatch. The helpers still do not draw pixels; they only populate render queues.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin`.
+
 ### 2026-05-02 — Phase 16d plan: Render table submission
 
 **Mode:** Discuss | **Outcome:** Phase planned

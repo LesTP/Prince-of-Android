@@ -43,6 +43,7 @@ class Seg008Test {
         gs.drawMainY = 0
         gs.modifierLeft = 0
         gs.graphicsMode = 0
+        gs.drawMode = 0
         gs.gateTopY = 0
         gs.gateOpenness = 0
         gs.gateBottomY = 0
@@ -58,6 +59,40 @@ class Seg008Test {
         gs.objClipTop = 0
         gs.objClipRight = 0
         gs.objClipBottom = 0
+        gs.backtable.forEach {
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.chtabId = 0
+            it.id = 0
+            it.blit = 0
+        }
+        gs.foretable.forEach {
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.chtabId = 0
+            it.id = 0
+            it.blit = 0
+        }
+        gs.midtable.forEach {
+            it.xh = 0
+            it.xl = 0
+            it.y = 0
+            it.chtabId = 0
+            it.id = 0
+            it.peel = 0
+            it.clip = RectType()
+            it.blit = 0
+        }
+        gs.wipetable.forEach {
+            it.left = 0
+            it.bottom = 0
+            it.height = 0
+            it.width = 0
+            it.color = 0
+            it.layer = 0
+        }
         gs.nCurrObjs = 0
         gs.currObjs.fill(0)
         gs.objtable.forEach {
@@ -98,6 +133,117 @@ class Seg008Test {
         ExternalStubs.getImage = { _, _ -> null }
         ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
         Seg008.resetRenderHooks()
+    }
+
+    @Test
+    fun addBacktableMapsFieldsAndComputesTopYFromImageHeight() {
+        ExternalStubs.getImage = { chtab, imageId ->
+            assertEquals(Chtabs.ENVIRONMENT, chtab)
+            assertEquals(41, imageId)
+            24 to 17
+        }
+
+        val result = Seg008.addBacktable(Chtabs.ENVIRONMENT, 42, 260, 255, 100, Blitters.BLACK, 1)
+
+        assertEquals(1, result)
+        assertEquals(1, gs.tableCounts[0].toInt())
+        val entry = gs.backtable[0]
+        assertEquals(4, entry.xh)
+        assertEquals(-1, entry.xl)
+        assertEquals(Chtabs.ENVIRONMENT, entry.chtabId)
+        assertEquals(41, entry.id)
+        assertEquals(84, entry.y.toInt())
+        assertEquals(Blitters.BLACK, entry.blit)
+    }
+
+    @Test
+    fun addForetableUsesForetableCountAndDefersImmediateDrawWhenDrawModeIsActive() {
+        ExternalStubs.getImage = { _, _ -> 16 to 8 }
+        gs.drawMode = 1
+        var drawnTable = -1
+        var drawnIndex = -1
+        Seg008.drawBackForeHook = { table, index ->
+            drawnTable = table
+            drawnIndex = index
+        }
+
+        val result = Seg008.addForetable(Chtabs.ENVIRONMENT, 6, 3, 4, 50, Blitters.TRANSP, 0)
+
+        assertEquals(1, result)
+        assertEquals(1, gs.tableCounts[1].toInt())
+        assertEquals(1, drawnTable)
+        assertEquals(0, drawnIndex)
+        assertEquals(43, gs.foretable[0].y.toInt())
+    }
+
+    @Test
+    fun appendHelpersRejectZeroIdMissingImagesAndFullTablesWithoutChangingCounts() {
+        ExternalStubs.getImage = { _, _ -> null }
+
+        assertEquals(0, Seg008.addBacktable(Chtabs.ENVIRONMENT, 0, 1, 2, 3, 4, 0))
+        assertEquals(0, gs.tableCounts[0].toInt())
+
+        assertEquals(0, Seg008.addBacktable(Chtabs.ENVIRONMENT, 2, 1, 2, 3, 4, 0))
+        assertEquals(0, gs.tableCounts[0].toInt())
+
+        gs.tableCounts[0] = 200
+        ExternalStubs.getImage = { _, _ -> 1 to 1 }
+        assertEquals(0, Seg008.addBacktable(Chtabs.ENVIRONMENT, 2, 1, 2, 3, 4, 0))
+        assertEquals(200, gs.tableCounts[0].toInt())
+    }
+
+    @Test
+    fun addMidtableCapturesClipFieldsPeelAndRightFacingFlipBlit() {
+        ExternalStubs.getImage = { _, _ -> 11 to 9 }
+        gs.objDirection = Directions.RIGHT
+        gs.objClipLeft = 10
+        gs.objClipRight = 90
+        gs.objClipTop = 20
+        gs.objClipBottom = 80
+        gs.drawMode = 1
+        var drawnIndex = -1
+        Seg008.drawMidHook = { index -> drawnIndex = index }
+
+        val result = Seg008.addMidtable(Chtabs.KID, 7, 1, 2, 40, Blitters.TRANSP, 1)
+
+        assertEquals(1, result)
+        assertEquals(1, gs.tableCounts[3].toInt())
+        assertEquals(0, drawnIndex)
+        val entry = gs.midtable[0]
+        assertEquals(1, entry.xh)
+        assertEquals(2, entry.xl)
+        assertEquals(32, entry.y.toInt())
+        assertEquals(Chtabs.KID, entry.chtabId)
+        assertEquals(6, entry.id)
+        assertEquals(1, entry.peel)
+        assertEquals(Blitters.TRANSP + 0x80, entry.blit)
+        assertEquals(10, entry.clip.left.toInt())
+        assertEquals(90, entry.clip.right.toInt())
+        assertEquals(20, entry.clip.top.toInt())
+        assertEquals(80, entry.clip.bottom.toInt())
+    }
+
+    @Test
+    fun addWipetableMapsFieldsBottomPlusOneAndTableLimit() {
+        gs.drawMode = 1
+        var drawnIndex = -1
+        Seg008.drawWipeHook = { index -> drawnIndex = index }
+
+        Seg008.addWipetable(layer = -1, left = 12, bottom = 34, height = 260, width = 56, color = 255)
+
+        assertEquals(1, gs.tableCounts[2].toInt())
+        assertEquals(0, drawnIndex)
+        val entry = gs.wipetable[0]
+        assertEquals(12, entry.left.toInt())
+        assertEquals(35, entry.bottom.toInt())
+        assertEquals(4, entry.height)
+        assertEquals(56, entry.width.toInt())
+        assertEquals(-1, entry.color)
+        assertEquals(-1, entry.layer)
+
+        gs.tableCounts[2] = 300
+        Seg008.addWipetable(layer = 0, left = 1, bottom = 2, height = 3, width = 4, color = 5)
+        assertEquals(300, gs.tableCounts[2].toInt())
     }
 
     @Test
