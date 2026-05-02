@@ -47,6 +47,7 @@ class Seg008Test {
         gs.drawMode = 0
         gs.remMin = 0
         gs.remTick = 0
+        gs.globalBlinkState = false
         gs.isShowTime = 0
         gs.textTimeRemaining = 0
         gs.textTimeTotal = 0
@@ -149,6 +150,8 @@ class Seg008Test {
         ExternalStubs.addObjtable = { objType -> Seg008.addObjtable(objType) }
         ExternalStubs.playSound = { _ -> }
         ExternalStubs.displayTextBottom = { _ -> }
+        ExternalStubs.drawKidHp = { _, _ -> }
+        ExternalStubs.drawGuardHp = { _, _ -> }
         Seg008.resetRenderHooks()
     }
 
@@ -324,6 +327,31 @@ class Seg008Test {
         Seg008.showLevel()
         assertEquals(emptyList(), messages)
         assertEquals(0, gs.seamless)
+    }
+
+    @Test
+    fun drawPeopleUsesGlobalBlinkStateWhenOneHpBlinkFixIsEnabled() {
+        val kidHpCalls = mutableListOf<Pair<Int, Int>>()
+        ExternalStubs.drawKidHp = { current, max -> kidHpCalls += current to max }
+        gs.fixes.fixOneHpStopsBlinking = 1
+        gs.hitpCurr = 1
+        gs.hitpMax = 3
+        gs.currentLevel = 1
+        gs.Kid.alive = -1
+        gs.Kid.room = 0
+        gs.Guard.direction = Directions.NONE
+        gs.remTick = 0
+
+        Seg008.showTime()
+        Seg008.drawPeople()
+
+        assertEquals(listOf(1 to 0), kidHpCalls)
+
+        kidHpCalls.clear()
+        Seg008.showTime()
+        Seg008.drawPeople()
+
+        assertEquals(listOf(0 to 1), kidHpCalls)
     }
 
     @Test

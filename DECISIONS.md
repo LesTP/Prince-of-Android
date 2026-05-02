@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-26: Phase 16d review outcome
+Date: 2026-05-02 | Status: Closed
+Priority: Important
+Decision: Accept Phase 16d (render table submission) as meeting the Module 16 Build-regime contract after applying one must-fix for one-hit-point blink-state compatibility. The phase translated render-table data/appenders, tile submissions, gates/level doors/overlays, people/object flushing, wall-pattern generation, and timer/level text state while keeping SDL/Android pixel drawing deferred to Phase 16e.
+Rationale: Review compared the Phase 16d `Seg008.kt` implementation against the `seg008.c` render-submission functions and confirmed the Build/Refine boundary remains intact: Phase 16d only populates render queues or text state and does not consume tables with Canvas/SDL drawing. The must-fix restores `FIX_ONE_HP_STOPS_BLINKING` behavior by adding `GameState.globalBlinkState`, toggling it from `showTime()`, and using it in HP blinking when the fix flag is enabled. Focused verification passed with `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon`; full verification passed with `gradle test --no-daemon` in `SDLPoP-kotlin` at 642 tests.
+Revisit if: Phase 16e table flushing discovers a render-table field contract mismatch, or visual validation shows a Phase 16d command ordering issue not covered by command-level tests.
+
 D-25: Phase 16d build boundary
 Date: 2026-05-02 | Status: Open
 Priority: Important

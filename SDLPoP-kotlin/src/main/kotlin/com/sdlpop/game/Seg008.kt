@@ -2,7 +2,7 @@
 SDLPoP-kotlin, a Kotlin port of SDLPoP (Prince of Persia).
 Based on SDLPoP by David Nagy, licensed under GPL v3+.
 
-Module 16, Phase 16c: Pure render-state helpers from seg008.c.
+Module 16, Phase 16c/16d: Render-state helpers and render-table submissions from seg008.c.
 */
 
 package com.sdlpop.game
@@ -855,6 +855,8 @@ object Seg008 {
     }
 
     fun showTime() {
+        gs.globalBlinkState = !gs.globalBlinkState
+
         if (gs.Kid.alive < 0 &&
             !(gs.fixes.enableFreezeTimeDuringEndMusic != 0 && gs.nextLevel != gs.currentLevel) &&
             gs.remMin.toInt() != 0 &&
@@ -1160,15 +1162,19 @@ object Seg008 {
         if (gs.hitpDelta.toInt() != 0) {
             ext.drawKidHp(gs.hitpCurr, gs.hitpMax)
         }
-        val blinkState = gs.remTick and 1
+        val blinkState = if (gs.fixes.fixOneHpStopsBlinking != 0) {
+            gs.globalBlinkState
+        } else {
+            (gs.remTick and 1) != 0
+        }
         if (gs.hitpCurr == 1 && gs.currentLevel != 15) {
-            if (blinkState != 0) ext.drawKidHp(1, 0) else ext.drawKidHp(0, 1)
+            if (blinkState) ext.drawKidHp(1, 0) else ext.drawKidHp(0, 1)
         }
         if (gs.guardhpDelta.toInt() != 0) {
             ext.drawGuardHp(gs.guardhpCurr, gs.guardhpMax)
         }
         if (gs.guardhpCurr == 1) {
-            if (blinkState != 0) ext.drawGuardHp(1, 0) else ext.drawGuardHp(0, 1)
+            if (blinkState) ext.drawGuardHp(1, 0) else ext.drawGuardHp(0, 1)
         }
     }
 

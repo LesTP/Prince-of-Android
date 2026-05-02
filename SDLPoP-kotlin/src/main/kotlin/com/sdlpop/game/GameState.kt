@@ -80,6 +80,7 @@ object GameState {
     // === Timer ===
     var remMin: Short = 0          // short (rem_min)
     var remTick: Int = 0           // word (rem_tick)
+    var globalBlinkState: Boolean = false // bool (global_blink_state)
 
     // === RNG ===
     var randomSeed: Long = 0       // dword (random_seed)

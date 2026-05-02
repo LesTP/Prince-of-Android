@@ -47,10 +47,10 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16d — Render table submission — **IN PROGRESS**
-**Next:** Phase 16d review
+**Phase:** 16d — Render table submission — **REVIEW COMPLETE**
+**Next:** Phase 16d complete
 
-**Replay regression:** 8/13 MATCH, 641 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 642 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -221,7 +221,7 @@ Timer/text:
 - **16d.4 — Wall pattern, marks, timer text, and phase integration — COMPLETE.**
   Translated `wall_pattern`, `draw_left_mark`, `draw_right_mark`, `show_time`, and `show_level`; preserved deterministic PRNG save/restore, table switching, dungeon/palace wall branches, wall mark placement, timer countdown text, and level text state. Tests verify wall command determinism, PRNG restoration, palace wipe/foretable output, mark placement, and timer/level text behavior. Focused `Seg008Test` and full `gradle test --no-daemon` pass with 641 tests.
 
-All Phase 16d implementation steps are complete; review is the next action.
+All Phase 16d implementation steps are complete; review found one must-fix for `FIX_ONE_HP_STOPS_BLINKING` blink-state compatibility, which was applied and verified. Phase complete is the next action.
 
 #### Phase 16e: Android rendering backend — PENDING
 

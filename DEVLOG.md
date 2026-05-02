@@ -2,6 +2,20 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Phase 16d Review
+
+**Mode:** Review | **Outcome:** Complete — one must-fix applied
+**Contract changes:** Added `GameState.globalBlinkState` to preserve SDLPoP's `FIX_ONE_HP_STOPS_BLINKING` timer/HP rendering contract. No Android/SDL pixel drawing contract added.
+
+Reviewed the Phase 16d render-submission implementation against the `seg008.c` mixed render-command functions and the Module 16 Build/Refine boundary. The translated code populates `backtable[]`, `foretable[]`, `midtable[]`, `wipetable[]`, object-table render entries, and text state, while leaving actual table flushing, Canvas drawing, peel restoration, and lighting in Phase 16e.
+
+Review findings:
+- Must fix: `show_time()`/`draw_hp()` omitted the C `global_blink_state` path used when `fix_one_hp_stops_blinking` is enabled. Applied by adding `GameState.globalBlinkState`, toggling it in `Seg008.showTime()`, and making HP blink rendering use it when the fix flag is set.
+- Should fix: update the `Seg008.kt` phase header to reflect both Phase 16c and Phase 16d responsibilities.
+- Optional: none applied.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 642 tests.
+
 ### 2026-05-02 — Step 16d.4: Wall pattern, marks, timer text, and phase integration
 
 **Mode:** Code | **Outcome:** Complete — final Phase 16d render-submission functions translated
