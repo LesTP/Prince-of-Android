@@ -16,3 +16,7 @@ app/build/
 *.iml
 .idea/
 .DS_Store
+SDLPoP/.git_upstream_backup/
+SDLPoP/traces/
+SDLPoP/mods/
+tools/__pycache__/
