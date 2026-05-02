@@ -2,10 +2,10 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 3 of 6
-mode: Build
-blocked: null
-regime: Build
+step: 4 of 6
+mode: Refine
+blocked: Human-driven Android Canvas bridge begins the Refine slice
+regime: Refine
 review_done: false
 ---
 
@@ -53,13 +53,14 @@ review_done: false
 - **Reference traces:** Regenerated all 13 on ARM64 Pi (2026-04-03). Sizes match expected frame counts. Determinism verified.
 - **Build commands:** C: `cd SDLPoP/src && make -j3` (add `CPPFLAGS="-Wall -D_GNU_SOURCE=1 -DDUMP_FRAME_STATE -DUSE_REPLAY"` for instrumented build). Kotlin: `cd SDLPoP-kotlin && gradle build` / `gradle test`. Traces: `python3 tools/compare_traces.py ref.trace test.trace`.
 - **Trace generation:** From `/tmp/sdlpop/`: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince validate "replays/foo.p1r" seed=12345` → outputs `state_trace.bin` (310 bytes/frame).
+- **C level screenshots use 320x200 room blits with 189px stride:** `save_level_screenshot()` blits the full `onscreen_surface_` for each room at `y * 189`, so rooms overlap by 11 pixels and composite height is `roomsHigh * 189 + 11`. JVM screenshot comparison must match this geometry, not a simple 320x189-per-room tile.
 
 ## Current Status
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **IN PROGRESS**
-**Next:** Step 16e.4 — C reference screenshots + ImageMagick pixel-diff comparison
+**Next:** Step 16e.5 — Android Canvas bridge (Refine; human-driven)
 
 **Replay regression:** 8/13 MATCH, 654 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -232,6 +233,7 @@ Generate C reference screenshots for all 14 levels on the Pi. Compare against Ko
 - **Files:** `SDLPoP/screenshots/` reference PNGs
 - **Commands:** `for level in $(seq 1 14); do SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince megahit $level --screenshot --screenshot-level; done`
 - **Test:** Run comparison on Level 1. Triage differences. Iterate on blitter/sprite bugs.
+- **Status:** COMPLETE 2026-05-02 — C reference PNGs generated for all 14 levels under `SDLPoP/screenshots/reference/`, repeatable `tools/render_screenshot_compare.sh` workflow added, JVM composite geometry fixed to match C's 320x200 blit with 189px stride, and ImageMagick AE baseline captured (`level_01` = 876,752 differing pixels; all summaries under `SDLPoP-kotlin/build/render/diff/summary.csv`).
 
 **Steps (Refine — human-driven, Steps 5-6):**
 

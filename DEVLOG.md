@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16e.4: C reference screenshots + ImageMagick pixel-diff comparison
+
+**Mode:** Code | **Outcome:** Complete — C reference screenshots and automated diff workflow established
+**Contract changes:** `LevelScreenshotGenerator` now matches SDLPoP level-map geometry by rendering 320x200 room surfaces with a 189-pixel vertical stride. Added `com.sdlpop.MainKt` screenshot CLI and `tools/render_screenshot_compare.sh` for repeatable C/Kotlin screenshot generation and ImageMagick AE diffs. No Android Canvas or game-state producer contract changed.
+
+Generated C reference level-map screenshots for all 14 levels through the documented `/tmp` executable workaround, copied them to `SDLPoP/screenshots/reference/level_NN_c.png`, and added a repeatable comparison script. The script prepares a temporary executable SDLPoP runtime, runs `./prince megahit N --screenshot --screenshot-level` with `SDL_VIDEODRIVER=offscreen` and dummy audio, generates Kotlin screenshots through `gradle run --args="render-level-screenshots ..."`, then writes ImageMagick `compare -metric AE` results and diff PNGs under `SDLPoP-kotlin/build/render/diff/`.
+
+The first C-vs-Kotlin comparison exposed a geometry mismatch from Step 16e.3: C blits each 320x200 `onscreen_surface_` into the map with 189-pixel room spacing, so adjacent rooms overlap by 11 pixels and the final image height is `roomsHigh * 189 + 11`. Updated the JVM generator and test expectations to match that C geometry before recording the baseline diffs.
+
+Baseline AE counts remain high, which is expected for the first backend comparison and gives the next visual/debug phase concrete artifacts: level 01 has 876,752 differing pixels, and all level summaries are in `SDLPoP-kotlin/build/render/diff/summary.csv`.
+
+Verification: `gradle test --tests com.sdlpop.render.LevelScreenshotTest --no-daemon` passed; `bash tools/render_screenshot_compare.sh` completed for all 14 levels; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 654 tests.
+
 ### 2026-05-02 — Step 16e.3: Level screenshot generator
 
 **Mode:** Code | **Outcome:** Complete — JVM Level 1 composite PNG generation works

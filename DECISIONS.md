@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-28: C-compatible level screenshot geometry
+Date: 2026-05-02 | Status: Closed
+Priority: Important
+Decision: Match SDLPoP `save_level_screenshot()` geometry in the JVM level screenshot generator by rendering each room as a 320x200 surface and compositing rooms with a 189-pixel vertical stride, leaving the 11-pixel overlap/status area in the final map.
+Rationale: The C screenshot code creates an image of `map_width * 320` by `map_height * 189 + 11`, then blits the full 320x200 `onscreen_surface_` for each room at `dest_rect.y = y * 189`. The initial JVM generator used 320x189 room surfaces, producing dimension mismatches before meaningful pixel comparison. Matching C geometry makes ImageMagick AE diffs compare rendering content instead of incompatible image shapes.
+Revisit if: The Android renderer uses a different offscreen viewport contract than SDLPoP's 320x200 surface, or if later screenshot tooling intentionally crops status/overlap rows before comparison.
+
 D-26: Phase 16d review outcome
 Date: 2026-05-02 | Status: Closed
 Priority: Important

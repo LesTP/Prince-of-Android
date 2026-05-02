@@ -23,15 +23,19 @@ class LevelScreenshotGenerator(
         loadLevel(levelNumber)
         val catalogs = loadDefaultCatalogs(levelNumber)
         val map = buildRoomMap(gs.level, startRoom = gs.level.startRoom.takeIf { it in 1..ROOM_COUNT } ?: 1)
-        val image = BufferedImage(map.width * ROOM_WIDTH, map.height * ROOM_HEIGHT, BufferedImage.TYPE_INT_ARGB)
+        val image = BufferedImage(
+            map.width * ROOM_WIDTH,
+            map.height * ROOM_STRIDE_Y + ROOM_OVERLAP_HEIGHT,
+            BufferedImage.TYPE_INT_ARGB
+        )
 
         for (placement in map.rooms) {
             val roomImage = renderRoom(placement.room, catalogs)
             image.setRGB(
                 placement.x * ROOM_WIDTH,
-                placement.y * ROOM_HEIGHT,
+                placement.y * ROOM_STRIDE_Y,
                 ROOM_WIDTH,
-                ROOM_HEIGHT,
+                ROOM_RENDER_HEIGHT,
                 roomImage.targetPixels,
                 0,
                 ROOM_WIDTH
@@ -159,7 +163,7 @@ class LevelScreenshotGenerator(
         Seg008.loadRoomLinks()
         Seg008.drawRoom()
 
-        val renderer = SpriteRenderer(ROOM_WIDTH, ROOM_HEIGHT)
+        val renderer = SpriteRenderer(ROOM_WIDTH, ROOM_RENDER_HEIGHT)
         renderer.clear()
         RenderTableFlusher(renderer, catalogs, gs).flushTables()
         return renderer
@@ -173,7 +177,9 @@ class LevelScreenshotGenerator(
 
     companion object {
         const val ROOM_WIDTH = 320
-        const val ROOM_HEIGHT = 189
+        const val ROOM_STRIDE_Y = 189
+        const val ROOM_RENDER_HEIGHT = 200
+        const val ROOM_OVERLAP_HEIGHT = ROOM_RENDER_HEIGHT - ROOM_STRIDE_Y
         private const val ROOM_COUNT = 24
         private const val LEVEL_RESOURCE_BASE = 2000
         private const val GM_MCGA_VGA = 5

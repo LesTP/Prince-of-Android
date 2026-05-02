@@ -61,7 +61,10 @@ class LevelScreenshotTest {
 
         assertTrue(screenshot.roomMap.rooms.isNotEmpty())
         assertEquals(screenshot.roomMap.width * LevelScreenshotGenerator.ROOM_WIDTH, screenshot.image.width)
-        assertEquals(screenshot.roomMap.height * LevelScreenshotGenerator.ROOM_HEIGHT, screenshot.image.height)
+        assertEquals(
+            screenshot.roomMap.height * LevelScreenshotGenerator.ROOM_STRIDE_Y + LevelScreenshotGenerator.ROOM_OVERLAP_HEIGHT,
+            screenshot.image.height
+        )
 
         val output = Paths.get("build/render/level_01_kotlin.png").toAbsolutePath()
         generator.writePng(screenshot, output)
