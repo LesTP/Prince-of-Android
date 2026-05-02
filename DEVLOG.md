@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16e.1: JVM sprite blitter
+
+**Mode:** Code | **Outcome:** Complete — pixel-buffer sprite blitter implemented and tested
+**Contract changes:** Added `com.sdlpop.render.SpriteRenderer` as the JVM rendering primitive for later Phase 16e table flushing; no Android Canvas or game-state contract changed.
+
+Created a pure JVM `SpriteRenderer` over an ARGB `IntArray` target, plus a `ClipRect` value type. The renderer supports `drawSprite()` with screen/explicit clipping, optional horizontal flip including the `0x80` render-table bit, and the SDLPoP blitter modes needed by Phase 16e: no-transparency overwrite, OR/TRANSP color-key transparency, XOR shadow blending, WHITE, BLACK, and MONO palette-color shape drawing. Added `drawRect()` for future wipetable flushes and embedded the default 16-color PoP VGA palette from `VGA_PALETTE_DEFAULT`.
+
+Added focused unit coverage for overwrite semantics, transparent sprite draws, XOR, white/black/mono palette rendering, hflip, sprite clipping, and rectangle clipping.
+
+Verification: `gradle test --tests com.sdlpop.render.SpriteRendererTest --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 649 tests.
+
 ### 2026-05-02 — Phase 16d complete
 
 **Mode:** Complete | **Outcome:** Phase complete — render table submission ready for human audit

@@ -2,8 +2,8 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 0 of 6
-mode: Discuss
+step: 1 of 6
+mode: Build
 blocked: null
 regime: Build
 review_done: false
@@ -58,10 +58,10 @@ review_done: false
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **PLANNED**
-**Next:** Phase-plan action (step breakdown already in DEVPLAN, worker should proceed to Step 16e.1)
+**Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **IN PROGRESS**
+**Next:** Step 16e.2 — Render table flusher
 
-**Replay regression:** 8/13 MATCH, 642 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 649 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -211,6 +211,7 @@ Create `SpriteRenderer` in `com.sdlpop.render` that takes a pixel buffer target 
 - **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/SpriteRenderer.kt`, `SpriteRendererTest.kt`
 - **Test:** Unit tests: blit a known sprite with each mode, assert output pixels match expected.
 - **Reference:** `SDLPoP/src/seg009.c` lines 2170-2210 (`method_6_blit_img_to_scr` blitter dispatch), `SDLPoP/src/seg008.c` lines 1048-1077 (`draw_image` dispatch)
+- **Status:** COMPLETE 2026-05-02 — `SpriteRenderer` pixel-buffer blitter and 7 focused tests added; full `gradle test --no-daemon` passes.
 
 **Step 16e.2: Render table flusher**
 Create `RenderTableFlusher` that takes a `SpriteRenderer` + loaded `SpriteCatalog` map (chtabId → catalog) and implements `flushTables(gs)` in C draw order: restore peels (deferred), wipetable layer 0, backtable, midtable (with clip + hflip), wipetable layer 1, foretable. Resolves sprite via `catalogs[entry.chtabId]?.imageByFrameId(entry.id + 1)`. Position: `x = entry.xh * 8 + entry.xl`, `y = entry.y`.
