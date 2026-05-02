@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16d.2: Tile render submissions
+
+**Mode:** Code | **Outcome:** Complete — tile render command producers translated
+**Contract changes:** `Seg008` tile rendering hooks now default to real render-table submissions; gate/level-door/overlay/object/wall-pattern callbacks remain as Phase 16d.3/16d.4 boundaries.
+
+Translated the tile-render submission slice from `seg008.c` into `Seg008.kt`: `draw_tile_floorright`, `draw_tile_topright`, `draw_tile_anim_topright`, `draw_tile_right`, `draw_tile_anim_right`, `draw_tile_bottom`, `draw_loose`, `draw_tile_base`, `draw_tile_anim`, `draw_tile_fore`, `draw_tile2`, and `draw_tile_wipe`. Added the C `piece tile_table[31]` data and frame lookup tables used by floor, wall, spike, loose-floor, potion, torch, sword, chomper, lattice, and doortop submissions.
+
+Kept the later Phase 16d work separated through explicit hooks: gate/level-door structures, wall pattern generation, overlays, people, and object-table flushing still have their own callbacks and steps. The existing traversal hooks remain overrideable for tests, but `resetRenderHooks()` now restores real tile submission defaults.
+
+Expanded `Seg008Test` with focused render-table assertions for top/right/floor/wall submissions, animated spike/loose/torch paths, loose floor back/fore output, potion bubbles and foreground pots, sword midtable output, chomper blood overlays, wall-pattern dispatch boundaries, and wipe-table geometry. While adding coverage, reset `GameState.currentLevel` in the Seg008 test fixture to avoid cross-test level-type leakage.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 630 tests.
+
 ### 2026-05-02 — Step 16d.1: Render table data model and append helpers
 
 **Mode:** Code | **Outcome:** Complete — render table queues and append helpers implemented

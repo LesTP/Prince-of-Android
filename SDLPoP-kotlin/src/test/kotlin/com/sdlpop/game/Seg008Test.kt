@@ -10,6 +10,7 @@ class Seg008Test {
     @BeforeTest
     fun resetState() {
         gs.level = LevelType()
+        gs.currentLevel = -1
         gs.loadedRoom = 0
         gs.drawnRoom = 0
         gs.roomL = 0
@@ -831,6 +832,158 @@ class Seg008Test {
     }
 
     @Test
+    fun tileFloorRightSubmitsToprightAndFloorMaskWhenBottomLeftIsVisible() {
+        installFixedImageSize()
+        gs.currTile = Tiles.EMPTY
+        gs.tileLeft = Tiles.FLOOR
+        gs.drawXh = 8
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+        gs.drawnCol = 2
+        gs.rowBelowLeft[2].tiletype = Tiles.WALL
+
+        Seg008.drawTileFloorright()
+
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENTWALL, 1, 8, 65, Blitters.OR)
+        assertBackEntry(1, Chtabs.ENVIRONMENT, 41, 8, 64, Blitters.BLACK)
+    }
+
+    @Test
+    fun tileRightHandlesFloorStripeAndWallSideSubmissions() {
+        installFixedImageSize()
+        gs.currTile = Tiles.FLOOR
+        gs.tileLeft = Tiles.FLOOR
+        gs.modifierLeft = 2
+        gs.drawXh = 12
+        gs.drawMainY = 62
+        gs.currentLevel = 1
+
+        Seg008.drawTileRight()
+
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 41, 12, 64, Blitters.TRANSP)
+        assertBackEntry(1, Chtabs.ENVIRONMENT, 44, 12, 42, Blitters.NO_TRANSP)
+
+        gs.tableCounts.fill(0)
+        gs.tileLeft = Tiles.WALL
+        gs.modifierLeft = 0
+        gs.currentLevel = 4
+        Seg008.drawTileRight()
+
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 83, 15, 35, Blitters.NO_TRANSP)
+        assertBackEntry(1, Chtabs.ENVIRONMENTWALL, 0, 12, 64, Blitters.OR)
+    }
+
+    @Test
+    fun animatedRightSubmitsSpikesLooseTorchAndDelegatesStructures() {
+        installFixedImageSize()
+        val calls = mutableListOf<String>()
+        Seg008.drawGateBackHook = { calls += "gate" }
+        Seg008.drawLeveldoorHook = { calls += "leveldoor" }
+        gs.drawXh = 4
+        gs.drawMainY = 60
+        gs.drawBottomY = 65
+
+        gs.tileLeft = Tiles.SPIKE
+        gs.modifierLeft = 3
+        Seg008.drawTileAnimRight()
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 135, 4, 53, Blitters.TRANSP)
+
+        gs.tileLeft = Tiles.LOOSE
+        gs.modifierLeft = 4
+        Seg008.drawTileAnimRight()
+        assertBackEntry(1, Chtabs.ENVIRONMENT, 71, 4, 64, Blitters.OR)
+
+        gs.tileLeft = Tiles.TORCH
+        gs.modifierLeft = 8
+        Seg008.drawTileAnimRight()
+        assertBackEntry(2, Chtabs.FLAMESWORDPOTION, 8, 5, 20, Blitters.NO_TRANSP)
+
+        gs.tileLeft = Tiles.GATE
+        Seg008.drawTileAnimRight()
+        gs.tileLeft = Tiles.LEVEL_DOOR_LEFT
+        Seg008.drawTileAnimRight()
+        assertEquals(listOf("gate", "leveldoor"), calls)
+    }
+
+    @Test
+    fun tileBottomLooseBaseAnimForeAndWipePopulateExpectedTables() {
+        installFixedImageSize()
+        gs.drawXh = 16
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+        gs.currTile = Tiles.LOOSE
+        gs.currModifier = 3
+
+        Seg008.drawTileBottom(1)
+        Seg008.drawLoose(0)
+        Seg008.drawTileBase()
+        Seg008.drawTileWipe(5)
+
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertEquals(1, gs.tableCounts[1].toInt())
+        assertEquals(1, gs.tableCounts[2].toInt())
+        assertBackEntry(0, Chtabs.ENVIRONMENT, 73, 16, 65, Blitters.NO_TRANSP)
+        assertForeEntry(0, Chtabs.ENVIRONMENT, 73, 16, 65, Blitters.NO_TRANSP)
+        assertBackEntry(1, Chtabs.ENVIRONMENT, 69, 16, 62, Blitters.TRANSP)
+        assertEquals(128, gs.wipetable[0].left.toInt())
+        assertEquals(66, gs.wipetable[0].bottom.toInt())
+        assertEquals(5, gs.wipetable[0].height)
+        assertEquals(32, gs.wipetable[0].width.toInt())
+    }
+
+    @Test
+    fun tileAnimAndForeSubmitPotionSwordChomperAndWallCommands() {
+        installFixedImageSize()
+        gs.drawXh = 20
+        gs.drawMainY = 62
+        gs.drawBottomY = 65
+
+        gs.currTile = Tiles.POTION
+        gs.currModifier = (2 shl 3) or 6
+        Seg008.drawTileAnim()
+        Seg008.drawTileFore()
+        assertEquals(1, gs.tableCounts[0].toInt())
+        assertEquals(2, gs.tableCounts[1].toInt())
+        assertBackEntry(0, Chtabs.FLAMESWORDPOTION, 22, 23, 44, Blitters.MONO)
+        assertForeEntry(0, Chtabs.FLAMESWORDPOTION, 20, 23, 44, 12 + Blitters.MONO)
+        assertForeEntry(1, Chtabs.FLAMESWORDPOTION, 12, 22, 59, Blitters.TRANSP)
+
+        gs.tableCounts.fill(0)
+        gs.currTile = Tiles.SWORD
+        gs.currModifier = 1
+        Seg008.drawTileAnim()
+        assertEquals(1, gs.tableCounts[3].toInt())
+        assertEquals(10, gs.midtable[0].id)
+        assertEquals(1, gs.midtable[0].peel)
+
+        gs.tableCounts.fill(0)
+        gs.currTile = Tiles.CHOMPER
+        gs.currModifier = 0x83
+        Seg008.drawTileAnim()
+        Seg008.drawTileFore()
+        assertEquals(2, gs.tableCounts[0].toInt())
+        assertEquals(2, gs.tableCounts[1].toInt())
+        assertBackEntry(1, Chtabs.ENVIRONMENT, 114, 21, 56, Blitters.MONO_12)
+        assertForeEntry(1, Chtabs.ENVIRONMENT, 119, 21, 56, Blitters.MONO_12)
+
+        gs.tableCounts.fill(0)
+        val wallCalls = mutableListOf<String>()
+        Seg008.wallPatternHook = { which, table -> wallCalls += "$which:$table" }
+        gs.currTile = Tiles.WALL
+        gs.currModifier = 2
+        gs.graphicsMode = 5
+        gs.currentLevel = 1
+        Seg008.drawTileBottom(0)
+        Seg008.drawTileFore()
+        assertBackEntry(0, Chtabs.ENVIRONMENTWALL, 4, 20, 65, Blitters.NO_TRANSP)
+        assertForeEntry(0, Chtabs.ENVIRONMENTWALL, 5, 20, 62, Blitters.NO_TRANSP)
+        assertEquals(listOf("0:0", "1:1"), wallCalls)
+    }
+
+    @Test
     fun drawRoomTraversesCurrentRoomThenAboveRoomAndRestoresDrawnRoom() {
         val calls = mutableListOf<String>()
         Seg008.drawTileBaseHook = {
@@ -918,6 +1071,28 @@ class Seg008Test {
         Seg008.drawOtherOverlayHook = { calls += "other_overlay" }
         Seg008.drawFloorOverlayHook = { calls += "floor_overlay" }
         Seg008.drawObjtableItemsAtTileHook = { tilepos -> calls += "obj_at:$tilepos" }
+    }
+
+    private fun installFixedImageSize() {
+        ExternalStubs.getImage = { _, _ -> 16 to 10 }
+    }
+
+    private fun assertBackEntry(index: Int, chtab: Int, id: Int, xh: Int, ybottom: Int, blit: Int) {
+        val entry = gs.backtable[index]
+        assertEquals(chtab, entry.chtabId)
+        assertEquals(id, entry.id)
+        assertEquals(xh, entry.xh)
+        assertEquals(ybottom - 9, entry.y.toInt())
+        assertEquals(blit, entry.blit)
+    }
+
+    private fun assertForeEntry(index: Int, chtab: Int, id: Int, xh: Int, ybottom: Int, blit: Int) {
+        val entry = gs.foretable[index]
+        assertEquals(chtab, entry.chtabId)
+        assertEquals(id, entry.id)
+        assertEquals(xh, entry.xh)
+        assertEquals(ybottom - 9, entry.y.toInt())
+        assertEquals(blit, entry.blit)
     }
 
     private fun seedRoom(room: Int, tilepos: Int, tile: Int, modifier: Int) {
