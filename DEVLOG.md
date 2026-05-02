@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16e.2: Render table flusher
+
+**Mode:** Code | **Outcome:** Complete — render tables flush through the JVM sprite renderer
+**Contract changes:** Added `com.sdlpop.render.RenderTableFlusher` as the JVM consumer for Phase 16d render tables; no Android Canvas or game-state producer contract changed.
+
+Created `RenderTableFlusher`, which consumes `GameState` render tables and loaded `SpriteCatalog` instances, resolves zero-based table image ids through one-based catalog frame ids, and draws via `SpriteRenderer` in SDLPoP draw order: deferred peel restore, wipe layer 0, backtable, midtable, wipe layer 1, and foretable. The midtable path handles the `0x80` hflip bit, `chtabFlipClip` clipping, sword-specific x-coordinate behavior, and C-style hflip positioning before drawing.
+
+Added focused coverage for table draw order, layer-specific wipes, back/fore catalog id resolution, midtable clipping, hflip behavior, and dirty-rect bookkeeping.
+
+Verification: `gradle test --tests com.sdlpop.render.RenderTableFlusherTest --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 652 tests.
+
 ### 2026-05-02 — Step 16e.1: JVM sprite blitter
 
 **Mode:** Code | **Outcome:** Complete — pixel-buffer sprite blitter implemented and tested

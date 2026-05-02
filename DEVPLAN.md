@@ -2,7 +2,7 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 1 of 6
+step: 2 of 6
 mode: Build
 blocked: null
 regime: Build
@@ -59,9 +59,9 @@ review_done: false
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **IN PROGRESS**
-**Next:** Step 16e.2 — Render table flusher
+**Next:** Step 16e.3 — Level screenshot generator
 
-**Replay regression:** 8/13 MATCH, 649 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 652 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -218,6 +218,7 @@ Create `RenderTableFlusher` that takes a `SpriteRenderer` + loaded `SpriteCatalo
 - **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/RenderTableFlusher.kt`, `RenderTableFlusherTest.kt`
 - **Test:** Load Level 1 state, populate tables via `Seg008.redrawRoom()`, flush to 320×200 BufferedImage, save PNG. Visual sanity check.
 - **Reference:** `SDLPoP/src/seg008.c` lines 1365-1383 (`draw_tables`), lines 938-956 (`draw_back_fore`), lines 992-1045 (`draw_mid`)
+- **Status:** COMPLETE 2026-05-02 — `RenderTableFlusher` consumes `GameState` render tables through `SpriteRenderer` in C draw order, with focused tests for table ordering, wipes, sprite resolution, midtable clip, hflip, and dirty rects; full `gradle test --no-daemon` passes.
 
 **Step 16e.3: Level screenshot generator**
 Create `LevelScreenshotGenerator` that loads chtab catalogs, iterates reachable rooms via BFS over room links (same algorithm as C's `save_level_screenshot`), renders each room via `Seg008.redrawRoom()` + `RenderTableFlusher`, and stitches into a composite PNG (320px × 189px per room).
