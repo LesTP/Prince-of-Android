@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Step 16e.3: Level screenshot generator
+
+**Mode:** Code | **Outcome:** Complete — JVM Level 1 composite PNG generation works
+**Contract changes:** Added `com.sdlpop.render.LevelScreenshotGenerator` as the JVM level-map renderer; `RenderTableFlusher` now accepts directory-backed PNG sprites as well as DAT-decoded sprites. No Android Canvas or game-state producer contract changed.
+
+Created `LevelScreenshotGenerator`, which loads SDLPoP level resources through the existing asset repository, parses the packed `level_type` byte layout, applies the translated `Seg008.alterModsAllrm()` preprocessing, maps reachable rooms with the same left/right/up/down BFS direction order as `screenshot.c::save_level_screenshot()`, renders each room through `Seg008.drawRoom()` and `RenderTableFlusher`, and stitches room images into a `BufferedImage` composite at 320x189 pixels per room.
+
+Extended `RenderTableFlusher` to decode `PngDecodedImage` resources via `ImageIO`, which is required for the packaged directory-backed KID, environment, sword, and potion/flame assets. Added focused coverage for the room-map BFS and a Level 1 generator test that writes `SDLPoP-kotlin/build/render/level_01_kotlin.png`.
+
+Verification: `gradle test --tests com.sdlpop.render.LevelScreenshotTest --tests com.sdlpop.render.RenderTableFlusherTest --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 654 tests.
+
 ### 2026-05-02 — Step 16e.2: Render table flusher
 
 **Mode:** Code | **Outcome:** Complete — render tables flush through the JVM sprite renderer

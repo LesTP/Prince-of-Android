@@ -2,7 +2,7 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 2 of 6
+step: 3 of 6
 mode: Build
 blocked: null
 regime: Build
@@ -59,9 +59,9 @@ review_done: false
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **IN PROGRESS**
-**Next:** Step 16e.3 — Level screenshot generator
+**Next:** Step 16e.4 — C reference screenshots + ImageMagick pixel-diff comparison
 
-**Replay regression:** 8/13 MATCH, 652 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
+**Replay regression:** 8/13 MATCH, 654 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
 ## Phase Summary
 
@@ -225,6 +225,7 @@ Create `LevelScreenshotGenerator` that loads chtab catalogs, iterates reachable 
 - **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/LevelScreenshotGenerator.kt`, `LevelScreenshotTest.kt`
 - **Test:** Generate Level 1 composite PNG from Kotlin.
 - **Reference:** `SDLPoP/src/screenshot.c` lines 472-686 (`save_level_screenshot`)
+- **Status:** COMPLETE 2026-05-02 — `LevelScreenshotGenerator` loads level resources/catalogs, maps reachable rooms with C-compatible BFS, renders rooms via `Seg008.drawRoom()` + `RenderTableFlusher`, writes `build/render/level_01_kotlin.png`, and full `gradle test --no-daemon` passes with 654 tests.
 
 **Step 16e.4: C reference screenshots + ImageMagick pixel-diff comparison**
 Generate C reference screenshots for all 14 levels on the Pi. Compare against Kotlin output using ImageMagick `compare -metric AE ref.png test.png diff.png` (returns count of differing pixels, produces highlighted diff image). No custom tooling needed — `compare` is already on the Pi (Debian 12).

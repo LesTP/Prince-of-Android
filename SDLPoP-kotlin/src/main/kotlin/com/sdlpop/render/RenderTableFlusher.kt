@@ -2,6 +2,7 @@ package com.sdlpop.render
 
 import com.sdlpop.assets.DatDecodedImage
 import com.sdlpop.assets.DecodedAssetImage
+import com.sdlpop.assets.PngDecodedImage
 import com.sdlpop.assets.SpriteCatalog
 import com.sdlpop.game.BackTableType
 import com.sdlpop.game.Blitters
@@ -11,6 +12,8 @@ import com.sdlpop.game.MidtableType
 import com.sdlpop.game.RectType
 import com.sdlpop.game.Seg008
 import com.sdlpop.game.WipetableType
+import java.io.ByteArrayInputStream
+import javax.imageio.ImageIO
 
 class RenderTableFlusher(
     private val renderer: SpriteRenderer,
@@ -35,7 +38,7 @@ class RenderTableFlusher(
         }
         if (index !in table.indices) return
         val entry = table[index]
-        val sprite = requireDatSprite(entry.chtabId, entry.id)
+        val sprite = requireSprite(entry.chtabId, entry.id)
         renderer.drawSprite(
             x = entry.screenX(),
             y = entry.y.toInt(),
@@ -50,7 +53,7 @@ class RenderTableFlusher(
     fun drawMid(index: Int) {
         if (index !in gs.midtable.indices) return
         val entry = gs.midtable[index]
-        val sprite = requireDatSprite(entry.chtabId, entry.id)
+        val sprite = requireSprite(entry.chtabId, entry.id)
         var x = entry.screenX()
         val y = entry.y.toInt()
         var blit = entry.blit
@@ -130,15 +133,23 @@ class RenderTableFlusher(
         gs.peelsCount = 0
     }
 
-    private fun requireDatSprite(chtabId: Int, zeroBasedImageId: Int): DatDecodedImage {
+    private fun requireSprite(chtabId: Int, zeroBasedImageId: Int): RenderSprite {
         val image = catalogs[chtabId]?.imageByFrameId(zeroBasedImageId + 1)
             ?: error("Missing sprite chtab=$chtabId image=$zeroBasedImageId")
-        return image.asDatSprite(chtabId, zeroBasedImageId)
+        return image.asRenderSprite(chtabId, zeroBasedImageId)
     }
 
-    private fun DecodedAssetImage.asDatSprite(chtabId: Int, zeroBasedImageId: Int): DatDecodedImage =
-        this as? DatDecodedImage
-            ?: error("Sprite chtab=$chtabId image=$zeroBasedImageId is not a DAT decoded image")
+    private fun DecodedAssetImage.asRenderSprite(chtabId: Int, zeroBasedImageId: Int): RenderSprite =
+        when (this) {
+            is DatDecodedImage -> RenderSprite(width, height, argbPixels)
+            is PngDecodedImage -> {
+                val image = ImageIO.read(ByteArrayInputStream(pngBytes))
+                    ?: error("Sprite chtab=$chtabId image=$zeroBasedImageId is not a readable PNG")
+                val pixels = IntArray(image.width * image.height)
+                image.getRGB(0, 0, image.width, image.height, pixels, 0, image.width)
+                RenderSprite(image.width, image.height, pixels)
+            }
+        }
 
     private fun BackTableType.screenX(): Int = xh * 8 + xl
 
@@ -158,6 +169,12 @@ class RenderTableFlusher(
         rect.bottom = (top + height).toShort()
         gs.drectsCount = (index + 1).toShort()
     }
+
+    private data class RenderSprite(
+        val width: Int,
+        val height: Int,
+        val argbPixels: IntArray
+    )
 
     companion object {
         const val BACKTABLE = 0
