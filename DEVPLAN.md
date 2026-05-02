@@ -47,8 +47,8 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Phase 16c complete
+**Phase:** 16c — Render table pure logic — **COMPLETE (pending human audit)**
+**Next:** Human audit of Phase 16c, then Phase 16d planning
 
 **Replay regression:** 8/13 MATCH, 620 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -164,76 +164,8 @@ One-line: Ported the `seg009.c` DAT/PNG asset pipeline into JVM-testable Kotlin 
 
 Human audit approved on 2026-04-30; proceed to Phase 16c planning.
 
-#### Phase 16c: Render table pure logic (seg008 state functions) — IN PROGRESS
-
-**Regime:** Build (autonomous).
-
-**Scope:** Translate the 30 pure-state functions from seg008.c. Zero SDL calls. Pure array/struct manipulation identical in character to Modules 8–12.
-
-**Functions (grouped by subsystem):**
-
-Room/tile loading:
-- `load_room_links` (already done as `loadRoomAddress` — verify/extend)
-- `load_leftroom`, `load_rowbelow`, `load_curr_and_left_tile`
-
-Tile resolution:
-- `get_tile_to_draw` — 104 lines of branching logic for fake tiles, button states, loose floors
-- `can_see_bottomleft` — single tile-type comparison
-- `get_spike_frame`, `get_loose_frame` — modifier-to-frame converters
-- `calc_gate_pos` — gate geometry arithmetic
-
-Object table management:
-- `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`
-- `load_obj_from_objtable`, `mark_obj_tile_redraw`
-- `sort_curr_objs`, `compare_curr_objs` — object draw-order sort
-- `load_frame_to_obj` — computes object position from frame data
-
-Tile preprocessing:
-- `alter_mods_allrm` — iterates all rooms preprocessing tile modifiers
-- `load_alter_mod` — 143-line per-tile modifier logic (gates, loose, potions, walls, torches)
-
-Geometry:
-- `calc_screen_x_coord` — `x * 320 / 280` (fix existing identity stub)
-- `add_drect` — dirty-rect intersection/union tracking
-
-Orchestrators:
-- `draw_room`, `draw_tile`, `draw_tile_aboveroom`
-- `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`
-- `draw_moving`
-
-**Test oracle:** Unit tests comparing computed render tables and object tables against expected values for known room layouts. Same pattern as Modules 8–12.
-
-**Human work:** None during translation. Review at phase boundary.
-
-**Acceptance:** All 30 functions translated. Existing game logic tests still pass. New unit tests cover tile resolution, object table population, and modifier preprocessing.
-
-**Review (2026-05-02):** Complete. No must-fix or should-fix findings. `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` and full `gradle test --no-daemon` pass in `SDLPoP-kotlin` with 620 tests.
-
-**Phase plan (2026-04-30):**
-
-1. **16c.1 — Seg008 render-state scaffold and tile helpers — COMPLETE (2026-04-30)**
-   - Add the Kotlin `Seg008` foundation needed by later rendering phases without drawing pixels: translated tile-table constants/data models as needed, render-state globals missing from `GameState`, `calc_screen_x_coord` replacing the current identity stub, and the small pure helpers `can_see_bottomleft`, `get_spike_frame`, `get_loose_frame`, and `calc_gate_pos`.
-   - Translate `get_tile_to_draw` with focused fixtures for fake tiles, room-0 edges, button states, loose-floor modifiers, and current/neighbor room lookups.
-   - Wire `ExternalStubs.calcScreenXCoord` to the real helper while preserving test reset behavior.
-   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (596 tests).
-
-2. **16c.2 — Room links, adjacent tiles, and modifier preprocessing — COMPLETE (2026-04-30)**
-   - Translate `load_room_links`, `load_leftroom`, `load_rowbelow`, and `load_curr_and_left_tile`, reusing the existing `ExternalStubs.loadRoomAddress` room-buffer loader where it already matches C behavior.
-   - Translate `alter_mods_allrm` and `load_alter_mod`, including gate, loose-floor, potion, wall, torch, and retained wall-modifier behavior.
-   - Add tests that seed `level.fg[]`/`level.bg[]` rather than only room buffers, covering neighbor-room links, above/below/left edge cases, and all major modifier transformations.
-   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (606 tests).
-
-3. **16c.3 — Object table and dirty-rect bookkeeping — COMPLETE (2026-04-30)**
-   - Translate `add_objtable`, `add_kid_to_objtable`, `add_guard_to_objtable`, `load_obj_from_objtable`, `mark_obj_tile_redraw`, `sort_curr_objs`, `compare_curr_objs`, `load_frame_to_obj`, and `add_drect`.
-   - Preserve C-equivalent byte/sbyte wrapping for object x/y/id fields and draw-order comparisons.
-   - Add tests for Kid/Guard object insertion, frame-to-object coordinate calculation, sort order, tile redraw marking, and dirty-rect merge/intersection behavior.
-   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (613 tests).
-
-4. **16c.4 — Pure orchestration with render-submission hooks — COMPLETE (2026-04-30)**
-   - Translate `draw_room`, `draw_tile`, `draw_tile_aboveroom`, `redraw_needed`, `redraw_needed_above`, `redraw_needed_tiles`, and `draw_moving`.
-   - Keep Phase 16d submission functions behind no-op or test-capturable render hooks so this step establishes C-equivalent traversal/order without appending real render-table entries yet.
-   - Add call-order and state-mutation tests for room traversal, above-room traversal, redraw counters, tile-object redraw clearing, and moving-object orchestration.
-   - Verification: `gradle test --tests com.sdlpop.game.Seg008Test`; full `gradle test` (620 tests).
+#### Phase 16c: Render table pure logic (seg008 state functions) — COMPLETE
+One-line: Translated the 30 pure `seg008.c` render-state functions into `Seg008.kt`, covering tile resolution, room/adjacent-tile loading, modifier preprocessing, object-table and dirty-rect bookkeeping, and draw/redraw orchestration behind Phase 16d render-submission hooks; review found no must-fix or should-fix issues, and `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` plus full `gradle test --no-daemon` pass with 620 tests. See DEVLOG §Module 16.
 
 #### Phase 16d: Render table submission (seg008 mixed functions) — PENDING
 

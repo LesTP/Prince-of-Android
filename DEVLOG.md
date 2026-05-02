@@ -2,6 +2,17 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Phase 16c complete
+
+**Mode:** Complete | **Outcome:** Phase complete — render table pure logic accepted for human audit
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md, DECISIONS.md — phase status and completion metadata only; no source behavior changes.
+
+Completed Phase 16c closure after review. The phase delivered the pure `seg008.c` render-state translation in `Seg008.kt`: tile resolution, room-link and adjacent-tile loading, modifier preprocessing, object table insertion/sorting/loading, dirty-rect merging, and draw/redraw orchestration behind Phase 16d render-submission hooks.
+
+No new gotchas were promoted from the phase learning review; the main C/Kotlin room-buffer pointer issue was already captured in DEVPLAN during Step 16c.2. DEVLOG is above 500 lines but remains an active Module 16 log, so no archive split was performed in this completion step.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 620 tests.
+
 ### 2026-05-02 — Phase 16c review
 
 **Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings
