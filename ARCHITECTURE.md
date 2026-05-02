@@ -2,7 +2,7 @@
 
 ## Status
 
-**Project phase:** Module 16 — Rendering (Track B). Phase 16a (scaffold), Phase 16b (asset pipeline), and Phase 16c (render-state logic) complete.
+**Project phase:** Module 16 — Rendering (Track B). Phase 16a (scaffold), Phase 16b (asset pipeline), Phase 16c (render-state logic), and Phase 16d (render table submission) complete.
 
 Preparation phases 0-3 complete. Track A (game logic, Modules 6-15) complete at 8/13 replay traces.
 Q1 (oracle) and Q2 (language) resolved. Q3 (touch controls) pending Phase 4 prototype.
@@ -291,7 +291,7 @@ The state model is the foundation. Every other module depends on it. It must be 
 | 13 | Layer 1 Integration | Full regression suite on combined game logic | Build | Modules 8-12 | **Complete** |
 | 14 | Replay Runner | Kotlin replay playback + state trace writer | Build | Modules 6-13 | **Complete** (1/13 traces; Layer 2 boundary) |
 | 15 | Game Loop | seg000/001/003 refactor + translate | Build (semi-auto) | Modules 6-14 | **Complete** (8/13 traces, 5 divergences root-caused) |
-| 16 | Rendering | seg008 + lighting → Android | Build + Refine | Game Loop | **In Progress** (Phase 16c complete) |
+| 16 | Rendering | seg008 + lighting → Android | Build + Refine | Game Loop | **In Progress** (Phase 16d complete) |
 | 17 | Platform | seg009 → Android APIs | Build | — | Pending |
 | 18 | Audio | Sound + music → Android | Build | Platform | Pending |
 | 19 | Controls | Touch gesture system | Refine | Platform | Pending |
@@ -352,7 +352,7 @@ The implementation modules group into three independent tracks based on toolchai
 
 ### What's next
 
-**Module 15 (Game Loop) is complete** at 8/13 traces. Module 16 (Rendering) is in progress — Phase 16a (Android scaffold), Phase 16b (asset pipeline), and Phase 16c (render-state logic) are complete. When real sprite assets are connected to runtime collision dimensions, the hardcoded dimension table will be replaced and the remaining grab-detection divergences may resolve.
+**Module 15 (Game Loop) is complete** at 8/13 traces. Module 16 (Rendering) is in progress — Phase 16a (Android scaffold), Phase 16b (asset pipeline), Phase 16c (render-state logic), and Phase 16d (render table submission) are complete. When real sprite assets are connected to runtime collision dimensions, the hardcoded dimension table will be replaced and the remaining grab-detection divergences may resolve.
 
 ---
 

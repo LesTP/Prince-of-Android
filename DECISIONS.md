@@ -8,7 +8,7 @@ Rationale: Review compared the Phase 16d `Seg008.kt` implementation against the 
 Revisit if: Phase 16e table flushing discovers a render-table field contract mismatch, or visual validation shows a Phase 16d command ordering issue not covered by command-level tests.
 
 D-25: Phase 16d build boundary
-Date: 2026-05-02 | Status: Open
+Date: 2026-05-02 | Status: Closed
 Priority: Important
 Decision: Plan Phase 16d as a Build-regime render-command phase split into four steps: table data/append helpers, tile submissions, structures/overlays/people/object flushing, and wall/timer integration.
 Rationale: Phase 16c already translated pure render-state traversal behind hooks. The next clean autonomous boundary is to replace those hooks with deterministic render-table producers while still deferring actual pixel drawing, Canvas operations, text rendering details, peel restoration, and lighting to Phase 16e Refine work. Starting with table data and append helpers gives later tile/object functions a testable command sink, and ending with wall/timer integration captures the highest-risk PRNG and text-state behavior after the common submission paths exist.

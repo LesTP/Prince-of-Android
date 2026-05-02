@@ -2,6 +2,19 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Phase 16d complete
+
+**Mode:** Complete | **Outcome:** Phase complete — render table submission ready for human audit
+**Contract changes:** DEVPLAN.md, ARCHITECTURE.md, DECISIONS.md — phase status and completion metadata only; no source behavior changes.
+
+Completed Phase 16d closure after review. The phase delivered the full Build-regime `seg008.c` render-submission slice: render-table data and append helpers, tile submissions, gates/level doors/overlays, people and object-table flushing, wall-pattern generation, wall marks, timer text, and level text state. The one review must-fix for `FIX_ONE_HP_STOPS_BLINKING` blink-state compatibility was applied before closure.
+
+No new DEVPLAN gotchas were promoted from the phase learning review. The only review issue was a direct compatibility fix, not a repeated trial-and-error pattern, and the Build/Refine boundary remained unchanged: Phase 16d only populates render queues/text state and leaves Android Canvas drawing, table flushing, peels, and lighting to Phase 16e.
+
+DEVLOG is above 500 lines, but the excess is historical completed-module context already kept here by prior Module 16 completion entries; no archive split was performed in this completion step to avoid churn outside the active phase.
+
+Verification: full `gradle test --no-daemon` passed in `SDLPoP-kotlin`.
+
 ### 2026-05-02 — Phase 16d Review
 
 **Mode:** Review | **Outcome:** Complete — one must-fix applied
