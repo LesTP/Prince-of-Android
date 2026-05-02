@@ -1,5 +1,12 @@
 # DECISIONS — Prince of Persia Android Port
 
+D-23: Phase 16c review outcome
+Date: 2026-05-02 | Status: Closed
+Priority: Important
+Decision: Accept Phase 16c (render table pure logic) as meeting the Module 16 Build-regime contract with no must-fix or should-fix findings. The phase translated the pure `seg008.c` state helpers, room/adjacent-tile loading, modifier preprocessing, object-table bookkeeping, dirty-rect merging, and draw/redraw orchestration behind render-submission hooks.
+Rationale: Review compared the Phase 16c `Seg008.kt` implementation against the relevant `seg008.c` pure-state functions and confirmed the Android/SDL pixel-drawing boundary remains deferred to Phase 16d/16e. Focused verification passed with `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon`; full verification passed with `gradle test --no-daemon` in `SDLPoP-kotlin` at 620 tests.
+Revisit if: Phase 16d render-table appenders require changing the hook boundary or reveal that any Phase 16c orchestration order differs from C render-table production.
+
 D-22: Sync Seg008 modifier preprocessing into level buffers
 Date: 2026-04-30 | Status: Open
 Priority: Important

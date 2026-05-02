@@ -48,7 +48,7 @@
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16c — Render table pure logic — **IN PROGRESS**
-**Next:** Phase 16c review
+**Next:** Phase 16c complete
 
 **Replay regression:** 8/13 MATCH, 620 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -206,6 +206,8 @@ Orchestrators:
 **Human work:** None during translation. Review at phase boundary.
 
 **Acceptance:** All 30 functions translated. Existing game logic tests still pass. New unit tests cover tile resolution, object table population, and modifier preprocessing.
+
+**Review (2026-05-02):** Complete. No must-fix or should-fix findings. `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` and full `gradle test --no-daemon` pass in `SDLPoP-kotlin` with 620 tests.
 
 **Phase plan (2026-04-30):**
 

@@ -2,6 +2,15 @@
 
 ## Module 16: Rendering
 
+### 2026-05-02 — Phase 16c review
+
+**Mode:** Review | **Outcome:** Complete — no must-fix or should-fix findings
+**Contract changes:** DEVPLAN.md, DECISIONS.md — review status only; no source behavior changes.
+
+Reviewed the Phase 16c render-state implementation against the `seg008.c` pure-state contract. The translated `Seg008.kt` slice keeps Android/SDL pixel drawing out of scope, leaves Phase 16d render-table submission behind hooks, and covers tile resolution, adjacent-room loading, modifier preprocessing, object-table state, dirty-rect bookkeeping, and draw/redraw traversal with focused tests.
+
+Verification: `gradle test --tests com.sdlpop.game.Seg008Test --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 620 tests.
+
 ### 2026-04-30 — Step 16c.4: Pure orchestration with render-submission hooks
 
 **Mode:** Code | **Outcome:** Complete — draw/redraw traversal translated behind no-op/test-capturable render hooks
