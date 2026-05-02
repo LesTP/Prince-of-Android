@@ -1,3 +1,14 @@
+---
+module: RENDERING
+phase: 16e
+phase_title: Rendering backend — JVM-first + level screenshot comparison
+step: 0 of 6
+mode: Discuss
+blocked: null
+regime: Build
+review_done: false
+---
+
 # DEVPLAN — Prince of Persia Android Port
 
 ## Cold Start Summary
@@ -47,8 +58,8 @@
 
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
-**Phase:** 16d — Render table submission — **COMPLETE**
-**Next:** Human audit before Phase 16e (Android rendering backend, Refine)
+**Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **PLANNED**
+**Next:** Phase-plan action (step breakdown already in DEVPLAN, worker should proceed to Step 16e.1)
 
 **Replay regression:** 8/13 MATCH, 642 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -170,42 +181,65 @@ One-line: Translated the 30 pure `seg008.c` render-state functions into `Seg008.
 #### Phase 16d: Render table submission (seg008 mixed functions) — COMPLETE
 One-line: Translated the 31 `seg008.c` render-submission functions into Kotlin render-table producers, covering table append helpers, tile/structure/overlay/people/object submissions, wall-pattern generation, wall marks, timer text, and level text; review found one blink-state compatibility must-fix, applied before closure, and full `gradle test --no-daemon` passes with 642 tests. See DEVLOG §Module 16.
 
-#### Phase 16e: Android rendering backend — PENDING
+#### Phase 16e: Rendering backend — JVM-first + level screenshot comparison — PENDING
 
-**Regime:** Refine (human-driven).
+**Regime:** Build (autonomous, Steps 1-4) then Refine (human-driven, Steps 5-6).
 
-**Scope:** Replace the SDL draw pipeline with Android `Canvas` drawing. This is the core visual implementation phase.
+**Strategy:** Build the rendering backend as a JVM `BufferedImage` renderer first, validated via automated pixel comparison against C reference level screenshots. Defer Android `Canvas` work until blitter correctness is proven. This converts most rendering validation from human-visual (Refine) to automated-comparison (Build).
 
-**Functions to replace (11 SDL rendering functions → Android Canvas):**
-- `draw_tables` → iterate `backtable[]`/`midtable[]`/`foretable[]`, draw `Bitmap` sprites via `Canvas.drawBitmap()`
-- `draw_back_fore` → resolve sprite from chtab, draw to Canvas
-- `draw_mid` → horizontal flip via `Matrix.preScale(-1, 1)`, clip rect, peel save, draw
-- `draw_image` → dispatcher to appropriate Canvas draw call
-- `hflip` → `Matrix` transform or pre-flipped Bitmap cache
-- `draw_wipe` / `draw_wipes` → `Canvas.drawRect()` with `Paint`
-- `restore_peels` / `add_peel` / `free_peels` → `Canvas.save()`/`Canvas.restore()` or manual Bitmap snapshots
-- `display_text_bottom` / `erase_bottom_text` → `Canvas.drawText()` with `Paint`
+**Why JVM-first:** `BufferedImage` and `Canvas` have near-identical APIs. Asset pipeline already produces `IntArray` ARGB pixels (works on both). `gradle test` iterates in ~5s vs ~60s+ for emulator. Pixel-perfect comparison catches bugs automatically without human eyes.
 
-**Lighting (3 functions):**
-- `init_lighting` → load `light.png` via `BitmapFactory`, create overlay Bitmap
-- `redraw_lighting` → fill overlay with ambient color, stamp light mask at torch positions
-- `update_lighting` → composite overlay onto frame buffer with `PorterDuff.Mode.MULTIPLY`
+**C reference:** SDLPoP's `save_level_screenshot()` (in `screenshot.c`) renders every reachable room into one composite PNG per level. Invoke via `./prince megahit N --screenshot --screenshot-level` with `SDL_VIDEODRIVER=offscreen`. Generate references for all 14 levels on the Pi.
 
-**Screen present pipeline:**
-- `SurfaceView.surfaceCreated` → get `Canvas` from `SurfaceHolder`
-- Per frame: lock Canvas → draw 320×200 offscreen buffer scaled to screen → unlock and post
-- Frame pacing: `Choreographer` callback or `Thread.sleep` targeting 60fps
+**Blitter mode → implementation mapping:**
 
-**Why Refine:** No replay oracle for rendering correctness. Visual output requires human eyes. Layer ordering, transparency, clipping, palette correctness — all need visual inspection.
+| C Blitter | Value | PoP Usage | Implementation |
+|-----------|-------|-----------|----------------|
+| `NO_TRANSP` | 0 | Opaque tiles (floor, wall base) | Overwrite all pixels |
+| `OR` | 2 | Most sprites with transparency | Skip pixels where source == 0 (color key) |
+| `XOR` | 3 | Shadow character | XOR source with destination pixels |
+| `WHITE` | 8 | Flash effect | Draw sprite shape in solid white |
+| `BLACK` | 9 | HP bars, silhouettes | Draw sprite shape in solid black |
+| `TRANSP` | 0x10 | Same as OR in VGA mode | Skip color-key pixels (same as OR) |
+| `MONO` | 0x40+ | Wall patterns, chomper blood | Draw sprite shape in color `blit & 0x3F` |
+| hflip | bit 0x80 in midtable.blit | Left-facing characters | Mirror sprite horizontally before draw |
 
-**Human work:**
-1. Implement `Canvas`-based `draw_tables` flush loop
-2. Wire frame loop: game tick → render table population (Phase 16c/d) → Canvas flush → present
-3. Debug layer ordering, transparency, clipping issues visually
-4. Verify: level 1 room 1 renders correctly on emulator
-5. Iterate on visual issues until rooms look right
+**Steps (Build — autonomous, Steps 1-4):**
 
-**Acceptance:** Level 1 renders visually correct on Android emulator. Tiles, sprites, gates, potions, torches, and wall patterns are recognizable and correctly layered. Timer text displays. Guard and Kid sprites render in correct positions with correct frames.
+**Step 16e.1: JVM sprite blitter**
+Create `SpriteRenderer` in `com.sdlpop.render` that takes a pixel buffer target and implements `drawSprite(x, y, pixels, w, h, blitMode, hflip, clipRect?)` for all 8 blitter modes plus `drawRect(left, top, w, h, colorIndex)` for wipetable entries. Uses PoP's 16-color VGA palette for color-index resolution.
+- **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/SpriteRenderer.kt`, `SpriteRendererTest.kt`
+- **Test:** Unit tests: blit a known sprite with each mode, assert output pixels match expected.
+- **Reference:** `SDLPoP/src/seg009.c` lines 2170-2210 (`method_6_blit_img_to_scr` blitter dispatch), `SDLPoP/src/seg008.c` lines 1048-1077 (`draw_image` dispatch)
+
+**Step 16e.2: Render table flusher**
+Create `RenderTableFlusher` that takes a `SpriteRenderer` + loaded `SpriteCatalog` map (chtabId → catalog) and implements `flushTables(gs)` in C draw order: restore peels (deferred), wipetable layer 0, backtable, midtable (with clip + hflip), wipetable layer 1, foretable. Resolves sprite via `catalogs[entry.chtabId]?.imageByFrameId(entry.id + 1)`. Position: `x = entry.xh * 8 + entry.xl`, `y = entry.y`.
+- **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/RenderTableFlusher.kt`, `RenderTableFlusherTest.kt`
+- **Test:** Load Level 1 state, populate tables via `Seg008.redrawRoom()`, flush to 320×200 BufferedImage, save PNG. Visual sanity check.
+- **Reference:** `SDLPoP/src/seg008.c` lines 1365-1383 (`draw_tables`), lines 938-956 (`draw_back_fore`), lines 992-1045 (`draw_mid`)
+
+**Step 16e.3: Level screenshot generator**
+Create `LevelScreenshotGenerator` that loads chtab catalogs, iterates reachable rooms via BFS over room links (same algorithm as C's `save_level_screenshot`), renders each room via `Seg008.redrawRoom()` + `RenderTableFlusher`, and stitches into a composite PNG (320px × 189px per room).
+- **Files:** Create `SDLPoP-kotlin/src/main/kotlin/com/sdlpop/render/LevelScreenshotGenerator.kt`, `LevelScreenshotTest.kt`
+- **Test:** Generate Level 1 composite PNG from Kotlin.
+- **Reference:** `SDLPoP/src/screenshot.c` lines 472-686 (`save_level_screenshot`)
+
+**Step 16e.4: C reference screenshots + ImageMagick pixel-diff comparison**
+Generate C reference screenshots for all 14 levels on the Pi. Compare against Kotlin output using ImageMagick `compare -metric AE ref.png test.png diff.png` (returns count of differing pixels, produces highlighted diff image). No custom tooling needed — `compare` is already on the Pi (Debian 12).
+- **Files:** `SDLPoP/screenshots/` reference PNGs
+- **Commands:** `for level in $(seq 1 14); do SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy ./prince megahit $level --screenshot --screenshot-level; done`
+- **Test:** Run comparison on Level 1. Triage differences. Iterate on blitter/sprite bugs.
+
+**Steps (Refine — human-driven, Steps 5-6):**
+
+**Step 16e.5: Android Canvas bridge**
+Create `AndroidRenderer` wrapping `android.graphics.Canvas` with the same primitives as JVM `SpriteRenderer`. Wire `drawBackForeHook`/`drawMidHook`/`drawWipeHook` in `Seg008`. Add game loop thread to `GameSurfaceView`: lock Canvas → flush render tables to 320×200 offscreen Bitmap → scale to device resolution → unlock and post.
+- **Files:** Create `app/.../AndroidRenderer.kt`, modify `GameSurfaceView.kt`, `GameActivity.kt`, `Seg008.kt` hooks
+
+**Step 16e.6: Visual debugging iteration**
+Compare all 14 level screenshots (Kotlin vs C). Fix systematic issues (wrong blitter, missing sprites, draw order). Handle edge cases: palace wall colors, torch flames, gate animations, text rendering. Lighting deferred to a separate step if needed.
+
+**Acceptance:** All 14 level screenshots match C reference within tolerance (≥95% pixel match). Level 1 renders visually correct on Android emulator. Tiles, sprites, gates, potions, torches, and wall patterns are recognizable and correctly layered.
 
 #### Phase 16f: Real sprites → replay regression — PENDING
 
@@ -229,7 +263,7 @@ One-line: Translated the 31 `seg008.c` render-submission functions into Kotlin r
 | 16b | Asset loading pipeline | Build + human check | Visually verify decoded sprites | 2–3 iters + 1 session |
 | 16c | Render table pure logic (30 fn) | Build | Review at boundary | 3–4 iters |
 | 16d | Render table submission (31 fn) | Build | Review at boundary | 3–4 iters |
-| 16e | Android rendering backend | Refine | Core visual debugging | 2–3 sessions |
+| 16e | Rendering backend (JVM blitter + screenshot comparison + Android bridge) | Build (1-4) + Refine (5-6) | Review steps 1-4, visual debug steps 5-6 | 4 iters + 2 sessions |
 | 16f | Real sprites → replay regression | Build + human check | Run regression, verify | 1 iter + 1 verify |
 
 **Build/Refine boundary:** Render tables (`backtable[]`, `midtable[]`, `foretable[]`, `wipetable[]`, `objtable[]`) are the clean split. Everything producing table entries is Build. Everything consuming them to put pixels on screen is Refine.
