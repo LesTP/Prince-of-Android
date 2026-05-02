@@ -48,6 +48,13 @@ Added focused unit coverage for overwrite semantics, transparent sprite draws, X
 
 Verification: `gradle test --tests com.sdlpop.render.SpriteRendererTest --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 649 tests.
 
+### 2026-05-02 — Phase 16d approval
+
+**Mode:** Approval | **Outcome:** Human audit accepted; proceed to Phase 16e refine work
+**Contract changes:** DEVPLAN.md — current status advanced to Phase 16e; no source behavior changes.
+
+Recorded human approval for Phase 16d after the completed review and phase-close entry. Module 16 remains in progress, and Phase 16e is now the active next step.
+
 ### 2026-05-02 — Phase 16d complete
 
 **Mode:** Complete | **Outcome:** Phase complete — render table submission ready for human audit

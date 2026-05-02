@@ -7,6 +7,13 @@ Decision: Match SDLPoP `save_level_screenshot()` geometry in the JVM level scree
 Rationale: The C screenshot code creates an image of `map_width * 320` by `map_height * 189 + 11`, then blits the full 320x200 `onscreen_surface_` for each room at `dest_rect.y = y * 189`. The initial JVM generator used 320x189 room surfaces, producing dimension mismatches before meaningful pixel comparison. Matching C geometry makes ImageMagick AE diffs compare rendering content instead of incompatible image shapes.
 Revisit if: The Android renderer uses a different offscreen viewport contract than SDLPoP's 320x200 surface, or if later screenshot tooling intentionally crops status/overlap rows before comparison.
 
+D-27: Phase 16d human approval
+Date: 2026-05-02 | Status: Closed
+Priority: Important
+Decision: Mark Phase 16d as audited and human-approved. Module 16 stays in progress, and Phase 16e is unblocked as the active refine phase.
+Rationale: The Phase 16d review is closed with the one blink-state must-fix already applied, the phase-complete entry already recorded acceptance of the render table submission slice, and verification remains the passing focused `Seg008Test` run plus full `gradle test --no-daemon` at 642 tests.
+Revisit if: Phase 16e backend work reveals a render-table contract mismatch or visual issue that requires reopening the Phase 16d command-production boundary.
+
 D-26: Phase 16d review outcome
 Date: 2026-05-02 | Status: Closed
 Priority: Important
