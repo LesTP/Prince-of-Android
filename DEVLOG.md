@@ -48,6 +48,8 @@ Added focused unit coverage for overwrite semantics, transparent sprite draws, X
 
 Verification: `gradle test --tests com.sdlpop.render.SpriteRendererTest --no-daemon` passed; full `gradle test --no-daemon` passed in `SDLPoP-kotlin` with 649 tests.
 
+<!-- HISTORY — do not read past this line. Completed entries kept for audit. -->
+
 ### 2026-05-02 — Phase 16d approval
 
 **Mode:** Approval | **Outcome:** Human audit accepted; proceed to Phase 16e refine work

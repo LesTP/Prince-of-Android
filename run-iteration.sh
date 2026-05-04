@@ -21,6 +21,21 @@
 
 set -uo pipefail
 
+# Guard: Codex logs_1.sqlite grows unboundedly and causes OOM at ~100MB.
+# At 97MB on disk, Codex CLI inflated it to 13+GB in RAM (~130x).
+# Delete if over 1MB — Codex recreates it fresh. Project's own logging
+# (summary.log, iteration JSONL/TXT, DEVLOG) is the real audit trail.
+CODEX_LOG_DB="$HOME/.codex/logs_1.sqlite"
+if [[ -f "$CODEX_LOG_DB" ]]; then
+  SIZE_KB=$(du -k "$CODEX_LOG_DB" | cut -f1)
+  if [[ $SIZE_KB -gt 1024 ]]; then
+    echo "[guard] Codex logs_1.sqlite is ${SIZE_KB}KB (>1MB) — deleting to prevent OOM"
+    rm -f "$CODEX_LOG_DB" "$CODEX_LOG_DB-shm" "$CODEX_LOG_DB-wal"
+  fi
+fi
+
+PROJECT_DIR=
+
 PROJECT_DIR="/home/claude/workspace/PoP_port"
 LOG_DIR="$PROJECT_DIR/logs/loop"
 SUMMARY_FILE="$LOG_DIR/summary.log"
@@ -68,8 +83,6 @@ PROMPT="MANDATORY FIRST STEP: Read ${ADAPTER_FILE} now. It contains references t
 You are a stateless worker. You have no memory of previous iterations. Reconstruct all state from files.
 
 After reading ${ADAPTER_FILE} and its references, determine current state from DEVPLAN.md. Execute exactly one action per the Worker Spec.
-
-Your final output
 
 Your final output MUST end with exactly these four lines — no text after:
 LOOP_SIGNAL: CONTINUE | ESCALATE

@@ -7,16 +7,45 @@
 ## Framework
 This project follows the From Idea to Code governance framework.
 
-## Always Loaded
-- @PROJECT.md — scope, constraints, success criteria
-- @ARCHITECTURE.md — component map, layer contracts, implementation sequence
-- @GOVERNANCE.md — development process reference
+## Required Reading — Every Iteration
+
+Context loading is tiered to control cache size. Each turn re-reads the cached
+prefix; smaller prefix → fewer cache-read tokens × turn count. Mirrors the
+tiering in CODEX.md.
+
+### Tier 1 — Always (mandatory, every iteration)
+
+Auto-loaded via @-references:
+
 - @DEVPLAN.md — current status, cold start summary, gotchas
 - @WORKER_SPEC.md — backend-agnostic worker contract
 
-## Load for Current Module
-Determine the active track and module from DEVPLAN's Current Status section.
-For layer contracts and module dependencies, see ARCHITECTURE.md.
+### Tier 2 — Current module (mandatory for STEP / REVIEW / COMPLETE)
+
+After determining the active module from DEVPLAN's Current Status, read the
+relevant section of ARCHITECTURE.md for the layer contract and module
+dependencies.
+
+### Tier 3 — On demand (read only when needed)
+
+Do NOT load these unconditionally. Read only when the action requires them:
+
+- `PROJECT.md` — only during Phase Plan (scope, constraints, success criteria)
+- `ARCHITECTURE.md` — only during Phase Plan, or when reasoning about cross-module wiring
+- `GOVERNANCE.md` — only if uncertain about process (regimes, modes, escalation rules)
+
+### Tier 4 — Reference only (load explicitly when relevant)
+
+- `DECISIONS.md` — read during Phase Review to verify no contract drift since prior decisions; otherwise on demand
+- `DEVLOG.md` / `DEVLOG_archive.md` — read during Phase Complete (DEVLOG learning review)
+
+**DEVLOG.md fence:** DEVLOG.md contains a `<!-- HISTORY` fence. When reading
+or writing to DEVLOG.md, stop at the fence. Insert new entries **above** the
+fence line. Do not read or edit content below it.
+
+This file (CLAUDE.md) provides Available Modules and Project-Specific Notes
+inline so non-plan iters don't need to load PROJECT or ARCHITECTURE for
+high-level orientation.
 
 ## Available Modules
 **Track A — Game Logic Translation (current):**

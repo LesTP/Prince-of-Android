@@ -163,8 +163,15 @@ Organize findings as:
 4. **Log review** — review iteration logs (summary.log, transcripts) for this phase. Identify patterns: repeated tool failures, wasted turns, behavioral issues. Promote findings to DEVPLAN Gotchas.
 5. **Contract scan** — scan DEVLOG for Contract Changes markers. List affected upstream documents and propagate (see Contract Changes under Rules).
 6. **DEVPLAN cleanup** — reduce completed phase to a one-line summary with DEVLOG reference. If DEVLOG exceeds ~500 lines, archive completed module entries to `DEVLOG_archive.md`.
-7. Update module Status in ARCHITECTURE.md's Implementation Sequence table. Format: "Phase N complete" after each phase, or "Complete" if this was the module's final phase. Reset DEVPLAN frontmatter for the next phase (or clear it if module is done).
-8. Present summary of everything done and everything needing confirmation.
+7. Update module Status in ARCHITECTURE.md's Implementation Sequence table. Format: "Phase N complete" after each phase, or "Complete" if this was the module's final phase.
+8. Update DEVPLAN frontmatter to reflect completed state:
+   - `phase: null`, `step: null`, `mode: Complete`, `review_done: false`
+   - `phase_title`: describe what was completed and what's next (e.g. "Module 2 complete — Module 3 (Source Ingestion) next")
+   - `blocked: "awaiting-human-audit"`
+   - If this was the project's final module: `module: null`, `phase_title: "All modules complete"`, `blocked: "awaiting-human-audit"`
+   - Update the Current Status prose section to match: Phase = "Module N complete", Focus = "Awaiting human audit before Module N+1 planning".
+   The `/close` bot command clears the audit gate by setting `blocked: null`.
+9. Present summary of everything done and everything needing confirmation.
 
 **Supervised:** Do not commit. Wait for explicit human confirmation.
 **Autonomous:** Commit. Exit with ESCALATE — human audits before next phase begins.
@@ -248,12 +255,14 @@ module: RENDERING_UI
 phase: 3b
 phase_title: Hit-test math
 step: 2 of 5
-mode: Discuss | Code | Debug | Review
-blocked: null
+mode: Discuss | Code | Debug | Review | Complete
+blocked: null | "awaiting-human-audit" | "<description>"
 regime: Build | Refine | Explore
 review_done: false
 ---
 ```
+
+`blocked: "awaiting-human-audit"` is the phase-boundary gate set by the worker during Phase Complete. The `/close` bot command clears it by setting `blocked: null`, unblocking the next iteration.
 
 This block mirrors the Cold Start Summary and Current Status below it. Update both together. The frontmatter is the parse target for tooling; the prose sections remain the authoritative reference for cold-start sessions.
 

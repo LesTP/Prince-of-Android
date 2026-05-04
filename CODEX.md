@@ -10,15 +10,44 @@ This project follows the From Idea to Code governance framework.
 ## Required Reading — Every Iteration
 
 You do not have `@`-reference loading. You must explicitly read these files at
-the start of every iteration before taking any action:
+the start of every iteration before taking any action.
 
-1. `WORKER_SPEC.md` — backend-agnostic worker contract (read first)
-2. `PROJECT.md` — scope, constraints, success criteria
-3. `ARCHITECTURE.md` — component map, layer contracts, implementation sequence
-4. `DEVPLAN.md` — current status, cold start summary, gotchas
+**CRITICAL: Minimize tool calls.** Each tool call round-trips through the full
+context window. Combine reads into as few shell commands as possible.
 
-Do not skip any of these reads. Do not assume their contents from previous
-iterations. You are stateless.
+### Tier 1 — Always (mandatory, every iteration)
+
+Read CODEX.md (this file), WORKER_SPEC.md, and DEVPLAN.md (up to the HISTORY
+fence) in a **single command**:
+
+```bash
+cat CODEX.md && echo '---SPLIT---' && cat WORKER_SPEC.md && echo '---SPLIT---' && awk '/<!-- HISTORY -->/{exit} {print}' DEVPLAN.md
+```
+
+**DEVLOG.md fence:** When reading or writing to DEVLOG.md, stop at the
+`<!-- HISTORY` fence. Insert new entries **above** the fence line. Do not read
+or patch content below it.
+
+```bash
+awk '/<!-- HISTORY -->/{exit} {print}' DEVLOG.md
+```
+
+### Tier 2 — Current module (mandatory for step/review/complete actions)
+
+After determining the active module from DEVPLAN's Current Status, read the
+relevant section of ARCHITECTURE.md for the layer contract and module
+dependencies. Combine with source files in the **same command**.
+
+### Tier 3 — On demand (read only when needed)
+- `PROJECT.md` — only during Phase Plan actions
+- `ARCHITECTURE.md` — only during Phase Plan or cross-module wiring
+- `GOVERNANCE.md` — only if unsure about process
+
+### Read efficiency rules
+- **Combine related reads** into one `cat A && echo '---' && cat B` command
+- **Never read one file per tool call** when you need multiple files
+- **Use `sed -n` ranges** only when you need a specific section, not the whole file
+- **Fresh reads before edits** — re-read immediately before editing, not at iteration start
 
 ## Load for Current Module
 After reading DEVPLAN, determine the active track and module from its Current
