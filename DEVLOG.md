@@ -2,6 +2,21 @@
 
 ## Module 16: Rendering
 
+### 2026-05-04 — Step 16e.5: Android Canvas bridge
+
+**Mode:** Refine (human-driven) | **Outcome:** Complete — Level 1 renders visually on Android emulator
+**Contract changes:** Added `CatalogPreDecoder` and `GameRenderer` in `com.sdlpop.android`; `GameActivity` now fully initializes the asset/render pipeline; `GameSurfaceView` implements render-thread Canvas drawing. `SDLPoP-kotlin/build.gradle.kts` JDK 17 toolchain configuration changed from `jvmToolchain(17)` to explicit `sourceCompatibility`/`targetCompatibility`/`kotlinOptions.jvmTarget`.
+
+Wired the existing JVM rendering pipeline (`SpriteRenderer` → `RenderTableFlusher` → pixel buffer) to an Android `SurfaceView` so Level 1 renders on the emulator. The key challenge was `javax.imageio.ImageIO` crashing on Android — solved by `CatalogPreDecoder`, which pre-converts all `PngDecodedImage` sprites to `DatDecodedImage` (ARGB IntArrays) at catalog load time using `BitmapFactory.decodeByteArray()`.
+
+`GameRenderer` owns a 320×200 pixel buffer and reusable `Bitmap`, calling `SpriteRenderer.clear()` → `RenderTableFlusher.flushTables()` → `Bitmap.setPixels()` per frame. `GameSurfaceView` runs a render thread that locks the Canvas, scales the 320×200 bitmap to fill the surface while maintaining 8:5 aspect ratio, and posts.
+
+Also added immersive sticky mode (`WindowInsetsController` on API 30+, `SYSTEM_UI_FLAG_IMMERSIVE_STICKY` for older) and `FLAG_LAYOUT_NO_LIMITS` to minimize system bar insets. A thin residual black strip remains at the bottom on some emulator configurations but does not affect functionality.
+
+Fixed two build issues: (1) Gradle's JDK 17 toolchain auto-detection failed on Windows with Microsoft JDK — resolved by switching to explicit Java compatibility settings; (2) missing `gradlew.bat` — generated via `gradle wrapper`.
+
+Verification: `gradlew.bat app:assembleDebug --no-daemon` builds successfully; Level 1 dungeon start room renders correctly on Android emulator with torches, walls, floor tiles, and spike traps visible.
+
 ### 2026-05-02 — Step 16e.4: C reference screenshots + ImageMagick pixel-diff comparison
 
 **Mode:** Code | **Outcome:** Complete — C reference screenshots and automated diff workflow established

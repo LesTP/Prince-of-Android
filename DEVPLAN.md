@@ -2,9 +2,9 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 4 of 6
+step: 5 of 6
 mode: Refine
-blocked: Human-driven Android Canvas bridge begins the Refine slice
+blocked: false
 regime: Refine
 review_done: false
 ---
@@ -61,7 +61,7 @@ review_done: false
 **Track:** B — Android Platform (Rendering)
 **Module:** 16 — Rendering (seg008/seg009/lighting → Android Canvas + asset pipeline)
 **Phase:** 16e — Rendering backend (JVM-first + level screenshot comparison) — **IN PROGRESS**
-**Next:** Step 16e.5 — Android Canvas bridge (Refine; human-driven)
+**Next:** Step 16e.6 — Visual debugging iteration (Refine; human-driven)
 
 **Replay regression:** 8/13 MATCH, 654 unit tests pass. 5 remaining divergences root-caused and documented (see DEVLOG §Module 15). Matching: `basic_movement`, `falling`, `original_level2_falling_into_wall`, `original_level5_shadow_into_wall`, `original_level12_xpos_glitch`, `snes_pc_set_level11`, `traps`, `trick_153`.
 
@@ -240,7 +240,8 @@ Generate C reference screenshots for all 14 levels on the Pi. Compare against Ko
 
 **Step 16e.5: Android Canvas bridge**
 Create `AndroidRenderer` wrapping `android.graphics.Canvas` with the same primitives as JVM `SpriteRenderer`. Wire `drawBackForeHook`/`drawMidHook`/`drawWipeHook` in `Seg008`. Add game loop thread to `GameSurfaceView`: lock Canvas → flush render tables to 320×200 offscreen Bitmap → scale to device resolution → unlock and post.
-- **Files:** Create `app/.../AndroidRenderer.kt`, modify `GameSurfaceView.kt`, `GameActivity.kt`, `Seg008.kt` hooks
+- **Files:** Created `app/.../CatalogPreDecoder.kt`, `app/.../GameRenderer.kt`; modified `GameSurfaceView.kt`, `GameActivity.kt`, `SDLPoP-kotlin/build.gradle.kts`
+- **Status:** COMPLETE 2026-05-04 — Level 1 renders on Android emulator via `SpriteRenderer` → `RenderTableFlusher` → `GameRenderer` → Canvas pipeline; `CatalogPreDecoder` eliminates `ImageIO` crash; immersive mode maximizes screen usage; `gradlew.bat app:assembleDebug` builds successfully.
 
 **Step 16e.6: Visual debugging iteration**
 Compare all 14 level screenshots (Kotlin vs C). Fix systematic issues (wrong blitter, missing sprites, draw order). Handle edge cases: palace wall colors, torch flames, gate animations, text rendering. Lighting deferred to a separate step if needed.
