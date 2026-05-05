@@ -25,6 +25,7 @@ class SpriteRenderer(
         require(height > 0) { "Target height must be positive" }
         require(targetPixels.size == width * height) { "Target pixel count must match dimensions" }
         require(palette.size >= 16) { "Palette must provide at least 16 colors" }
+        require(palette.size <= 256) { "Palette must not exceed 256 colors" }
     }
 
     fun clear(color: Int = palette[0]) {
@@ -80,7 +81,7 @@ class SpriteRenderer(
 
     private fun blitPixel(source: Int, dest: Int, mode: Int): Int? =
         when {
-            mode == Blitters.NO_TRANSP -> source
+            mode == Blitters.NO_TRANSP -> source or ALPHA_MASK
             mode == Blitters.OR || mode == Blitters.TRANSP -> {
                 if (isTransparent(source)) null else source
             }
@@ -119,7 +120,10 @@ class SpriteRenderer(
         }
     }
 
-    private fun paletteColor(index: Int): Int = palette[index and 0x0F]
+    private fun paletteColor(index: Int): Int {
+        val i = index and 0xFF
+        return if (i < palette.size) palette[i] else palette[0]
+    }
 
     private fun isTransparent(pixel: Int): Boolean = (pixel ushr 24) == 0
 

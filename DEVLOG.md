@@ -2,6 +2,27 @@
 
 ## Module 16: Rendering
 
+### 2026-05-05 — Step 16e.6: Visual debugging iteration (palace wall rendering)
+
+**Mode:** Refine (human-driven) | **Outcome:** In progress — palace wall rendering matches C reference
+**Contract changes:** `SpriteRenderer` palette expanded from 16 to 256 entries (mask `0x0F` → `0xFF`, bounds-safe fallback). `AssetImages.paletteColorToArgb()` preserves actual RGB for transparent pixels. `RenderTableFlusher.flushTables()` draw order corrected to match C's FIX_BLACK_RECT. `LevelScreenshotGenerator` now builds a full 256-entry VGA palette with chtab row placement, init_game_main() overrides, and resource 20 level_var_palettes support.
+
+Fixed four rendering issues found by comparing Kotlin level screenshots against C references:
+
+1. **256-entry VGA palette** — `SpriteRenderer.paletteColor()` masked indices with `0x0F`, reducing the 256-entry VGA palette to 16 entries. Wall color indices like `0x61` (from `genPalaceWallColors()`) became `0x01` (dark blue). Fixed by expanding palette support to 256 entries and building a full palette in `LevelScreenshotGenerator.buildFullPalette()` that places each chtab's colors at its designated row via `DatPalette.rowBits`.
+
+2. **Resource 20 level_var_palettes** — Levels with `tblLevelColor != 0` (e.g., level 8) need palette rows 0x50-0x6F overridden from PRINCE.DAT resource 20. Added this override in `buildFullPalette()`, matching C's `set_pal_arr(0x50/0x60, ...)` logic.
+
+3. **Palace wall mortar color** — C's `init_game_main()` overrides VGA entry 6 from default brown `(0x2A, 0x15, 0x00)` to lighter tan `(0x30, 0x26, 0x14)`, specifically chosen for palace wall `MONO_6` brick divider sprites. Applied same override in `buildFullPalette()`.
+
+4. **Draw order** — `RenderTableFlusher.flushTables()` was missing a `drawWipes(layer=1)` call before `drawMidTable()`, not matching C's `FIX_BLACK_RECT` behavior. Fixed.
+
+Additional changes: `AssetImages.paletteColorToArgb()` now stores palette[0] RGB with alpha=0 for transparent pixels (instead of `0x00000000`), so `NO_TRANSP` blit renders the correct mortar color. `guardsDir` parsing changed from `u8()` to `s8()` for sign extension. Guard setup added in `renderRoom()` (guardsSeqHi zeroing, guardsX derivation from tile). Palace wall color generation (`genPalaceWallColors()`) added. Potion bubble state initialization added. All debug println statements removed.
+
+Code review performed: moved palette overrides after chtab loading (safer ordering), added bounds-safe `paletteColor()` fallback for 16-entry palette callers. Guards/dynamic objects still not rendering (deferred — requires C's Pass 2: `draw_moving()` + `draw_mobs()` + `draw_people()`).
+
+Verification: Level 4 and level 8 palace walls match C reference. All 14 levels generate successfully. `validate_changes` reports no errors.
+
 ### 2026-05-04 — Step 16e.5: Android Canvas bridge
 
 **Mode:** Refine (human-driven) | **Outcome:** Complete — Level 1 renders visually on Android emulator

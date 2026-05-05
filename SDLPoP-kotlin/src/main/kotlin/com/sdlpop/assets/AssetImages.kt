@@ -70,7 +70,9 @@ object AssetImages {
     private fun paletteColorToArgb(palette: DatPalette, colorIndex: Int): Int {
         val clampedIndex = colorIndex and 0x0F
         return if (clampedIndex == TRANSPARENT_COLOR_INDEX) {
-            0x00000000
+            // Store actual RGB but with alpha=0 so masked blits treat it as transparent.
+            // NO_TRANSP blit (source | ALPHA_MASK) will make it opaque with the correct color.
+            palette.vga[0].toArgb8888(alpha = 0)
         } else {
             palette.vga[clampedIndex].toArgb8888(alpha = 0xFF)
         }

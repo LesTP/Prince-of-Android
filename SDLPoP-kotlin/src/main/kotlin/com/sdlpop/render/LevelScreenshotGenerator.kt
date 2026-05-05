@@ -5,9 +5,12 @@ import com.sdlpop.assets.AssetRepository
 import com.sdlpop.assets.SpriteCatalog
 import com.sdlpop.game.Chtabs
 import com.sdlpop.game.Directions
+import com.sdlpop.game.ExternalStubs
 import com.sdlpop.game.GameState
 import com.sdlpop.game.LevelType
+import com.sdlpop.game.Seg002
 import com.sdlpop.game.Seg008
+import com.sdlpop.game.Tiles
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.nio.file.Path
@@ -22,20 +25,29 @@ class LevelScreenshotGenerator(
 
         loadLevel(levelNumber)
         val catalogs = loadDefaultCatalogs(levelNumber)
+
+        // Wire ExternalStubs.getImage so add_backtable/add_foretable/add_midtable
+        // can look up image heights for all loaded chtabs (not just KID/GUARD)
+        ExternalStubs.getImage = { chtab, imageId ->
+            catalogs[chtab]?.dimensionsByFrameId(imageId + 1)
+        }
+
         val map = buildRoomMap(gs.level, startRoom = gs.level.startRoom.takeIf { it in 1..ROOM_COUNT } ?: 1)
+        val fullPalette = buildFullPalette(catalogs)
         val image = BufferedImage(
             map.width * ROOM_WIDTH,
-            map.height * ROOM_STRIDE_Y + ROOM_OVERLAP_HEIGHT,
+            map.height * ROOM_STRIDE_Y,
             BufferedImage.TYPE_INT_ARGB
         )
 
         for (placement in map.rooms) {
-            val roomImage = renderRoom(placement.room, catalogs)
+            val roomImage = renderRoom(placement.room, catalogs, fullPalette)
+            // Copy only ROOM_STRIDE_Y (189) rows — skip the 11-pixel status bar area
             image.setRGB(
                 placement.x * ROOM_WIDTH,
                 placement.y * ROOM_STRIDE_Y,
                 ROOM_WIDTH,
-                ROOM_RENDER_HEIGHT,
+                ROOM_STRIDE_Y,
                 roomImage.targetPixels,
                 0,
                 ROOM_WIDTH
@@ -152,7 +164,7 @@ class LevelScreenshotGenerator(
         )
     }
 
-    private fun renderRoom(room: Int, catalogs: Map<Int, SpriteCatalog>): SpriteRenderer {
+    private fun renderRoom(room: Int, catalogs: Map<Int, SpriteCatalog>, fullPalette: IntArray): SpriteRenderer {
         gs.drawnRoom = room
         gs.Guard.direction = Directions.NONE
         gs.guardhpCurr = 0
@@ -161,12 +173,109 @@ class LevelScreenshotGenerator(
         gs.peelsCount = 0
         gs.drawMode = 0
         Seg008.loadRoomLinks()
+
+        // Palace levels need wall colors generated per room
+        if (gs.custom.tblLevelType.getOrElse(gs.currentLevel) { 0 } != 0) {
+            genPalaceWallColors()
+        }
+
+        // Load guard from level data (matches C's switch_to_room)
+        val roomIdx = room - 1
+        // Zero out guardsSeqHi 0xFF — means "no custom sequence" in level data
+        if (roomIdx in gs.level.guardsSeqHi.indices && gs.level.guardsSeqHi[roomIdx] == 0xFF) {
+            gs.level.guardsSeqHi[roomIdx] = 0
+        }
+        // Fix guardsX: 0xFF in level data means uninitialized — derive from tile position
+        if (roomIdx in gs.level.guardsX.indices && gs.level.guardsX[roomIdx] == 0xFF) {
+            val guardTile = gs.level.guardsTile[roomIdx]
+            if (guardTile < 30) {
+                val col = guardTile % 10
+                gs.level.guardsX[roomIdx] = col * 14
+            }
+        }
+        Seg002.checkShadow()
+
+        // Trigger potion bubble state — set modifier bit 0 so bubbles render
+        for (tilepos in 0 until 30) {
+            val tileType = gs.currRoomTiles[tilepos] and 0x1F
+            if (tileType == Tiles.POTION) {
+                val modifier = gs.currRoomModif[tilepos]
+                if ((modifier and 7) == 0) {
+                    gs.currRoomModif[tilepos] = modifier + 1
+                }
+            }
+        }
+
+        // Add guard to objtable before drawRoom so drawObjtableItemsAtTile picks it up
+        Seg008.drawGuard()
+
         Seg008.drawRoom()
 
-        val renderer = SpriteRenderer(ROOM_WIDTH, ROOM_RENDER_HEIGHT)
+        val renderer = SpriteRenderer(ROOM_WIDTH, ROOM_RENDER_HEIGHT, palette = fullPalette)
         renderer.clear()
         RenderTableFlusher(renderer, catalogs, gs).flushTables()
         return renderer
+    }
+
+    /**
+     * Build a 256-entry VGA palette by placing each chtab's palette at the
+     * rows indicated by its [DatPalette.rowBits]. Then apply level_var_palettes
+     * (resource 20) override for levels with tblLevelColor != 0.
+     */
+    private fun buildFullPalette(catalogs: Map<Int, SpriteCatalog>): IntArray {
+        val pal = IntArray(256)
+        // Start with the 16 standard VGA colors at row 0
+        SpriteRenderer.DEFAULT_VGA_PALETTE_ARGB.copyInto(pal)
+        // Overlay chtab palettes at their designated rows
+        for (catalog in catalogs.values) {
+            val rowBits = catalog.palette.rowBits
+            for (row in 0 until 16) {
+                if ((rowBits and (1 shl row)) != 0) {
+                    val base = row * 16
+                    val colors = catalog.palette.vga
+                    for (i in colors.indices) {
+                        if (base + i < 256) {
+                            pal[base + i] = colors[i].toArgb8888()
+                        }
+                    }
+                }
+            }
+        }
+        // Apply init_game_main() overrides (C's set_pal calls, run after chtab loading)
+        pal[6] = vga6(0x30, 0x26, 0x14)   // palace wall mortar color (lighter tan)
+        pal[12] = vga6(0x38, 0x00, 0x0C)  // blood/hurt flash color
+        // Apply level_var_palettes (resource 20) override for per-level color variants
+        val levelColor = gs.custom.tblLevelColor.getOrElse(gs.currentLevel) { 0 }
+        if (levelColor != 0) {
+            val levelVarPalettes = repository.loadFromOpenDatsAlloc(20, "bin")
+            if (levelVarPalettes != null) {
+                val data = levelVarPalettes.bytes
+                val levelType = gs.custom.tblLevelType.getOrElse(gs.currentLevel) { 0 }
+                val envOffset = 0x30 * (levelColor - 1)
+                val wallOffset = envOffset + 0x30 * levelType
+                // Set environment palette (0x50-0x5F) from env_pal
+                for (i in 0 until 16) {
+                    val idx = envOffset + i * 3
+                    if (idx + 2 < data.size) {
+                        val r = data[idx].toInt() and 0x3F
+                        val g = data[idx + 1].toInt() and 0x3F
+                        val b = data[idx + 2].toInt() and 0x3F
+                        pal[0x50 + i] = (0xFF shl 24) or (r shl 18) or (g shl 10) or (b shl 2)
+                    }
+                }
+                // Set wall palette (0x60-0x6F) from wall_pal
+                for (i in 0 until 16) {
+                    val idx = wallOffset + i * 3
+                    if (idx + 2 < data.size) {
+                        val r = data[idx].toInt() and 0x3F
+                        val g = data[idx + 1].toInt() and 0x3F
+                        val b = data[idx + 2].toInt() and 0x3F
+                        pal[0x60 + i] = (0xFF shl 24) or (r shl 18) or (g shl 10) or (b shl 2)
+                    }
+                }
+            }
+        }
+        return pal
     }
 
     private fun MutableMap<Int, SpriteCatalog>.load(chtabId: Int, paletteResourceId: Int, paletteBits: Int) {
@@ -211,7 +320,7 @@ class LevelScreenshotGenerator(
             level.startDir = reader.s8()
             repeat(level.fill2.size) { level.fill2[it] = reader.u8() }
             repeat(level.guardsTile.size) { level.guardsTile[it] = reader.u8() }
-            repeat(level.guardsDir.size) { level.guardsDir[it] = reader.u8() }
+            repeat(level.guardsDir.size) { level.guardsDir[it] = reader.s8() }
             repeat(level.guardsX.size) { level.guardsX[it] = reader.u8() }
             repeat(level.guardsSeqLo.size) { level.guardsSeqLo[it] = reader.u8() }
             repeat(level.guardsSkill.size) { level.guardsSkill[it] = reader.u8() }
@@ -231,10 +340,35 @@ class LevelScreenshotGenerator(
                 else -> null
             }
 
+        /** Convert 6-bit VGA RGB to 8-bit ARGB. */
+        private fun vga6(r: Int, g: Int, b: Int): Int =
+            (0xFF shl 24) or (r shl 18) or (g shl 10) or (b shl 2)
+
         private fun ByteArrayInputStream.u8(): Int =
             read().also { require(it >= 0) { "Unexpected end of level resource" } } and 0xFF
 
         private fun ByteArrayInputStream.s8(): Int = u8().toByte().toInt()
+    }
+
+    private fun genPalaceWallColors() {
+        val oldRandomSeed = gs.randomSeed
+        gs.randomSeed = gs.drawnRoom.toLong()
+        Seg002.prandom(1)
+        for (row in 0 until 3) {
+            for (subrow in 0 until 4) {
+                val colorBase = if (subrow % 2 != 0) 0x61 else 0x66
+                var previousColor = -1
+                for (column in 0..10) {
+                    var color: Int
+                    do {
+                        color = colorBase + Seg002.prandom(3)
+                    } while (color == previousColor)
+                    gs.palaceWallColors[44 * row + 11 * subrow + column] = color
+                    previousColor = color
+                }
+            }
+        }
+        gs.randomSeed = oldRandomSeed
     }
 }
 

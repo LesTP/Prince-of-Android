@@ -25,6 +25,7 @@ class RenderTableFlusher(
         restorePeels()
         drawWipes(layer = 0)
         drawBackForeTable(whichTable = BACKTABLE)
+        drawWipes(layer = 1)
         drawMidTable()
         drawWipes(layer = 1)
         drawBackForeTable(whichTable = FORETABLE)
