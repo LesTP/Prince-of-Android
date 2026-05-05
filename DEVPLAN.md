@@ -2,7 +2,7 @@
 module: RENDERING
 phase: 16e
 phase_title: Rendering backend — JVM-first + level screenshot comparison
-step: 5 of 6
+step: 6 of 6
 mode: Refine
 blocked: false
 regime: Refine
@@ -245,6 +245,7 @@ Create `AndroidRenderer` wrapping `android.graphics.Canvas` with the same primit
 
 **Step 16e.6: Visual debugging iteration**
 Compare all 14 level screenshots (Kotlin vs C). Fix systematic issues (wrong blitter, missing sprites, draw order). Handle edge cases: palace wall colors, torch flames, gate animations, text rendering. Lighting deferred to a separate step if needed.
+- **Status:** IN PROGRESS — Palace wall rendering fixed (256-entry palette, mortar color, draw order, resource 20 override). Guards/dynamic objects deferred (requires C's Pass 2 draw_moving pipeline). Remaining visual comparison work continues.
 
 **Acceptance:** All 14 level screenshots match C reference within tolerance (≥95% pixel match). Level 1 renders visually correct on Android emulator. Tiles, sprites, gates, potions, torches, and wall patterns are recognizable and correctly layered.
 

@@ -73,8 +73,8 @@ Every iteration that modifies project state must leave an auditable trail:
 - **DEVLOG.md** — add a dated entry describing what was done and why.
   DEVLOG.md uses a `<!-- HISTORY` fence. New entries go **above** the fence,
   below existing current-phase entries. Do not read or edit content below the
-  fence. During Phase Complete, move the **previous** phase's entries below
-  the fence into history — only the just-completed phase should remain above it.
+  fence. During Phase Complete, move the fence up so only the just-completed
+  phase's entries remain above it.
 - **DECISIONS.md** — log any non-trivial design or implementation decision
   with rationale.
 - **ARCHITECTURE.md** — update the implementation sequence table when a phase

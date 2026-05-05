@@ -34,8 +34,6 @@ if [[ -f "$CODEX_LOG_DB" ]]; then
   fi
 fi
 
-PROJECT_DIR=
-
 PROJECT_DIR="/home/claude/workspace/PoP_port"
 LOG_DIR="$PROJECT_DIR/logs/loop"
 SUMMARY_FILE="$LOG_DIR/summary.log"
